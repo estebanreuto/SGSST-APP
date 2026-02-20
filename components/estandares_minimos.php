@@ -4,9 +4,7 @@ $doc_asignacion = null;
 try {
     if ($usuario_rol === 'sst') {
         $stmt_doc = $conn->prepare("SELECT d.*, 
-                                           u_rep.nombre as rep_nombre, 
-                                           u_rep.apellido as rep_apellido, 
-                                           u_rep.cedula as rep_cedula 
+                                           u_rep.nombre as rep_nombre, u_rep.apellido as rep_apellido, u_rep.cedula as rep_cedula 
                                     FROM doc_asignacion_sst d 
                                     LEFT JOIN usuarios u_rep ON d.representante_id = u_rep.id 
                                     WHERE d.sst_id = ? ORDER BY d.id DESC LIMIT 1");
@@ -14,17 +12,10 @@ try {
         $doc_asignacion = $stmt_doc->fetch(PDO::FETCH_ASSOC);
     } elseif ($usuario_rol === 'representante') {
         $stmt_doc = $conn->prepare("SELECT d.*, 
-                                           u_sst.nombre as sst_nombre, 
-                                           u_sst.apellido as sst_apellido, 
-                                           u_sst.cedula as sst_cedula, 
-                                           u_sst.licencia_sst, 
-                                           u_sst.tipo_licencia as sst_tipo_licencia,
-                                           u_sst.numero_licencia as sst_num_licencia,
-                                           DATE_FORMAT(u_sst.fecha_licencia, '%d/%m/%Y') as sst_fecha_licencia,
-                                           u_sst.ciudad as sst_ciudad,
-                                           u_rep.nombre as rep_nombre, 
-                                           u_rep.apellido as rep_apellido, 
-                                           u_rep.cedula as rep_cedula
+                                           u_sst.nombre as sst_nombre, u_sst.apellido as sst_apellido, u_sst.cedula as sst_cedula, 
+                                           u_sst.licencia_sst, u_sst.tipo_licencia as sst_tipo_licencia, u_sst.numero_licencia as sst_num_licencia,
+                                           DATE_FORMAT(u_sst.fecha_licencia, '%d/%m/%Y') as sst_fecha_licencia, u_sst.ciudad as sst_ciudad,
+                                           u_rep.nombre as rep_nombre, u_rep.apellido as rep_apellido, u_rep.cedula as rep_cedula
                                     FROM doc_asignacion_sst d 
                                     JOIN usuarios u_sst ON d.sst_id = u_sst.id 
                                     LEFT JOIN usuarios u_rep ON d.representante_id = u_rep.id
@@ -40,16 +31,19 @@ $doc_empresa = "Sistemas P";
 $doc_rol = "Responsable";
 $doc_nombre = ""; $doc_cedula = ""; $doc_tipo_lic = ""; $doc_num_lic = ""; $doc_fecha_lic = ""; $doc_ciudad = ""; $doc_fecha_firma = "____/____/________"; $doc_firma_sst = "";
 $doc_rep_nombre = ""; $doc_rep_cedula = "";
+$doc_firma_rep = "";
 
 if ($usuario_rol === 'sst') {
     $doc_nombre = ($usuario_info['nombre'] ?? '') . ' ' . ($usuario_info['apellido'] ?? '');
     $doc_cedula = $usuario_info['cedula'] ?? ''; $doc_tipo_lic = $usuario_info['tipo_licencia'] ?? ''; $doc_num_lic = $usuario_info['numero_licencia'] ?? ''; $doc_fecha_lic = $usuario_info['fecha_licencia'] ?? ''; $doc_ciudad = $usuario_info['ciudad'] ?? ''; $doc_firma_sst = $doc_asignacion['firma_sst'] ?? ''; 
     $doc_rep_nombre = trim(($doc_asignacion['rep_nombre'] ?? '') . ' ' . ($doc_asignacion['rep_apellido'] ?? ''));
     $doc_rep_cedula = $doc_asignacion['rep_cedula'] ?? '';
+    $doc_firma_rep = $doc_asignacion['firma_representante'] ?? '';
     if ($doc_asignacion && $doc_asignacion['estado'] === 'firmado' && !empty($doc_asignacion['fecha_firma'])) { $doc_fecha_firma = date('d/m/Y', strtotime($doc_asignacion['fecha_firma'])); }
 } elseif ($doc_asignacion) {
     $doc_nombre = ($doc_asignacion['sst_nombre'] ?? '') . ' ' . ($doc_asignacion['sst_apellido'] ?? '');
     $doc_cedula = $doc_asignacion['sst_cedula'] ?? ''; $doc_tipo_lic = $doc_asignacion['sst_tipo_licencia'] ?? ''; $doc_num_lic = $doc_asignacion['sst_num_licencia'] ?? ''; $doc_fecha_lic = $doc_asignacion['sst_fecha_licencia'] ?? ''; $doc_ciudad = $doc_asignacion['sst_ciudad'] ?? ''; $doc_firma_sst = $doc_asignacion['firma_sst'] ?? '';
+    $doc_firma_rep = $doc_asignacion['firma_representante'] ?? '';
     if (!empty($doc_asignacion['rep_nombre'])) {
         $doc_rep_nombre = trim($doc_asignacion['rep_nombre'] . ' ' . $doc_asignacion['rep_apellido']);
         $doc_rep_cedula = $doc_asignacion['rep_cedula'];
@@ -61,10 +55,8 @@ if ($usuario_rol === 'sst') {
 }
 ?>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
 <style>
-    /* --- ESTILOS DEL ACORDEÓN --- */
+    /* Estilos Acordeón */
     .accordion-container { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; font-family: 'Inter', sans-serif; }
     .accordion-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 2px 8px rgba(0,0,0,0.02); overflow: hidden; transition: all 0.3s ease; }
     .accordion-header { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: none; border: none; cursor: pointer; text-align: left; transition: background 0.3s ease; font-family: inherit; }
@@ -77,10 +69,8 @@ if ($usuario_rol === 'sst') {
     .accordion-header.active .chevron-icon { transform: rotate(180deg); color: var(--primary); }
     .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; background: #fafbfc; }
     .content-inner { padding: 20px; color: var(--muted); font-size: 0.85rem; line-height: 1.6; }
-    .content-inner h4 { margin: 0 0 8px 0; color: var(--text); font-size: 0.85rem; }
-    .content-inner ul { margin: 0; padding-left: 20px; }
-
-    /* --- FORMATO DEL DOCUMENTO (VISTA PANTALLA) --- */
+    
+    /* VISTA DEL DOCUMENTO EN PANTALLA */
     .document-format { background: #fff; border: 1px solid #e2e8f0; padding: 40px 50px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-top: 16px; color: #1f2d3d; font-size: 0.9rem; line-height: 1.6; text-align: justify; font-family: 'Inter', Arial, sans-serif; }
     .document-format p { margin-bottom: 16px; }
     
@@ -94,51 +84,20 @@ if ($usuario_rol === 'sst') {
     
     /* Panel de firma (Canvas) */
     .firma-box { border: 2px dashed #cbd5e1; border-radius: 8px; background: #f8fafc; position: relative; margin: 0 auto 12px auto; width: 100%; max-width: 300px; overflow: hidden; }
-    .firma-box canvas { width: 100%; height: 120px; cursor: crosshair; display: block; touch-action: none; }
+    .firma-box canvas { width: 100%; height: 120px; cursor: crosshair; display: block; touch-action: none; background: white; }
     .btn-limpiar { position: absolute; top: 8px; right: 8px; background: #f1f5f9; color: var(--muted); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: .7rem; cursor: pointer; z-index: 10; font-family: inherit; }
 
-    /* Alertas */
+    /* Alertas y Botones */
     .alert-status { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
     .alert-status.pending { background: #fef08a; color: #854d0e; border: 1px solid #fde047; }
     .alert-status.success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
 
-    /* Botones de acción del PDF */
     .toolbar-acta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; border-top: 1px dashed var(--border); padding-top: 20px; }
     .btn-pdf { background: #0f172a; color: white; border: none; padding: 9px 18px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background 0.2s; font-family: inherit; }
-    .btn-pdf:hover { background: #334155; }
-    .btn-pdf:disabled { background: #94a3b8; cursor: not-allowed; }
+    .btn-pdf:hover:not(:disabled) { background: #334155; }
+    .btn-pdf:disabled { background: #94a3b8; cursor: wait; opacity: 0.8; }
     .btn-versiones { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 9px 18px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; font-family: inherit; }
     .btn-versiones:hover { background: #e2e8f0; }
-
-    /* ==================================================================== */
-    /* CLASE MÁGICA: GARANTIZA QUE EL PDF NO SE CORTE EN MODO HORIZONTAL    */
-    /* ==================================================================== */
-    .pdf-mode {
-        position: fixed !important;    /* Lo fija en la esquina 0,0 para que html2canvas no se confunda con los márgenes */
-        top: 0 !important;
-        left: 0 !important;
-        width: 1000px !important;      /* Ancho perfecto para formato Carta Horizontal */
-        max-width: none !important;
-        padding: 50px !important;      /* Espacio interno para que respire */
-        margin: 0 !important;
-        border: none !important;
-        box-shadow: none !important;
-        background: #ffffff !important;
-        z-index: 9999 !important;      /* Lo pone encima de todo por un segundo */
-    }
-    .pdf-mode p { font-size: 14px !important; color: #000 !important; text-align: justify !important; line-height: 1.6 !important; }
-    .pdf-mode h4 { font-size: 18px !important; color: #000 !important; margin-bottom: 30px !important; }
-    .pdf-mode .signatures-grid { 
-        display: flex !important; 
-        flex-direction: row !important; /* Mantiene las firmas una al lado de la otra */
-        justify-content: space-around !important; /* Espaciado simétrico para horizontal */
-        gap: 50px !important; 
-        margin-top: 60px !important; 
-    }
-    .pdf-mode .sig-box { width: 40% !important; display: flex !important; flex-direction: column !important; align-items: center !important; }
-    .pdf-mode .sig-box p { font-size: 14px !important; margin: 0 0 4px 0 !important; }
-    .pdf-mode .sig-box span { font-size: 12px !important; margin: 0 !important; color: #333 !important; }
-    /* ==================================================================== */
 
     @media (max-width: 768px) {
         .document-format { padding: 20px; }
@@ -162,16 +121,10 @@ if ($usuario_rol === 'sst') {
     <div class="accordion-item">
         <button class="accordion-header" id="btnAccordionEst1">
             <div class="header-left">
-                <div class="icon-box">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                </div>
+                <div class="icon-box"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg></div>
                 <span class="accordion-title">1. Asignación de persona que diseña el SG-SST</span>
             </div>
-            <svg class="chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
+            <svg class="chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
         </button>
         <div class="accordion-content">
             <div class="content-inner" style="background: #f1f5f9;">
@@ -180,25 +133,17 @@ if ($usuario_rol === 'sst') {
                     <?php if (!$doc_asignacion || $doc_asignacion['estado'] === 'borrador'): ?>
                         <div class="alert-status pending">Genera el documento, dibuja tu firma al final de la hoja y envíalo al Representante Legal.</div>
                     <?php elseif ($doc_asignacion['estado'] === 'pendiente_firma'): ?>
-                        <div class="alert-status pending">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            Documento firmado por ti y enviado. Esperando la firma del Representante Legal...
-                        </div>
+                        <div class="alert-status pending"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Documento firmado por ti y enviado. Esperando la firma del Representante Legal...</div>
                     <?php elseif ($doc_asignacion['estado'] === 'firmado'): ?>
-                        <div class="alert-status success">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            Documento firmado por ambas partes y legalizado exitosamente.
-                        </div>
+                        <div class="alert-status success"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Documento firmado por ambas partes y legalizado exitosamente.</div>
                     <?php endif; ?>
                 <?php endif; ?>
 
                 <?php if ($usuario_rol === 'representante' && $doc_asignacion && $doc_asignacion['estado'] === 'pendiente_firma'): ?>
-                    <div class="alert-status pending" style="border-left: 4px solid #ca8a04;">
-                        El Responsable SG-SST solicita tu firma para legalizar su asignación. Por favor, revisa el documento y firma al final.
-                    </div>
+                    <div class="alert-status pending" style="border-left: 4px solid #ca8a04;">El Responsable SG-SST solicita tu firma para legalizar su asignación. Por favor, revisa el documento y firma al final.</div>
                 <?php endif; ?>
 
-                <div class="document-format" id="acta-imprimir">
+                <div class="document-format" id="acta-pantalla">
                     <h4 style="text-align: center; font-weight: bold; margin-bottom: 24px; color: #111; font-size: 1.15rem;">ACTA DE DESIGNACIÓN DEL RESPONSABLE DEL SG-SST</h4>
                     
                     <p>En cumplimiento de lo establecido en la normatividad vigente en Seguridad y Salud en el Trabajo, la empresa <strong><?php echo htmlspecialchars($doc_empresa); ?></strong> designa como <strong><?php echo htmlspecialchars($doc_rol); ?></strong> del Sistema de Gestión de Seguridad y Salud en el Trabajo – SG-SST a:</p>
@@ -212,17 +157,15 @@ if ($usuario_rol === 'sst') {
                     <div class="signatures-grid">
                         
                         <div class="sig-box">
-                            <?php if ($doc_asignacion && $doc_asignacion['estado'] === 'firmado' && !empty($doc_asignacion['firma_representante'])): ?>
-                                <div class="img-placeholder"><img src="<?php echo $doc_asignacion['firma_representante']; ?>" alt="Firma Representante"></div>
+                            <?php if ($doc_asignacion && $doc_asignacion['estado'] === 'firmado' && !empty($doc_firma_rep)): ?>
+                                <div class="img-placeholder"><img src="<?php echo $doc_firma_rep; ?>"></div>
                                 <div class="line"></div>
                                 <p>Representante Legal</p>
                                 <span><?php echo htmlspecialchars($doc_rep_nombre); ?></span>
-                                <?php if (!empty($doc_rep_cedula)): ?>
-                                    <span>C.C. <?php echo htmlspecialchars($doc_rep_cedula); ?></span>
-                                <?php endif; ?>
+                                <span>C.C. <?php echo htmlspecialchars($doc_rep_cedula); ?></span>
 
                             <?php elseif ($usuario_rol === 'representante' && $doc_asignacion && $doc_asignacion['estado'] === 'pendiente_firma'): ?>
-                                <form action="procesar_estandar1.php" method="POST" id="formFirmaRep" style="width: 100%; display: flex; flex-direction: column; align-items: center;" data-html2canvas-ignore="true">
+                                <form action="procesar_estandar1.php" method="POST" id="formFirmaRep" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
                                     <input type="hidden" name="accion" value="firmar_doc">
                                     <input type="hidden" name="doc_id" value="<?php echo $doc_asignacion['id']; ?>">
                                     <input type="hidden" name="firma_rep" id="firmaRepBase64">
@@ -232,30 +175,26 @@ if ($usuario_rol === 'sst') {
                                     </div>
                                     <button type="button" onclick="confirmarEnvioRep(event)" class="btn-edit" style="width: 100%; max-width: 300px; justify-content: center; background: #16a34a; margin-top: 4px; margin-bottom: 16px;">Firmar Documento</button>
                                 </form>
-                                <div class="line" data-html2canvas-ignore="true"></div>
-                                <p data-html2canvas-ignore="true">Representante Legal</p>
-                                <span data-html2canvas-ignore="true"><?php echo htmlspecialchars($doc_rep_nombre); ?></span>
-                                <?php if (!empty($doc_rep_cedula)): ?>
-                                    <span data-html2canvas-ignore="true">C.C. <?php echo htmlspecialchars($doc_rep_cedula); ?></span>
-                                <?php endif; ?>
+                                <div class="line"></div>
+                                <p>Representante Legal</p>
+                                <span><?php echo htmlspecialchars($doc_rep_nombre); ?></span>
+                                <span>C.C. <?php echo htmlspecialchars($doc_rep_cedula); ?></span>
 
                             <?php else: ?>
                                 <div class="img-placeholder"></div>
                                 <div class="line"></div>
                                 <p>Representante Legal</p>
                                 <span><?php echo htmlspecialchars($doc_rep_nombre); ?></span>
-                                <?php if (!empty($doc_rep_cedula)): ?>
-                                    <span>C.C. <?php echo htmlspecialchars($doc_rep_cedula); ?></span>
-                                <?php endif; ?>
+                                <span>C.C. <?php echo htmlspecialchars($doc_rep_cedula); ?></span>
                             <?php endif; ?>
                         </div>
 
                         <div class="sig-box">
                             <?php if (!empty($doc_firma_sst)): ?>
-                                <div class="img-placeholder"><img src="<?php echo $doc_firma_sst; ?>" alt="Firma SST"></div>
+                                <div class="img-placeholder"><img src="<?php echo $doc_firma_sst; ?>"></div>
                                 <div class="line"></div>
                             <?php elseif ($usuario_rol === 'sst' && (!$doc_asignacion || $doc_asignacion['estado'] === 'borrador')): ?>
-                                <form action="procesar_estandar1.php" method="POST" id="formFirmaSST" style="width: 100%; display: flex; flex-direction: column; align-items: center;" data-html2canvas-ignore="true">
+                                <form action="procesar_estandar1.php" method="POST" id="formFirmaSST" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
                                     <input type="hidden" name="accion" value="enviar_firma">
                                     <input type="hidden" name="firma_sst" id="firmaSSTBase64">
                                     <div class="firma-box">
@@ -267,9 +206,9 @@ if ($usuario_rol === 'sst') {
                                 <div class="line"></div>
                             <?php endif; ?>
                             
-                            <p <?php if($usuario_rol === 'sst' && (!$doc_asignacion || $doc_asignacion['estado'] === 'borrador')) echo 'data-html2canvas-ignore="true" style="margin-top:12px !important;"'; ?>>Responsable SG-SST</p>
-                            <span <?php if($usuario_rol === 'sst' && (!$doc_asignacion || $doc_asignacion['estado'] === 'borrador')) echo 'data-html2canvas-ignore="true"'; ?>><?php echo htmlspecialchars($doc_nombre); ?></span>
-                            <span <?php if($usuario_rol === 'sst' && (!$doc_asignacion || $doc_asignacion['estado'] === 'borrador')) echo 'data-html2canvas-ignore="true"'; ?>>C.C. <?php echo htmlspecialchars($doc_cedula); ?></span>
+                            <p <?php if($usuario_rol === 'sst' && (!$doc_asignacion || $doc_asignacion['estado'] === 'borrador')) echo 'style="margin-top:12px !important;"'; ?>>Responsable SG-SST</p>
+                            <span><?php echo htmlspecialchars($doc_nombre); ?></span>
+                            <span>C.C. <?php echo htmlspecialchars($doc_cedula); ?></span>
 
                             <?php if ($usuario_rol === 'sst' && (!$doc_asignacion || $doc_asignacion['estado'] === 'borrador')): ?>
                                     <button type="button" onclick="confirmarEnvioSST(event)" class="btn-edit" style="width: 100%; max-width: 300px; justify-content: center; background: var(--primary); margin-top: 16px;">Firmar y Enviar</button>
@@ -315,50 +254,43 @@ if ($usuario_rol === 'sst') {
 
 <script>
     // ==========================================
-    // 1. GENERADOR DE PDF PERFECTO (HORIZONTAL)
+    // 1. GENERADOR DE PDF VÍA AJAX (Con mPDF)
     // ==========================================
     async function generarYGuardarPDF(docId) {
-        const element = document.getElementById('acta-imprimir');
         const btn = document.getElementById('btnDescargarPDF');
         const originalText = btn.innerHTML;
         
-        btn.innerHTML = 'Generando... <svg class="chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="animation: spin 1s linear infinite;"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>';
+        btn.innerHTML = '<svg class="chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="animation: spin 1s linear infinite;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Procesando y Descargando...';
         btn.disabled = true;
-
-        // Inyecta la clase mágica para que NO se recorte
-        element.classList.add('pdf-mode');
-
-        var opt = {
-          margin:       [15, 15, 15, 15], 
-          filename:     'Acta_Designacion_SST_v' + docId + '.pdf',
-          image:        { type: 'jpeg', quality: 1 },
-          html2canvas:  { 
-              scale: 2, 
-              useCORS: true, 
-              scrollX: 0, // Fija el inicio exactamente al borde izquierdo
-              scrollY: 0
-          }, 
-          jsPDF:        { unit: 'mm', format: 'letter', orientation: 'landscape' } // Formato Horizontal (Landscape)
-        };
+        btn.style.cursor = 'wait';
 
         try {
-            const pdfBase64 = await html2pdf().set(opt).from(element).outputPdf('datauristring');
-            
             let formData = new FormData();
-            formData.append('accion', 'guardar_pdf');
+            formData.append('accion', 'generar_pdf');
             formData.append('doc_id', docId);
-            formData.append('pdf_base64', pdfBase64);
 
-            await fetch('procesar_estandar1.php', { method: 'POST', body: formData });
+            // Llamamos a PHP para que mPDF arme el archivo perfecto
+            const response = await fetch('procesar_estandar1.php', { method: 'POST', body: formData });
+            const result = await response.json();
 
-            await html2pdf().set(opt).from(element).save();
+            if (result.status === 'success') {
+                // Descargamos el archivo que PHP nos devuelve
+                const link = document.createElement('a');
+                link.href = result.pdf;
+                link.download = 'Acta_Designacion_SST_v' + docId + '.pdf';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                alert('Error al generar PDF: ' + result.message);
+            }
+
         } catch (error) {
-            alert('Error al generar el PDF.');
+            alert('Error de conexión al generar el PDF.');
         } finally {
-            // Remueve la clase mágica
-            element.classList.remove('pdf-mode');
             btn.innerHTML = originalText;
             btn.disabled = false;
+            btn.style.cursor = 'pointer';
         }
     }
 
@@ -377,7 +309,7 @@ if ($usuario_rol === 'sst') {
             });
         });
 
-        // Inicializar Canvases
+        // Inicializar Canvases con FONDO BLANCO obligatorio (Para evitar cualquier error de imagen)
         function initCanvas(canvasId, inputId) {
             const canvas = document.getElementById(canvasId);
             if (!canvas) return;
@@ -388,7 +320,14 @@ if ($usuario_rol === 'sst') {
                 const parentWidth = canvas.parentElement.clientWidth;
                 canvas.width = parentWidth > 0 ? parentWidth : 300; 
                 canvas.height = 120; 
-                ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.strokeStyle = "#111";
+                
+                // MAGIA: Llenar el fondo de BLANCO para que no haya transparencias
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.lineWidth = 2; 
+                ctx.lineCap = "round"; 
+                ctx.strokeStyle = "#111";
             }
             
             const btnEst1 = document.getElementById('btnAccordionEst1');
@@ -418,7 +357,10 @@ if ($usuario_rol === 'sst') {
             canvas.addEventListener("mouseup", terminar); canvas.addEventListener("mouseleave", terminar);
             canvas.addEventListener("touchstart", iniciar, { passive: false }); canvas.addEventListener("touchmove", trazar, { passive: false }); canvas.addEventListener("touchend", terminar);
 
-            window['limpiar' + canvasId] = function() { ctx.clearRect(0, 0, canvas.width, canvas.height); };
+            window['limpiar' + canvasId] = function() { 
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, canvas.width, canvas.height); 
+            };
         }
 
         initCanvas('canvasFirmaSST', 'firmaSSTBase64');
@@ -428,8 +370,6 @@ if ($usuario_rol === 'sst') {
     window.confirmarEnvioSST = function(e) {
         e.preventDefault();
         const canvas = document.getElementById("canvasFirmaSST");
-        const blank = document.createElement('canvas'); blank.width = canvas.width; blank.height = canvas.height;
-        if (canvas.toDataURL() === blank.toDataURL()) { alert("Debe dibujar su firma."); return; }
         document.getElementById("firmaSSTBase64").value = canvas.toDataURL("image/png");
         showConfirmModal('Firmar y Enviar Documento', '¿Estás seguro de firmar esta acta y enviarla al Representante Legal?', 'javascript:document.getElementById("formFirmaSST").submit();', 'warning', 'Sí, firmar y enviar');
     }
@@ -437,8 +377,6 @@ if ($usuario_rol === 'sst') {
     window.confirmarEnvioRep = function(e) {
         e.preventDefault();
         const canvas = document.getElementById("canvasFirmaRep");
-        const blank = document.createElement('canvas'); blank.width = canvas.width; blank.height = canvas.height;
-        if (canvas.toDataURL() === blank.toDataURL()) { alert("Debe dibujar su firma."); return; }
         document.getElementById("firmaRepBase64").value = canvas.toDataURL("image/png");
         showConfirmModal('Aprobar Documento', '¿Estás seguro de firmar y legalizar esta acta definitivamente?', 'javascript:document.getElementById("formFirmaRep").submit();', 'warning', 'Sí, firmar documento');
     }
