@@ -157,10 +157,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     if ($codigo_2fa !== '' && $codigo_2fa === $_SESSION['codigo_2fa'] && time() < ($_SESSION['codigo_expira'] ?? 0)) {
 
-                        // ✅ crea sesión segura en BD + cookie token
+                        // crea sesión segura en BD + cookie token
                         create_db_session($conn, $usuario, 8);
 
-                        // ✅ log actividad
+                        // log actividad
                         log_activity($conn, (int) $usuario['id'], 'LOGIN_OK', 'Ingreso exitoso con 2FA');
 
                         // limpia 2FA temporal
@@ -240,15 +240,16 @@ $mostrar_2fa = !empty($_SESSION['codigo_2fa']);
         }
 
         @keyframes drift {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(20px, 20px); }
+        }
 
-            0%,
-            100% {
-                transform: translate(0, 0);
-            }
-
-            50% {
-                transform: translate(20px, 20px);
-            }
+        /* Animación para el icono de cargando */
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+        .spin-icon {
+            animation: spin 1s linear infinite;
         }
 
         .container {
@@ -289,17 +290,8 @@ $mostrar_2fa = !empty($_SESSION['codigo_2fa']);
         }
 
         @keyframes pulse {
-
-            0%,
-            100% {
-                transform: scale(1);
-                opacity: 0.5;
-            }
-
-            50% {
-                transform: scale(1.1);
-                opacity: 0.8;
-            }
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
         }
 
         .branding-content {
@@ -362,15 +354,8 @@ $mostrar_2fa = !empty($_SESSION['codigo_2fa']);
         }
 
         @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .alert-error {
@@ -451,33 +436,6 @@ $mostrar_2fa = !empty($_SESSION['codigo_2fa']);
             border-color: #cbd5e1;
         }
 
-        .separator {
-            text-align: center;
-            position: relative;
-            margin: 24px 0;
-            color: #94a3b8;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-
-        .separator::before,
-        .separator::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            width: calc(50% - 30px);
-            height: 1px;
-            background: #e2e8f0;
-        }
-
-        .separator::before {
-            left: 0;
-        }
-
-        .separator::after {
-            right: 0;
-        }
-
         /* Button styles - compact and elegant */
         .btn {
             width: 100%;
@@ -502,24 +460,13 @@ $mostrar_2fa = !empty($_SESSION['codigo_2fa']);
             box-shadow: 0 2px 8px rgba(251, 146, 60, 0.25);
         }
 
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 6px 16px rgba(251, 146, 60, 0.35);
         }
 
-        .btn-primary:active {
+        .btn-primary:active:not(:disabled) {
             transform: translateY(0);
-        }
-
-        .btn-secondary {
-            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
-            color: white;
-            box-shadow: 0 2px 8px rgba(100, 116, 139, 0.2);
-        }
-
-        .btn-secondary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(100, 116, 139, 0.3);
         }
 
         .btn-outline {
@@ -612,7 +559,6 @@ $mostrar_2fa = !empty($_SESSION['codigo_2fa']);
 
 <body>
     <div class="container">
-        <!-- Left branding side -->
         <div class="branding">
             <div class="branding-content">
                 <h1>Gestión <span class="highlight">inteligente</span><br>de Seguridad y Salud</h1>
@@ -621,7 +567,6 @@ $mostrar_2fa = !empty($_SESSION['codigo_2fa']);
             </div>
         </div>
 
-        <!-- Right form side -->
         <div class="form-area">
             <div class="form-header">
                 <h2><?php echo $mostrar_2fa ? 'Verificación 2FA' : 'Iniciar Sesión'; ?></h2>
@@ -649,9 +594,8 @@ $mostrar_2fa = !empty($_SESSION['codigo_2fa']);
                 </div>
             <?php endif; ?>
 
-            <form method="POST" action="">
+            <form method="POST" action="" id="loginForm">
                 <?php if (!$mostrar_2fa): ?>
-                    <!-- Login identifier input -->
                     <div class="form-group">
                         <label for="identifier">Cédula o Correo Electrónico</label>
                         <div class="input-wrapper">
@@ -664,7 +608,7 @@ $mostrar_2fa = !empty($_SESSION['codigo_2fa']);
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" id="btnSubmit">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -672,7 +616,6 @@ $mostrar_2fa = !empty($_SESSION['codigo_2fa']);
                         Continuar
                     </button>
                 <?php else: ?>
-                    <!-- 2FA verification input -->
                     <div class="form-group">
                         <label for="codigo_2fa">Código de Verificación</label>
                         <div class="input-wrapper">
@@ -689,7 +632,7 @@ $mostrar_2fa = !empty($_SESSION['codigo_2fa']);
                     <input type="hidden" name="identifier"
                         value="<?php echo htmlspecialchars($_SESSION['usuario_temp']['cedula'] ?? ''); ?>">
 
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" id="btnSubmit">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -718,6 +661,36 @@ $mostrar_2fa = !empty($_SESSION['codigo_2fa']);
             </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('loginForm');
+            
+            form.addEventListener('submit', function(e) {
+                // Obtenemos el botón
+                const btn = document.getElementById('btnSubmit');
+                
+                // Verificamos si estamos en el paso 1 (pidiendo email) o paso 2 (pidiendo código)
+                const is2FAStep = document.getElementById('codigo_2fa') !== null;
+                
+                // Cambiamos el texto y agregamos el icono de "spin" (cargando)
+                if(!is2FAStep) {
+                    btn.innerHTML = '<svg class="spin-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Enviando código...';
+                } else {
+                    btn.innerHTML = '<svg class="spin-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Verificando...';
+                }
+                
+                // Le damos un efecto visual de "apagado" y evitamos que vuelva a dar clic
+                btn.style.opacity = '0.7';
+                btn.style.pointerEvents = 'none';
+                
+                // Lo deshabilitamos totalmente luego de 10 milisegundos para asegurar que el form haga submit sin problemas en todos los navegadores
+                setTimeout(() => {
+                    btn.disabled = true;
+                }, 10);
+            });
+        });
+    </script>
 </body>
 
 </html>
