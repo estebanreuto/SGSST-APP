@@ -2,13 +2,12 @@
 require_once 'config/db.php';
 require_once 'config/auth.php';
 
-// ✅ exige sesión válida en BD por cookie token
+// Exige sesión válida
 $u = require_auth($conn);
 
-// si necesitas, ya tienes en $_SESSION también:
+// Variables de sesión básicas
 $usuario_nombre = $_SESSION['usuario_nombre'] ?? 'Usuario';
 $usuario_rol = $_SESSION['usuario_rol'] ?? '';
-$usuario_email = $_SESSION['usuario_email'] ?? '';
 
 // Mapear roles a nombres legibles
 $roles_nombres = [
@@ -16,16 +15,68 @@ $roles_nombres = [
     'sst' => 'Responsable SG-SST',
     'trabajador' => 'Trabajador'
 ];
-
 $rol_display = $roles_nombres[$usuario_rol] ?? 'Usuario';
 
-// Obtener estadísticas básicas del usuario
+// 1. Obtener TODA la información del usuario en sesión
 try {
-    $stmt = $conn->prepare("SELECT cedula, telefono, DATE_FORMAT(fecha_registro, '%d/%m/%Y') as fecha_registro FROM usuarios WHERE id = ?");
+    $sql = "SELECT nombre, apellido, cedula, email, telefono, ciudad, rol, 
+                   licencia_sst, tipo_licencia, numero_licencia, firma,
+                   fecha_licencia as fecha_licencia_raw,
+                   DATE_FORMAT(fecha_licencia, '%d/%m/%Y') as fecha_licencia 
+            FROM usuarios WHERE id = ?";
+    $stmt = $conn->prepare($sql);
     $stmt->execute([$_SESSION['usuario_id']]);
     $usuario_info = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$usuario_info) {
+        $usuario_info = [];
+    }
 } catch (PDOException $e) {
-    $usuario_info = null;
+    $usuario_info = [];
+}
+
+// 2. OBTENER EL HISTORIAL DE ACTAS (Para el Modal de Versiones)
+$historial_actas = [];
+if ($usuario_rol === 'sst' || $usuario_rol === 'representante') {
+    try {
+        $sst_target_id = 0;
+        
+        if ($usuario_rol === 'sst') {
+            $sst_target_id = $_SESSION['usuario_id'];
+        } elseif ($usuario_rol === 'representante') {
+            // Buscar el Responsable SST que envió el acta más reciente a este representante
+            $stmt_doc = $conn->prepare("SELECT sst_id FROM doc_asignacion_sst WHERE estado IN ('pendiente_firma', 'firmado') ORDER BY id DESC LIMIT 1");
+            $stmt_doc->execute();
+            $doc_temp = $stmt_doc->fetch(PDO::FETCH_ASSOC);
+            if ($doc_temp) {
+                $sst_target_id = $doc_temp['sst_id'];
+            }
+        }
+
+        // Si tenemos un SST de referencia, buscamos todas sus actas firmadas
+        if ($sst_target_id > 0) {
+            $stmt_hist = $conn->prepare("SELECT d.*, 
+                                           u_rep.nombre as rep_nombre, 
+                                           u_rep.apellido as rep_apellido, 
+                                           u_sst.nombre as sst_nombre, 
+                                           u_sst.apellido as sst_apellido
+                                    FROM doc_asignacion_sst d 
+                                    LEFT JOIN usuarios u_rep ON d.representante_id = u_rep.id 
+                                    LEFT JOIN usuarios u_sst ON d.sst_id = u_sst.id 
+                                    WHERE d.sst_id = ? AND d.estado = 'firmado' 
+                                    ORDER BY d.id DESC");
+            $stmt_hist->execute([$sst_target_id]);
+            $historial_actas = $stmt_hist->fetchAll(PDO::FETCH_ASSOC);
+        }
+    } catch (PDOException $e) { 
+        // Continuar silenciosamente en caso de error
+    }
+}
+
+// Helpers para mostrar "No registrado"
+function mostrarDato($dato)
+{
+    return !empty($dato) ? htmlspecialchars($dato) : '<span style="color: #94a3b8; font-style: italic; font-weight: 400;">No registrado</span>';
 }
 ?>
 <!DOCTYPE html>
@@ -37,451 +88,301 @@ try {
     <title>Dashboard | SG-SST</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --primary: #ff8a1f;
+            --primary2: #ff7a00;
+            --bg1: #edf4fb;
+            --bg2: #f7f9fc;
+            --card: #ffffff;
+            --text: #1f2d3d;
+            --muted: #5f6f82;
+            --border: #dbe3ec;
+            --radius: 12px;
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(180deg, var(--bg1), var(--bg2));
+            margin: 0;
+            padding: 0;
             min-height: 100vh;
-            color: #1e293b;
-        }
-
-        /* Header */
-        .header {
-            background: white;
-            border-bottom: 1px solid #e2e8f0;
-            padding: 0 32px;
-            height: 70px;
+            color: var(--text);
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-        }
-
-        .logo {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #fb923c;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .logo svg {
-            width: 28px;
-            height: 28px;
-        }
-
-        .header-title {
-            font-size: 0.95rem;
-            color: #64748b;
-            font-weight: 500;
-        }
-
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .user-info {
-            text-align: right;
-            margin-right: 4px;
-        }
-
-        .user-name {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #1e293b;
-        }
-
-        .user-role {
-            font-size: 0.8rem;
-            color: #64748b;
-        }
-
-        /* Logout button */
-        .btn-logout {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 18px;
-            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
-            color: white;
-            border: none;
-            border-radius: 7px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 2px 8px rgba(100, 116, 139, 0.2);
-        }
-
-        .btn-logout:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(100, 116, 139, 0.3);
-        }
-
-        .btn-logout svg {
-            width: 16px;
-            height: 16px;
-        }
-
-        /* Main content */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 40px 32px;
-        }
-
-        .welcome-section {
-            background: white;
-            border-radius: 16px;
-            padding: 40px;
-            margin-bottom: 32px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-            border: 1px solid #e2e8f0;
-        }
-
-        .welcome-section h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #1e293b;
-            margin-bottom: 12px;
-        }
-
-        .welcome-section p {
-            font-size: 1rem;
-            color: #64748b;
-            line-height: 1.6;
-        }
-
-        /* Role badge */
-        .role-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
-            color: white;
-            border-radius: 20px;
             font-size: 0.85rem;
-            font-weight: 600;
-            margin-top: 16px;
-            box-shadow: 0 2px 8px rgba(251, 146, 60, 0.25);
         }
 
-        .role-badge svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        /* Info cards grid */
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-            margin-bottom: 32px;
-        }
-
-        .info-card {
-            background: white;
-            border-radius: 12px;
-            padding: 28px;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        .main-wrapper {
+            margin-left: 260px;
+            width: calc(100% - 260px);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
             transition: all 0.3s ease;
         }
 
-        .info-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-            border-color: #cbd5e1;
-        }
-
-        .info-card-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .info-card-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
-            color: white;
-        }
-
-        .info-card-icon svg {
-            width: 20px;
-            height: 20px;
-        }
-
-        .info-card h3 {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .info-card-value {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #1e293b;
-            margin-bottom: 8px;
-        }
-
-        .info-card-label {
-            font-size: 0.85rem;
-            color: #94a3b8;
-        }
-
-        /* Actions section */
-        .actions-section {
-            background: white;
-            border-radius: 16px;
+        .content-area {
             padding: 32px 40px;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            flex: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
         }
 
-        .actions-section h2 {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #1e293b;
-            margin-bottom: 24px;
+        .alert-success {
+            background: #dcfce7; color: #166534; padding: 14px 20px; border-radius: 8px; margin-bottom: 24px;
+            font-weight: 600; display: flex; align-items: center; gap: 10px; border: 1px solid #bbf7d0;
+            transition: opacity 0.5s ease, transform 0.5s ease; opacity: 1; transform: translateY(0);
+        }
+        .alert-success.hide { opacity: 0; transform: translateY(-10px); pointer-events: none; }
+
+        .header-actions {
+            display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;
+        }
+        .welcome-title { margin: 0 0 6px 0; font-size: 1.25rem; color: var(--text); letter-spacing: -0.01em; }
+        .welcome-text { color: var(--muted); margin: 0; font-size: 0.85rem; }
+
+        .btn-edit {
+            background-color: var(--primary); color: #fff; border: none; padding: 9px 18px; border-radius: 8px;
+            font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .btn-edit:hover { background-color: var(--primary2); transform: translateY(-1px); }
+
+        .section-title {
+            font-size: 0.85rem; font-weight: 700; color: var(--text); margin: 24px 0 12px 0; padding-bottom: 8px;
+            border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.05em;
         }
 
-        .actions-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+        .info-card {
+            background: var(--card); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02); display: flex; align-items: flex-start; gap: 12px; transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-
-        .action-btn {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 16px 20px;
-            background: #f8fafc;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            color: #475569;
-            text-decoration: none;
-            font-size: 0.95rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
+        .info-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.04); }
+        .icon-box {
+            width: 36px; height: 36px; background: rgba(255, 138, 31, 0.08); color: var(--primary2);
+            border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.3s ease;
         }
+        .info-content { display: flex; flex-direction: column; gap: 3px; overflow: hidden; padding-top: 2px; }
+        .info-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 700; margin: 0; }
+        .info-value { font-size: 0.85rem; font-weight: 600; color: var(--text); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .badge-rol { display: inline-block; background: rgba(255, 138, 31, 0.12); color: var(--primary2); padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
 
-        .action-btn:hover {
-            background: white;
-            border-color: #fb923c;
-            color: #fb923c;
-            transform: translateX(4px);
-        }
-
-        .action-btn svg {
-            width: 20px;
-            height: 20px;
-        }
-
-        /* Responsive */
         @media (max-width: 768px) {
-            .header {
-                padding: 0 16px;
-                height: auto;
-                flex-direction: column;
-                padding: 16px;
-                gap: 12px;
-            }
-
-            .header-left {
-                width: 100%;
-                justify-content: space-between;
-            }
-
-            .header-title {
-                display: none;
-            }
-
-            .header-right {
-                width: 100%;
-                justify-content: space-between;
-            }
-
-            .container {
-                padding: 24px 16px;
-            }
-
-            .welcome-section {
-                padding: 24px;
-            }
-
-            .welcome-section h1 {
-                font-size: 1.5rem;
-            }
-
-            .info-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .actions-section {
-                padding: 24px;
-            }
-
-            .actions-grid {
-                grid-template-columns: 1fr;
-            }
+            .main-wrapper { margin-left: 0; width: 100%; }
+            .content-area { padding: 20px 16px; }
+            .header-actions { flex-direction: column; gap: 16px; }
+            .btn-edit { width: 100%; justify-content: center; }
+            .info-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 
 <body>
-    <!-- Header -->
-    <header class="header">
-        <div class="header-left">
-            <div class="logo">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-                SG-SST
-            </div>
-            <span class="header-title">Sistema de Gestión de Seguridad y Salud en el Trabajo</span>
-        </div>
-        <div class="header-right">
-            <div class="user-info">
-                <div class="user-name"><?php echo htmlspecialchars($usuario_nombre); ?></div>
-                <div class="user-role"><?php echo htmlspecialchars($rol_display); ?></div>
-            </div>
-            <a href="logout.php" class="btn-logout">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                Cerrar Sesión
-            </a>
-        </div>
-    </header>
 
-    <!-- Main content -->
-    <div class="container">
-        <!-- Welcome section -->
-        <div class="welcome-section">
-            <h1>Bienvenido, <?php echo htmlspecialchars(explode(' ', $usuario_nombre)[0]); ?></h1>
-            <p>Has iniciado sesión correctamente en el Sistema de Gestión de Seguridad y Salud en el Trabajo. Aquí
-                podrás gestionar toda la información relacionada con tu rol en la organización.</p>
+    <?php include 'components/sidebar.php'; ?>
 
-            <div class="role-badge">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <?php echo htmlspecialchars($rol_display); ?>
-            </div>
-        </div>
+    <main class="main-wrapper">
+        <?php include 'components/header.php'; ?>
 
-        <!-- Info cards -->
-        <div class="info-grid">
-            <div class="info-card">
-                <div class="info-card-header">
-                    <div class="info-card-icon">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                    </div>
-                    <h3>Email</h3>
-                </div>
-                <div class="info-card-value"><?php echo htmlspecialchars($usuario_email); ?></div>
-            </div>
+        <div class="content-area">
 
-            <?php if ($usuario_info): ?>
-                <div class="info-card">
-                    <div class="info-card-header">
-                        <div class="info-card-icon">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
-                            </svg>
-                        </div>
-                        <h3>Cédula</h3>
-                    </div>
-                    <div class="info-card-value"><?php echo htmlspecialchars($usuario_info['cedula']); ?></div>
-                </div>
-
-                <div class="info-card">
-                    <div class="info-card-header">
-                        <div class="info-card-icon">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                        </div>
-                        <h3>Registro</h3>
-                    </div>
-                    <div class="info-card-value"><?php echo htmlspecialchars($usuario_info['fecha_registro']); ?></div>
+            <?php if (isset($_GET['update']) && $_GET['update'] == 'success'): ?>
+                <div class="alert-success" id="alertSuccess">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    ¡Tu información ha sido actualizada correctamente!
                 </div>
             <?php endif; ?>
-        </div>
+            
+            <?php if (isset($_GET['doc']) && $_GET['doc'] == 'nueva_version'): ?>
+                <div class="alert-success" id="alertSuccess">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    ¡Se ha generado un nuevo borrador de la designación!
+                </div>
+            <?php endif; ?>
 
-        <!-- Actions section -->
-        <div class="actions-section">
-            <h2>Acciones Rápidas</h2>
-            <div class="actions-grid">
-                <a href="#" class="action-btn">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    Mi Perfil
-                </a>
-                <a href="#" class="action-btn">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Documentos
-                </a>
-                <a href="#" class="action-btn">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                    Reportes
-                </a>
-                <a href="#" class="action-btn">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    Configuración
-                </a>
+            <div class="header-actions">
+                <div>
+                    <h1 class="welcome-title">Mi Perfil</h1>
+                    <p class="welcome-text">Resumen de tu información personal y roles dentro de la plataforma.</p>
+                </div>
+                <?php if ($usuario_rol === 'sst' || $usuario_rol === 'representante'): ?>
+                    <button class="btn-edit" id="btnOpenModal">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        Editar Información
+                    </button>
+                <?php endif; ?>
             </div>
-        </div>
-    </div>
-</body>
 
+            <?php if (!empty($usuario_info)): ?>
+
+                <h2 class="section-title">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Información Personal
+                </h2>
+
+                <div class="info-grid">
+                    <div class="info-card">
+                        <div class="icon-box">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div class="info-content">
+                            <p class="info-label">Nombre Completo</p>
+                            <p class="info-value"><?php echo mostrarDato($usuario_info['nombre'] . ' ' . $usuario_info['apellido']); ?></p>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <div class="icon-box">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                            </svg>
+                        </div>
+                        <div class="info-content">
+                            <p class="info-label">Documento</p>
+                            <p class="info-value"><?php echo mostrarDato($usuario_info['cedula']); ?></p>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <div class="icon-box">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <div class="info-content">
+                            <p class="info-label">Correo Electrónico</p>
+                            <p class="info-value"><?php echo mostrarDato($usuario_info['email']); ?></p>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <div class="icon-box">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                            </svg>
+                        </div>
+                        <div class="info-content">
+                            <p class="info-label">Teléfono</p>
+                            <p class="info-value"><?php echo mostrarDato($usuario_info['telefono']); ?></p>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <div class="icon-box">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </div>
+                        <div class="info-content">
+                            <p class="info-label">Ciudad</p>
+                            <p class="info-value"><?php echo mostrarDato($usuario_info['ciudad']); ?></p>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <div class="icon-box">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                            </svg>
+                        </div>
+                        <div class="info-content">
+                            <p class="info-label">Rol Asignado</p>
+                            <p class="info-value"><span class="badge-rol"><?php echo htmlspecialchars($rol_display); ?></span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <?php if ($usuario_info['licencia_sst'] === 'si' || !empty($usuario_info['numero_licencia']) || $usuario_rol === 'sst'): ?>
+
+                    <h2 class="section-title" style="margin-top: 30px;">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Certificación SG-SST
+                    </h2>
+
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <div class="icon-box" style="background: rgba(74, 127, 191, 0.08); color: #4a7fbf;">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div class="info-content">
+                                <p class="info-label">Tipo de Licencia</p>
+                                <p class="info-value"><?php echo mostrarDato($usuario_info['tipo_licencia']); ?></p>
+                            </div>
+                        </div>
+
+                        <div class="info-card">
+                            <div class="icon-box" style="background: rgba(74, 127, 191, 0.08); color: #4a7fbf;">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                                </svg>
+                            </div>
+                            <div class="info-content">
+                                <p class="info-label">Número de Licencia</p>
+                                <p class="info-value"><?php echo mostrarDato($usuario_info['numero_licencia']); ?></p>
+                            </div>
+                        </div>
+
+                        <div class="info-card">
+                            <div class="icon-box" style="background: rgba(74, 127, 191, 0.08); color: #4a7fbf;">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            <div class="info-content">
+                                <p class="info-label">Fecha de Expedición</p>
+                                <p class="info-value"><?php echo mostrarDato($usuario_info['fecha_licencia']); ?></p>
+                            </div>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+            <?php else: ?>
+                <div style="padding: 16px; background: #fee2e2; color: #dc2626; border-radius: 8px; font-size: 0.85rem;">
+                    Error al cargar la información del usuario.
+                </div>
+            <?php endif; ?>
+
+            <?php include 'components/estandares_minimos.php'; ?>
+
+        </div>
+    </main>
+
+    <?php include 'components/modal_editar_perfil.php'; ?>
+    <?php include 'components/modal_confirmacion.php'; ?>
+    <?php include 'components/modal_versiones_acta.php'; ?>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const alertSuccess = document.getElementById('alertSuccess');
+            if (alertSuccess) {
+                setTimeout(() => {
+                    alertSuccess.classList.add('hide');
+                    setTimeout(() => {
+                        alertSuccess.remove();
+                        // Limpia los query params para que si recarga no le vuelva a salir el mensaje
+                        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                        window.history.replaceState({path:newUrl}, '', newUrl);
+                    }, 500);
+                }, 4000); 
+            }
+        });
+    </script>
+</body>
 </html>
