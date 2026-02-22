@@ -254,7 +254,30 @@ if ($usuario_rol === 'sst') {
 
 <script>
     // ==========================================
-    // 1. GENERADOR DE PDF VÍA AJAX (Con mPDF)
+    // MAGIA DE CARGA AUTOMÁTICA AL ENVIAR CUALQUIER FORMULARIO (CORREOS)
+    // ==========================================
+    document.addEventListener('submit', function(e) {
+        if (e.target && (e.target.id === 'formFirmaSST' || e.target.id === 'formFirmaRep')) {
+            // Creamos un panel blanco semitransparente que cubre TODA la pantalla
+            let overlay = document.createElement('div');
+            overlay.id = 'loader-correo-global';
+            overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.92); z-index:999999; display:flex; flex-direction:column; align-items:center; justify-content:center; backdrop-filter: blur(5px);';
+            
+            // Le metemos un ícono girando y un texto tranquilizador
+            overlay.innerHTML = `
+                <svg fill="none" stroke="#ff8a1f" viewBox="0 0 24 24" width="60" height="60" style="animation: spin 1s linear infinite;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                <h3 style="margin-top:24px; font-family: 'Inter', sans-serif; color: #1f2d3d; font-size: 1.25rem; font-weight: 700;">Enviando correos y guardando...</h3>
+                <p style="color: #64748b; font-family: 'Inter', sans-serif; margin-top: 8px; font-size: 0.9rem;">Este proceso puede tardar unos segundos, por favor no cierres la ventana.</p>
+            `;
+            
+            document.body.appendChild(overlay);
+        }
+    });
+
+    // ==========================================
+    // GENERADOR DE PDF VÍA AJAX (Con mPDF)
     // ==========================================
     async function generarYGuardarPDF(docId) {
         const btn = document.getElementById('btnDescargarPDF');
@@ -295,7 +318,7 @@ if ($usuario_rol === 'sst') {
     }
 
     // ==========================================
-    // 2. LÓGICA DE INTERFAZ Y CANVAS
+    // LÓGICA DE INTERFAZ Y CANVAS
     // ==========================================
     document.addEventListener('DOMContentLoaded', () => {
         // Acordeón
@@ -371,14 +394,18 @@ if ($usuario_rol === 'sst') {
         e.preventDefault();
         const canvas = document.getElementById("canvasFirmaSST");
         document.getElementById("firmaSSTBase64").value = canvas.toDataURL("image/png");
-        showConfirmModal('Firmar y Enviar Documento', '¿Estás seguro de firmar esta acta y enviarla al Representante Legal?', 'javascript:document.getElementById("formFirmaSST").submit();', 'warning', 'Sí, firmar y enviar');
+        
+        // Al darle Sí en tu modal, ejecutará el submit() y se disparará nuestro escuchador de "Enviando correos..."
+        showConfirmModal('Firmar y Enviar Documento', '¿Estás seguro de firmar esta acta y enviarla al Representante Legal? Se le notificará por correo.', 'javascript:document.getElementById("formFirmaSST").submit();', 'warning', 'Sí, firmar y enviar');
     }
 
     window.confirmarEnvioRep = function(e) {
         e.preventDefault();
         const canvas = document.getElementById("canvasFirmaRep");
         document.getElementById("firmaRepBase64").value = canvas.toDataURL("image/png");
-        showConfirmModal('Aprobar Documento', '¿Estás seguro de firmar y legalizar esta acta definitivamente?', 'javascript:document.getElementById("formFirmaRep").submit();', 'warning', 'Sí, firmar documento');
+        
+        // Al darle Sí en tu modal, ejecutará el submit() y se disparará nuestro escuchador de "Enviando correos..."
+        showConfirmModal('Aprobar Documento', '¿Estás seguro de firmar y legalizar esta acta definitivamente? Se notificará al Responsable.', 'javascript:document.getElementById("formFirmaRep").submit();', 'warning', 'Sí, firmar documento');
     }
 </script>
 <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>

@@ -3,6 +3,14 @@ $usuario_nombre = $usuario_nombre ?? 'Usuario';
 $rol_display = $rol_display ?? 'Rol no definido';
 $usuario_rol = $usuario_rol ?? '';
 $current_page = basename($_SERVER['PHP_SELF']);
+
+// Consulta para contar notificaciones no leídas y mostrar el globito en el Sidebar
+$unread_count = 0;
+if (isset($_SESSION['usuario_id']) && isset($conn)) {
+    $stmt_notif = $conn->prepare("SELECT COUNT(*) FROM notificaciones WHERE usuario_id = ? AND leida = 0");
+    $stmt_notif->execute([$_SESSION['usuario_id']]);
+    $unread_count = $stmt_notif->fetchColumn();
+}
 ?>
 <style>
     :root {
@@ -98,6 +106,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
         margin: 16px 0 8px 12px;
     }
 
+    /* ESTILO UNIFICADO PARA LOS LINKS */
     .nav-item {
         display: flex;
         align-items: center;
@@ -131,12 +140,21 @@ $current_page = basename($_SERVER['PHP_SELF']);
         color: var(--primary);
     }
 
+    /* NUEVO FOOTER SINCRONIZADO */
     .sidebar-footer {
-        padding: 20px;
-        border-top: 1px solid var(--border);
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .user-box {
         display: flex;
         align-items: center;
         justify-content: space-between;
+        margin-top: 8px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
     }
 
     .user-mini {
@@ -156,7 +174,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
         align-items: center;
         justify-content: center;
         font-weight: 700;
-        font-size: 0.9rem;
+        font-size: 1rem;
         flex-shrink: 0;
     }
 
@@ -180,6 +198,11 @@ $current_page = basename($_SERVER['PHP_SELF']);
         color: #ef4444;
         padding: 8px;
         margin: 0;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: 0.2s;
     }
 
     .logout-item:hover {
@@ -189,20 +212,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
     /* Ajustes Responsive para el Sidebar */
     @media (max-width: 768px) {
-        .sidebar {
-            transform: translateX(-100%);
-            /* Oculto por defecto */
-        }
-
-        .sidebar.active {
-            transform: translateX(0);
-            /* Visible al activarse */
-        }
-
-        .btn-close-sidebar {
-            display: block;
-            /* Muestra el botón de la X */
-        }
+        .sidebar { transform: translateX(-100%); }
+        .sidebar.active { transform: translateX(0); }
+        .btn-close-sidebar { display: block; }
     }
 </style>
 
@@ -260,20 +272,44 @@ $current_page = basename($_SERVER['PHP_SELF']);
     </nav>
 
     <div class="sidebar-footer">
-        <div class="user-mini">
-            <div class="avatar-mini">
-                <?php echo strtoupper(substr($usuario_nombre, 0, 1)); ?>
-            </div>
-            <div class="user-details">
-                <span class="name"><?php echo htmlspecialchars($usuario_nombre); ?></span>
-                <span class="role"><?php echo htmlspecialchars($rol_display); ?></span>
-            </div>
-        </div>
-        <a href="#" onclick="showConfirmModal('Cerrar Sesión', '¿Estás seguro de que deseas salir de tu cuenta?', 'logout.php', 'danger', 'Sí, cerrar sesión'); return false;" class="nav-item logout-item" title="Cerrar Sesión">
+        
+        <a href="notificaciones.php" class="nav-item <?php echo ($current_page == 'notificaciones.php') ? 'active' : ''; ?>">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
             </svg>
+            Notificaciones
+            <?php if ($unread_count > 0): ?>
+                <span style="margin-left: auto; background: #ef4444; color: white; border-radius: 12px; padding: 2px 7px; font-size: 0.7rem; font-weight: 700; line-height: 1;">
+                    <?php echo $unread_count > 9 ? '9+' : $unread_count; ?>
+                </span>
+            <?php endif; ?>
         </a>
+
+        <a href="perfil.php" class="nav-item <?php echo ($current_page == 'perfil.php') ? 'active' : ''; ?>">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+            Configuración
+        </a>
+
+        <div class="user-box">
+            <div class="user-mini">
+                <div class="avatar-mini">
+                    <?php echo strtoupper(substr($usuario_nombre, 0, 1)); ?>
+                </div>
+                <div class="user-details">
+                    <span class="name"><?php echo htmlspecialchars($usuario_nombre); ?></span>
+                    <span class="role"><?php echo htmlspecialchars($rol_display); ?></span>
+                </div>
+            </div>
+            <a href="#" onclick="showConfirmModal('Cerrar Sesión', '¿Estás seguro de que deseas salir de tu cuenta?', 'logout.php', 'danger', 'Sí, cerrar sesión'); return false;" class="logout-item" title="Cerrar Sesión">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+            </a>
+        </div>
+
     </div>
 </aside>
 
