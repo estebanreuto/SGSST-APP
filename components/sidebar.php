@@ -19,10 +19,9 @@ if (isset($_SESSION['usuario_id']) && isset($conn)) {
         --card: #ffffff;
         --text: #1f2d3d;
         --muted: #5f6f82;
-        --border: #dbe3ec;
+        --border: #e2e8f0;
     }
 
-    /* Fondo oscuro para móvil al abrir menú */
     .sidebar-overlay {
         display: none;
         position: fixed;
@@ -30,9 +29,9 @@ if (isset($_SESSION['usuario_id']) && isset($conn)) {
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(15, 23, 42, 0.5);
+        background: rgba(15, 23, 42, 0.6);
         z-index: 1040;
-        backdrop-filter: blur(2px);
+        backdrop-filter: blur(3px);
         opacity: 0;
         transition: opacity 0.3s ease;
     }
@@ -44,7 +43,7 @@ if (isset($_SESSION['usuario_id']) && isset($conn)) {
 
     .sidebar {
         width: 260px;
-        background: var(--card);
+        background: #ffffff;
         border-right: 1px solid var(--border);
         display: flex;
         flex-direction: column;
@@ -54,31 +53,28 @@ if (isset($_SESSION['usuario_id']) && isset($conn)) {
         top: 0;
         font-family: 'Inter', sans-serif;
         z-index: 1050;
-        transition: transform 0.3s ease;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 4px 0 15px rgba(0,0,0,0.02);
     }
 
     .sidebar-header {
-        padding: 24px;
+        height: 55px; /* ALTURA REDUCIDA Y COMPACTA */
+        padding: 0 24px; 
         display: flex;
         justify-content: space-between;
         align-items: center;
+        border-bottom: 1px solid var(--border); 
     }
 
     .brand {
         display: flex;
         align-items: center;
-        gap: 10px;
-        font-weight: 700;
-        color: var(--text);
-        font-size: 0.95rem;
-        letter-spacing: -0.01em;
+        font-weight: 800;
+        color: var(--blue-dark, #1e3a8a);
+        font-size: 1.15rem; 
+        letter-spacing: -0.02em;
     }
 
-    .brand svg {
-        color: var(--primary);
-    }
-
-    /* Botón cerrar menú móvil */
     .btn-close-sidebar {
         display: none;
         background: none;
@@ -86,53 +82,80 @@ if (isset($_SESSION['usuario_id']) && isset($conn)) {
         color: var(--muted);
         cursor: pointer;
         padding: 4px;
+        transition: color 0.2s;
+    }
+
+    .btn-close-sidebar:hover {
+        color: #ef4444;
     }
 
     .sidebar-nav {
-        padding: 0 16px;
+        padding: 12px 16px; 
         flex: 1;
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 4px; 
         overflow-y: auto;
     }
 
+    .sidebar-nav::-webkit-scrollbar { width: 4px; }
+    .sidebar-nav::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
     .nav-section {
-        font-size: 0.7rem;
+        font-size: 0.65rem; 
         text-transform: uppercase;
-        font-weight: 700;
+        font-weight: 800;
         color: #94a3b8;
         letter-spacing: 0.05em;
-        margin: 16px 0 8px 12px;
+        margin: 12px 0 6px 12px;
     }
 
-    /* ESTILO UNIFICADO PARA LOS LINKS */
+    /* ESTILO COMPACTO PARA LOS LINKS */
     .nav-item {
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 10px 14px;
-        color: var(--muted);
+        padding: 10px 14px; 
+        color: var(--text);
         text-decoration: none;
-        font-size: 0.85rem;
+        font-size: 0.85rem; 
         font-weight: 500;
-        border-radius: 8px;
-        transition: all 0.2s;
+        border-radius: 8px; 
+        transition: all 0.2s ease;
+        position: relative;
     }
 
     .nav-item:hover {
-        background: var(--bg1);
-        color: var(--text);
+        background: #f8fafc;
+        transform: translateX(3px); 
+        color: var(--blue-dark, #1e3a8a);
     }
 
     .nav-item.active {
-        background: rgba(255, 138, 31, 0.1);
+        background: linear-gradient(135deg, rgba(255, 138, 31, 0.12), rgba(255, 122, 0, 0.05));
         color: var(--primary2);
-        font-weight: 600;
+        font-weight: 700;
+    }
+
+    .nav-item.active::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 20%;
+        height: 60%;
+        width: 3px; 
+        background: var(--primary);
+        border-radius: 0 4px 4px 0;
     }
 
     .nav-item svg {
-        opacity: 0.7;
+        opacity: 0.6;
+        transition: opacity 0.2s, color 0.2s;
+    }
+
+    .nav-item:hover svg {
+        opacity: 1;
+        color: var(--primary);
     }
 
     .nav-item.active svg {
@@ -140,42 +163,48 @@ if (isset($_SESSION['usuario_id']) && isset($conn)) {
         color: var(--primary);
     }
 
-    /* NUEVO FOOTER SINCRONIZADO */
+    /* FOOTER COMPACTO */
     .sidebar-footer {
-        padding: 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
+        padding: 14px 16px; 
+        border-top: 1px solid rgba(0,0,0,0.04);
+        background: #ffffff;
     }
 
     .user-box {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-top: 8px;
-        padding-top: 12px;
-        border-top: 1px solid var(--border);
+        background: #f8fafc;
+        padding: 8px 12px; 
+        border-radius: 10px; 
+        border: 1px solid #e2e8f0;
+        transition: box-shadow 0.2s;
+    }
+
+    .user-box:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     }
 
     .user-mini {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 10px; 
         overflow: hidden;
     }
 
     .avatar-mini {
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        background: var(--primary);
+        width: 32px; 
+        height: 32px; 
+        border-radius: 8px; 
+        background: linear-gradient(135deg, var(--primary), var(--primary2));
         color: white;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 700;
-        font-size: 1rem;
+        font-weight: 800;
+        font-size: 0.9rem; 
         flex-shrink: 0;
+        box-shadow: 0 2px 6px rgba(255, 138, 31, 0.3);
     }
 
     .user-details {
@@ -184,33 +213,39 @@ if (isset($_SESSION['usuario_id']) && isset($conn)) {
     }
 
     .user-details .name {
-        font-size: 0.8rem;
-        font-weight: 600;
+        font-size: 0.8rem; 
+        font-weight: 700;
         color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 110px; 
     }
 
     .user-details .role {
-        font-size: 0.7rem;
+        font-size: 0.7rem; 
         color: var(--muted);
+        font-weight: 500;
     }
 
     .logout-item {
-        color: #ef4444;
-        padding: 8px;
+        color: #94a3b8;
+        padding: 6px; 
         margin: 0;
         border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: 0.2s;
+        transition: all 0.2s;
+        text-decoration: none;
     }
 
     .logout-item:hover {
         background: #fee2e2;
         color: #dc2626;
+        transform: scale(1.05);
     }
 
-    /* Ajustes Responsive para el Sidebar */
     @media (max-width: 768px) {
         .sidebar { transform: translateX(-100%); }
         .sidebar.active { transform: translateX(0); }
@@ -223,13 +258,10 @@ if (isset($_SESSION['usuario_id']) && isset($conn)) {
 <aside class="sidebar" id="mainSidebar">
     <div class="sidebar-header">
         <div class="brand">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="22" height="22">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            SG-SST Pro
+            SG-SST <span style="color: var(--primary); margin-left: 4px;">Pro</span>
         </div>
         <button class="btn-close-sidebar" id="btnCloseSidebar">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="24" height="24">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
         </button>
@@ -269,17 +301,17 @@ if (isset($_SESSION['usuario_id']) && isset($conn)) {
                 Mis Encuestas
             </a>
         <?php endif; ?>
-    </nav>
 
-    <div class="sidebar-footer">
-        
+        <div style="margin-top: auto;"></div>
+
+        <div class="nav-section">Cuenta</div>
         <a href="notificaciones.php" class="nav-item <?php echo ($current_page == 'notificaciones.php') ? 'active' : ''; ?>">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
             </svg>
             Notificaciones
             <?php if ($unread_count > 0): ?>
-                <span style="margin-left: auto; background: #ef4444; color: white; border-radius: 12px; padding: 2px 7px; font-size: 0.7rem; font-weight: 700; line-height: 1;">
+                <span style="margin-left: auto; background: #ef4444; color: white; border-radius: 10px; padding: 2px 6px; font-size: 0.65rem; font-weight: 700; line-height: 1.2;">
                     <?php echo $unread_count > 9 ? '9+' : $unread_count; ?>
                 </span>
             <?php endif; ?>
@@ -292,7 +324,9 @@ if (isset($_SESSION['usuario_id']) && isset($conn)) {
             </svg>
             Configuración
         </a>
+    </nav>
 
+    <div class="sidebar-footer">
         <div class="user-box">
             <div class="user-mini">
                 <div class="avatar-mini">
@@ -304,12 +338,11 @@ if (isset($_SESSION['usuario_id']) && isset($conn)) {
                 </div>
             </div>
             <a href="#" onclick="showConfirmModal('Cerrar Sesión', '¿Estás seguro de que deseas salir de tu cuenta?', 'logout.php', 'danger', 'Sí, cerrar sesión'); return false;" class="logout-item" title="Cerrar Sesión">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="18" height="18">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
             </a>
         </div>
-
     </div>
 </aside>
 
@@ -324,7 +357,7 @@ if (isset($_SESSION['usuario_id']) && isset($conn)) {
             mainSidebar.classList.toggle('active');
             sidebarOverlay.classList.toggle('active');
             if (mainSidebar.classList.contains('active')) {
-                document.body.style.overflow = 'hidden'; // Evita scroll atrás
+                document.body.style.overflow = 'hidden'; 
             } else {
                 document.body.style.overflow = '';
             }

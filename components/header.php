@@ -20,32 +20,39 @@ if (isset($_SESSION['usuario_id'])) {
 ?>
 <style>
     .top-header {
-        background: var(--bg1);
-        border-bottom: none;
-        padding: 24px 40px;
+        /* EFECTO FLOTANTE CON BORDES REDONDOS (Floating Pill) */
+        background: rgba(255, 255, 255, 0.55);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.8); /* Borde blanco sutil en todos lados */
+        border-radius: 20px; /* Bordes bien redondeados */
+        height: 55px; 
+        padding: 0 24px; 
+        margin: 16px 30px; /* Margen para despegarlo del techo y del sidebar */
         display: flex;
         justify-content: space-between;
         align-items: center;
         position: sticky;
-        top: 0;
-        z-index: 10;
+        top: 16px; /* Al hacer scroll, respeta 16px de espacio arriba */
+        z-index: 100;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02); /* Sombra 3D suave */
     }
 
     .header-left-group {
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: 12px; 
     }
 
     .btn-mobile-menu {
         display: none;
-        /* Oculto en PC */
         background: none;
         border: none;
         color: var(--text);
         cursor: pointer;
-        padding: 4px;
+        padding: 4px; 
         border-radius: 6px;
+        transition: background 0.2s;
     }
 
     .btn-mobile-menu:hover {
@@ -54,87 +61,88 @@ if (isset($_SESSION['usuario_id'])) {
 
     .header-title {
         margin: 0;
-        color: var(--text);
-        font-size: 1.1rem;
-        font-weight: 600;
+        color: var(--blue-dark, #1e3a8a);
+        font-size: 1.05rem; 
+        font-weight: 800; 
         letter-spacing: -0.01em;
     }
 
     .top-header-actions {
         display: flex;
-        gap: 12px;
+        gap: 12px; 
         align-items: center;
         flex-direction: row !important;
-        /* Forza a que estén uno al lado del otro */
     }
 
     .role-badge {
         background: rgba(255, 138, 31, 0.12);
         color: var(--primary2);
-        padding: 4px 12px;
-        border-radius: 8px;
-        font-size: 0.75rem;
+        padding: 4px 10px; 
+        border-radius: 12px;
+        font-size: 0.7rem; 
         font-weight: 700;
         letter-spacing: 0.02em;
+        text-transform: uppercase;
+        border: 1px solid rgba(255, 138, 31, 0.2);
     }
 
-    /* ESTILO UNIFICADO PARA LOS BOTONES DEL HEADER */
     .icon-btn {
-        background: var(--card);
-        border: 1px solid var(--border);
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.7); 
+        border: 1px solid rgba(0,0,0,0.05);
+        width: 34px; 
+        height: 34px; 
+        border-radius: 8px; 
         display: flex;
         align-items: center;
         justify-content: center;
         color: var(--muted);
         cursor: pointer;
-        transition: all 0.2s;
-        text-decoration: none; /* Asegura que el enlace no tenga subrayado */
-        position: relative; /* Clave para que el globito rojo se posicione bien */
+        transition: all 0.3s ease;
+        text-decoration: none;
+        position: relative;
     }
 
     .icon-btn:hover {
+        background: #ffffff;
         color: var(--primary);
-        border-color: var(--primary);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 6px rgba(255, 138, 31, 0.1);
+        border-color: #cbd5e1;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
     }
 
-    /* Globito de notificación rojo perfectamente alineado */
     .badge-notif {
         position: absolute; 
-        top: -6px; 
-        right: -6px; 
+        top: -4px; 
+        right: -4px; 
         background: #ef4444; 
         color: white; 
         border-radius: 50%; 
-        font-size: 0.65rem; 
+        font-size: 0.6rem; 
         font-weight: bold; 
-        width: 18px; 
-        height: 18px; 
+        width: 16px; 
+        height: 16px; 
         display: flex; 
         align-items: center; 
         justify-content: center;
-        border: 2px solid var(--bg1); /* Borde del color del fondo para que resalte */
+        border: 2px solid #ffffff;
         line-height: 1;
+        box-shadow: 0 2px 4px rgba(239, 68, 68, 0.4);
     }
 
-    /* Ajustes Responsive para el Header */
     @media (max-width: 768px) {
         .top-header {
-            padding: 16px 20px;
+            margin: 12px 16px; /* Más pegado en celulares para ahorrar espacio */
+            top: 12px;
+            padding: 0 16px;
         }
-
         .btn-mobile-menu {
             display: flex;
-            /* Visible en celular */
         }
-
         .role-badge {
             display: none;
-            /* Ocultamos el rol en el header para ahorrar espacio en cel */
+        }
+        .header-title {
+            font-size: 1rem;
         }
     }
 </style>
@@ -142,7 +150,7 @@ if (isset($_SESSION['usuario_id'])) {
 <header class="top-header">
     <div class="header-left-group">
         <button class="btn-mobile-menu" id="btnOpenSidebar">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="24" height="24">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
         </button>
