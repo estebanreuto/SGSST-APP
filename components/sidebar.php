@@ -1,12 +1,24 @@
 <?php
-$usuario_nombre = $usuario_nombre ?? 'Usuario';
-$rol_display = $rol_display ?? 'Rol no definido';
-$usuario_rol = $usuario_rol ?? '';
+// Validar si quien inició sesión es el Super Admin
+$es_super_admin = isset($_SESSION['cpanel_admin_id']);
+
+if ($es_super_admin) {
+    // Si es super admin, forzamos los datos para la interfaz
+    $usuario_nombre = $_SESSION['cpanel_admin_nombre'] ?? 'Super Admin';
+    $rol_display = 'Super Administrador';
+    $usuario_rol = 'super_admin';
+} else {
+    // Si es un usuario normal, usamos los datos que ya traías
+    $usuario_nombre = $usuario_nombre ?? 'Usuario';
+    $rol_display = $rol_display ?? 'Rol no definido';
+    $usuario_rol = $usuario_rol ?? '';
+}
+
 $current_page = basename($_SERVER['PHP_SELF']);
 
-// Consulta para contar notificaciones no leídas y mostrar el globito en el Sidebar
+// Consulta para contar notificaciones no leídas y mostrar el globito en el Sidebar (Solo para usuarios normales)
 $unread_count = 0;
-if (isset($_SESSION['usuario_id']) && isset($conn)) {
+if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
     $stmt_notif = $conn->prepare("SELECT COUNT(*) FROM notificaciones WHERE usuario_id = ? AND leida = 0");
     $stmt_notif->execute([$_SESSION['usuario_id']]);
     $unread_count = $stmt_notif->fetchColumn();
@@ -58,7 +70,7 @@ if (isset($_SESSION['usuario_id']) && isset($conn)) {
     }
 
     .sidebar-header {
-        height: 55px; /* ALTURA REDUCIDA Y COMPACTA */
+        height: 55px;
         padding: 0 24px; 
         display: flex;
         justify-content: space-between;
@@ -110,7 +122,6 @@ if (isset($_SESSION['usuario_id']) && isset($conn)) {
         margin: 12px 0 6px 12px;
     }
 
-    /* ESTILO COMPACTO PARA LOS LINKS */
     .nav-item {
         display: flex;
         align-items: center;
@@ -163,7 +174,6 @@ if (isset($_SESSION['usuario_id']) && isset($conn)) {
         color: var(--primary);
     }
 
-    /* FOOTER COMPACTO */
     .sidebar-footer {
         padding: 14px 16px; 
         border-top: 1px solid rgba(0,0,0,0.04);
@@ -205,6 +215,12 @@ if (isset($_SESSION['usuario_id']) && isset($conn)) {
         font-size: 0.9rem; 
         flex-shrink: 0;
         box-shadow: 0 2px 6px rgba(255, 138, 31, 0.3);
+    }
+
+    /* Avatar especial para el Super Admin */
+    .avatar-admin {
+        background: linear-gradient(135deg, #1e293b, #0f172a);
+        box-shadow: 0 2px 6px rgba(30, 41, 59, 0.3);
     }
 
     .user-details {
@@ -268,68 +284,79 @@ if (isset($_SESSION['usuario_id']) && isset($conn)) {
     </div>
 
     <nav class="sidebar-nav">
-        <div class="nav-section">Principal</div>
-        <a href="dashboard.php" class="nav-item <?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-            </svg>
-            Dashboard
-        </a>
-
-        <?php if ($usuario_rol === 'representante' || $usuario_rol === 'sst'): ?>
-            <div class="nav-section">Administración</div>
-            <a href="trabajadores.php" class="nav-item <?php echo $current_page == 'trabajadores.php' ? 'active' : ''; ?>">
+        
+        <?php if ($es_super_admin): ?>
+            <div class="nav-section">Super Administrador</div>
+            <a href="index.php" class="nav-item <?php echo $current_page == 'index.php' ? 'active' : ''; ?>">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path>
                 </svg>
-                Personal
+                CPanel Master
             </a>
-            <a href="reportes.php" class="nav-item <?php echo $current_page == 'reportes.php' ? 'active' : ''; ?>">
+            <?php else: ?>
+            <div class="nav-section">Principal</div>
+            <a href="dashboard.php" class="nav-item <?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                 </svg>
-                Generar Reportes
+                Dashboard
             </a>
-        <?php endif; ?>
 
-        <?php if ($usuario_rol === 'trabajador'): ?>
-            <div class="nav-section">Mis Tareas</div>
-            <a href="mis_encuestas.php" class="nav-item <?php echo $current_page == 'mis_encuestas.php' ? 'active' : ''; ?>">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Mis Encuestas
-            </a>
-        <?php endif; ?>
-
-        <div style="margin-top: auto;"></div>
-
-        <div class="nav-section">Cuenta</div>
-        <a href="notificaciones.php" class="nav-item <?php echo ($current_page == 'notificaciones.php') ? 'active' : ''; ?>">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-            </svg>
-            Notificaciones
-            <?php if ($unread_count > 0): ?>
-                <span style="margin-left: auto; background: #ef4444; color: white; border-radius: 10px; padding: 2px 6px; font-size: 0.65rem; font-weight: 700; line-height: 1.2;">
-                    <?php echo $unread_count > 9 ? '9+' : $unread_count; ?>
-                </span>
+            <?php if ($usuario_rol === 'representante' || $usuario_rol === 'sst'): ?>
+                <div class="nav-section">Administración</div>
+                <a href="trabajadores.php" class="nav-item <?php echo $current_page == 'trabajadores.php' ? 'active' : ''; ?>">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    Personal
+                </a>
+                <a href="reportes.php" class="nav-item <?php echo $current_page == 'reportes.php' ? 'active' : ''; ?>">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Generar Reportes
+                </a>
             <?php endif; ?>
-        </a>
 
-        <a href="perfil.php" class="nav-item <?php echo ($current_page == 'perfil.php') ? 'active' : ''; ?>">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-            </svg>
-            Configuración
-        </a>
+            <?php if ($usuario_rol === 'trabajador'): ?>
+                <div class="nav-section">Mis Tareas</div>
+                <a href="mis_encuestas.php" class="nav-item <?php echo $current_page == 'mis_encuestas.php' ? 'active' : ''; ?>">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Mis Encuestas
+                </a>
+            <?php endif; ?>
+
+            <div style="margin-top: auto;"></div>
+
+            <div class="nav-section">Cuenta</div>
+            <a href="notificaciones.php" class="nav-item <?php echo ($current_page == 'notificaciones.php') ? 'active' : ''; ?>">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                </svg>
+                Notificaciones
+                <?php if ($unread_count > 0): ?>
+                    <span style="margin-left: auto; background: #ef4444; color: white; border-radius: 10px; padding: 2px 6px; font-size: 0.65rem; font-weight: 700; line-height: 1.2;">
+                        <?php echo $unread_count > 9 ? '9+' : $unread_count; ?>
+                    </span>
+                <?php endif; ?>
+            </a>
+
+            <a href="perfil.php" class="nav-item <?php echo ($current_page == 'perfil.php') ? 'active' : ''; ?>">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                Configuración
+            </a>
+        <?php endif; ?>
     </nav>
 
     <div class="sidebar-footer">
         <div class="user-box">
             <div class="user-mini">
-                <div class="avatar-mini">
+                <div class="avatar-mini <?php echo $es_super_admin ? 'avatar-admin' : ''; ?>">
                     <?php echo strtoupper(substr($usuario_nombre, 0, 1)); ?>
                 </div>
                 <div class="user-details">
