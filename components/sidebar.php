@@ -175,24 +175,25 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
     }
 
     .sidebar-footer {
-        padding: 14px 16px; 
+        padding: 16px; 
         border-top: 1px solid rgba(0,0,0,0.04);
         background: #ffffff;
     }
 
+    /* NUEVA CAJA DE USUARIO AMPLIADA */
     .user-box {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
+        flex-direction: column;
         background: #f8fafc;
-        padding: 8px 12px; 
-        border-radius: 10px; 
+        padding: 12px; 
+        border-radius: 12px; 
         border: 1px solid #e2e8f0;
         transition: box-shadow 0.2s;
+        gap: 12px;
     }
 
     .user-box:hover {
-        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
     }
 
     .user-mini {
@@ -203,8 +204,8 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
     }
 
     .avatar-mini {
-        width: 32px; 
-        height: 32px; 
+        width: 36px; 
+        height: 36px; 
         border-radius: 8px; 
         background: linear-gradient(135deg, var(--primary), var(--primary2));
         color: white;
@@ -212,12 +213,11 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
         align-items: center;
         justify-content: center;
         font-weight: 800;
-        font-size: 0.9rem; 
+        font-size: 1rem; 
         flex-shrink: 0;
         box-shadow: 0 2px 6px rgba(255, 138, 31, 0.3);
     }
 
-    /* Avatar especial para el Super Admin */
     .avatar-admin {
         background: linear-gradient(135deg, #1e293b, #0f172a);
         box-shadow: 0 2px 6px rgba(30, 41, 59, 0.3);
@@ -235,7 +235,7 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-width: 110px; 
+        max-width: 140px; 
     }
 
     .user-details .role {
@@ -244,22 +244,62 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
         font-weight: 500;
     }
 
-    .logout-item {
-        color: #94a3b8;
-        padding: 6px; 
-        margin: 0;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s;
-        text-decoration: none;
+    /* LÍNEA DIVISORIA EN EL FOOTER */
+    .user-box-divider {
+        height: 1px;
+        background: #e2e8f0;
+        width: 100%;
     }
 
-    .logout-item:hover {
+    /* BOTONES ANCHOS DE ACCIÓN */
+    .user-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .action-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text);
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .action-btn svg {
+        color: var(--muted);
+        transition: color 0.2s ease;
+    }
+
+    .action-btn:hover {
+        background: #e2e8f0;
+        color: var(--primary);
+    }
+
+    .action-btn:hover svg {
+        color: var(--primary);
+    }
+
+    .action-btn.exit-btn {
+        color: #ef4444;
+    }
+
+    .action-btn.exit-btn svg {
+        color: #ef4444;
+    }
+
+    .action-btn.exit-btn:hover {
         background: #fee2e2;
         color: #dc2626;
-        transform: scale(1.05);
+    }
+
+    .action-btn.exit-btn:hover svg {
+        color: #dc2626;
     }
 
     @media (max-width: 768px) {
@@ -289,9 +329,9 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
             <div class="nav-section">Super Administrador</div>
             <a href="index.php" class="nav-item <?php echo $current_page == 'index.php' ? 'active' : ''; ?>">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                 </svg>
-                CPanel Master
+                Dashboard
             </a>
             <?php else: ?>
             <div class="nav-section">Principal</div>
@@ -343,18 +383,12 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
                 <?php endif; ?>
             </a>
 
-            <a href="perfil.php" class="nav-item <?php echo ($current_page == 'perfil.php') ? 'active' : ''; ?>">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                </svg>
-                Configuración
-            </a>
         <?php endif; ?>
     </nav>
 
     <div class="sidebar-footer">
         <div class="user-box">
+            
             <div class="user-mini">
                 <div class="avatar-mini <?php echo $es_super_admin ? 'avatar-admin' : ''; ?>">
                     <?php echo strtoupper(substr($usuario_nombre, 0, 1)); ?>
@@ -364,11 +398,26 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
                     <span class="role"><?php echo htmlspecialchars($rol_display); ?></span>
                 </div>
             </div>
-            <a href="#" onclick="showConfirmModal('Cerrar Sesión', '¿Estás seguro de que deseas salir de tu cuenta?', 'logout.php', 'danger', 'Sí, cerrar sesión'); return false;" class="logout-item" title="Cerrar Sesión">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="18" height="18">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-            </a>
+            
+            <div class="user-box-divider"></div>
+            
+            <div class="user-actions">
+                <a href="<?php echo $es_super_admin ? '#' : 'perfil.php'; ?>" class="action-btn">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    Configuración
+                </a>
+                
+                <a href="#" onclick="showConfirmModal('Cerrar Sesión', '¿Estás seguro de que deseas salir de tu cuenta?', 'logout.php', 'danger', 'Sí, cerrar sesión'); return false;" class="action-btn exit-btn">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Cerrar Sesión
+                </a>
+            </div>
+
         </div>
     </div>
 </aside>
