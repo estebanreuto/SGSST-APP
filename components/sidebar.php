@@ -3,28 +3,51 @@
 $es_super_admin = isset($_SESSION['cpanel_admin_id']);
 
 if ($es_super_admin) {
-    // Si es super admin, forzamos los datos para la interfaz
     $usuario_nombre = $_SESSION['cpanel_admin_nombre'] ?? 'Super Admin';
     $rol_display = 'Super Administrador';
     $usuario_rol = 'super_admin';
 } else {
-    // Si es un usuario normal, usamos los datos que ya traías
-    $usuario_nombre = $usuario_nombre ?? 'Usuario';
-    $rol_display = $rol_display ?? 'Rol no definido';
-    $usuario_rol = $usuario_rol ?? '';
+    $usuario_nombre = $_SESSION['usuario_nombre'] ?? 'Usuario';
+    $rol_display = $_SESSION['rol_display'] ?? 'Rol no definido';
+    $usuario_rol = $_SESSION['usuario_rol'] ?? '';
 }
 
 $current_page = basename($_SERVER['PHP_SELF']);
-
-// Consulta para contar notificaciones no leídas y mostrar el globito en el Sidebar (Solo para usuarios normales)
 $unread_count = 0;
+$nivel_plan = 0; // 1 = Básico, 2 = Pro, 3 = Enterprise
+
 if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
+    // 1. Contar notificaciones
     $stmt_notif = $conn->prepare("SELECT COUNT(*) FROM notificaciones WHERE usuario_id = ? AND leida = 0");
     $stmt_notif->execute([$_SESSION['usuario_id']]);
     $unread_count = $stmt_notif->fetchColumn();
+
+    // 2. Averiguar el plan de la empresa del usuario
+    // Consultamos la tabla usuarios -> solicitudes_empresas -> planes
+    $stmt_plan = $conn->prepare("
+        SELECT p.nombre 
+        FROM usuarios u
+        JOIN solicitudes_empresas se ON u.empresa_id = se.id
+        JOIN planes p ON se.plan_id = p.id
+        WHERE u.id = ?
+    ");
+    $stmt_plan->execute([$_SESSION['usuario_id']]);
+    $plan_data = $stmt_plan->fetch(PDO::FETCH_ASSOC);
+
+    if ($plan_data) {
+        $nombre_plan = strtolower($plan_data['nombre']);
+        if (strpos($nombre_plan, 'enterprise') !== false) {
+            $nivel_plan = 3;
+        } elseif (strpos($nombre_plan, 'pro') !== false) {
+            $nivel_plan = 2;
+        } else {
+            $nivel_plan = 1; // Básico por defecto
+        }
+    }
 }
 ?>
 <style>
+    /* ESTILOS DEL SIDEBAR */
     :root {
         --primary: #ff8a1f;
         --primary2: #ff7a00;
@@ -66,16 +89,16 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
         font-family: 'Inter', sans-serif;
         z-index: 1050;
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 4px 0 15px rgba(0,0,0,0.02);
+        box-shadow: 4px 0 15px rgba(0, 0, 0, 0.02);
     }
 
     .sidebar-header {
         height: 55px;
-        padding: 0 24px; 
+        padding: 0 24px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 1px solid var(--border); 
+        border-bottom: 1px solid var(--border);
     }
 
     .brand {
@@ -83,7 +106,7 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
         align-items: center;
         font-weight: 800;
         color: var(--blue-dark, #1e3a8a);
-        font-size: 1.15rem; 
+        font-size: 1.15rem;
         letter-spacing: -0.02em;
     }
 
@@ -102,19 +125,25 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
     }
 
     .sidebar-nav {
-        padding: 12px 16px; 
+        padding: 12px 16px;
         flex: 1;
         display: flex;
         flex-direction: column;
-        gap: 4px; 
+        gap: 4px;
         overflow-y: auto;
     }
 
-    .sidebar-nav::-webkit-scrollbar { width: 4px; }
-    .sidebar-nav::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    .sidebar-nav::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .sidebar-nav::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+    }
 
     .nav-section {
-        font-size: 0.65rem; 
+        font-size: 0.65rem;
         text-transform: uppercase;
         font-weight: 800;
         color: #94a3b8;
@@ -126,19 +155,19 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 10px 14px; 
+        padding: 10px 14px;
         color: var(--text);
         text-decoration: none;
-        font-size: 0.85rem; 
+        font-size: 0.85rem;
         font-weight: 500;
-        border-radius: 8px; 
+        border-radius: 8px;
         transition: all 0.2s ease;
         position: relative;
     }
 
     .nav-item:hover {
         background: #f8fafc;
-        transform: translateX(3px); 
+        transform: translateX(3px);
         color: var(--blue-dark, #1e3a8a);
     }
 
@@ -154,7 +183,7 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
         left: 0;
         top: 20%;
         height: 60%;
-        width: 3px; 
+        width: 3px;
         background: var(--primary);
         border-radius: 0 4px 4px 0;
     }
@@ -164,56 +193,77 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
         transition: opacity 0.2s, color 0.2s;
     }
 
-    .nav-item:hover svg {
-        opacity: 1;
-        color: var(--primary);
-    }
-
+    .nav-item:hover svg,
     .nav-item.active svg {
         opacity: 1;
         color: var(--primary);
     }
 
+    /* ESTILO PARA PESTAÑAS BLOQUEADAS (UPSELLING) */
+    .nav-item-locked {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        color: #94a3b8;
+        text-decoration: none;
+        font-size: 0.85rem;
+        font-weight: 500;
+        border-radius: 8px;
+        cursor: not-allowed;
+        background: #f8fafc;
+        opacity: 0.7;
+    }
+
+    .nav-item-locked .lock-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .nav-item-locked svg {
+        opacity: 0.5;
+    }
+
     .sidebar-footer {
-        padding: 16px; 
-        border-top: 1px solid rgba(0,0,0,0.04);
+        padding: 16px;
+        border-top: 1px solid rgba(0, 0, 0, 0.04);
         background: #ffffff;
     }
 
-    /* NUEVA CAJA DE USUARIO AMPLIADA */
     .user-box {
         display: flex;
         flex-direction: column;
         background: #f8fafc;
-        padding: 12px; 
-        border-radius: 12px; 
+        padding: 12px;
+        border-radius: 12px;
         border: 1px solid #e2e8f0;
         transition: box-shadow 0.2s;
         gap: 12px;
     }
 
     .user-box:hover {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
     }
 
     .user-mini {
         display: flex;
         align-items: center;
-        gap: 10px; 
+        gap: 10px;
         overflow: hidden;
     }
 
     .avatar-mini {
-        width: 36px; 
-        height: 36px; 
-        border-radius: 8px; 
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
         background: linear-gradient(135deg, var(--primary), var(--primary2));
         color: white;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 800;
-        font-size: 1rem; 
+        font-size: 1rem;
         flex-shrink: 0;
         box-shadow: 0 2px 6px rgba(255, 138, 31, 0.3);
     }
@@ -229,29 +279,27 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
     }
 
     .user-details .name {
-        font-size: 0.8rem; 
+        font-size: 0.8rem;
         font-weight: 700;
         color: var(--text);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-width: 140px; 
+        max-width: 140px;
     }
 
     .user-details .role {
-        font-size: 0.7rem; 
+        font-size: 0.7rem;
         color: var(--muted);
         font-weight: 500;
     }
 
-    /* LÍNEA DIVISORIA EN EL FOOTER */
     .user-box-divider {
         height: 1px;
         background: #e2e8f0;
         width: 100%;
     }
 
-    /* BOTONES ANCHOS DE ACCIÓN */
     .user-actions {
         display: flex;
         flex-direction: column;
@@ -303,9 +351,17 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
     }
 
     @media (max-width: 768px) {
-        .sidebar { transform: translateX(-100%); }
-        .sidebar.active { transform: translateX(0); }
-        .btn-close-sidebar { display: block; }
+        .sidebar {
+            transform: translateX(-100%);
+        }
+
+        .sidebar.active {
+            transform: translateX(0);
+        }
+
+        .btn-close-sidebar {
+            display: block;
+        }
     }
 </style>
 
@@ -324,16 +380,39 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
     </div>
 
     <nav class="sidebar-nav">
-        
+
         <?php if ($es_super_admin): ?>
             <div class="nav-section">Super Administrador</div>
+
             <a href="index.php" class="nav-item <?php echo $current_page == 'index.php' ? 'active' : ''; ?>">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                 </svg>
                 Dashboard
             </a>
-            <?php else: ?>
+
+            <a href="solicitudes.php" class="nav-item <?php echo $current_page == 'solicitudes.php' ? 'active' : ''; ?>">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                </svg>
+                Solicitudes
+            </a>
+
+            <a href="accesos.php" class="nav-item <?php echo $current_page == 'accesos.php' ? 'active' : ''; ?>">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                </svg>
+                Accesos
+            </a>
+
+            <a href="planes.php" class="nav-item <?php echo $current_page == 'planes.php' ? 'active' : ''; ?>">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                </svg>
+                Planes
+            </a>
+
+        <?php else: ?>
             <div class="nav-section">Principal</div>
             <a href="dashboard.php" class="nav-item <?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
@@ -344,18 +423,56 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
 
             <?php if ($usuario_rol === 'representante' || $usuario_rol === 'sst'): ?>
                 <div class="nav-section">Administración</div>
+
                 <a href="trabajadores.php" class="nav-item <?php echo $current_page == 'trabajadores.php' ? 'active' : ''; ?>">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
                     Personal
                 </a>
-                <a href="reportes.php" class="nav-item <?php echo $current_page == 'reportes.php' ? 'active' : ''; ?>">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Generar Reportes
-                </a>
+
+                <?php if ($nivel_plan >= 2): ?>
+                    <a href="reportes.php" class="nav-item <?php echo $current_page == 'reportes.php' ? 'active' : ''; ?>">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Generar Reportes
+                    </a>
+                <?php else: ?>
+                    <a href="javascript:void(0)" onclick="alert('Esta función requiere Plan Pro o Enterprise. Contacta al administrador para mejorar tu plan.')" class="nav-item-locked" title="Mejora tu plan para desbloquear">
+                        <div class="lock-left">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Generar Reportes
+                        </div>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                        </svg>
+                    </a>
+                <?php endif; ?>
+
+                <?php if ($nivel_plan >= 3): ?>
+                    <a href="auditorias.php" class="nav-item <?php echo $current_page == 'auditorias.php' ? 'active' : ''; ?>">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                        </svg>
+                        Auditorías Avanzadas
+                    </a>
+                <?php else: ?>
+                    <a href="javascript:void(0)" onclick="alert('Esta función requiere Plan Enterprise. Contacta al administrador para mejorar tu plan.')" class="nav-item-locked" title="Mejora tu plan para desbloquear">
+                        <div class="lock-left">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                            </svg>
+                            Auditorías Avanzadas
+                        </div>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                        </svg>
+                    </a>
+                <?php endif; ?>
+
             <?php endif; ?>
 
             <?php if ($usuario_rol === 'trabajador'): ?>
@@ -377,18 +494,14 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
                 </svg>
                 Notificaciones
                 <?php if ($unread_count > 0): ?>
-                    <span style="margin-left: auto; background: #ef4444; color: white; border-radius: 10px; padding: 2px 6px; font-size: 0.65rem; font-weight: 700; line-height: 1.2;">
-                        <?php echo $unread_count > 9 ? '9+' : $unread_count; ?>
-                    </span>
+                    <span style="margin-left: auto; background: #ef4444; color: white; border-radius: 10px; padding: 2px 6px; font-size: 0.65rem; font-weight: 700; line-height: 1.2;"><?php echo $unread_count > 9 ? '9+' : $unread_count; ?></span>
                 <?php endif; ?>
             </a>
-
         <?php endif; ?>
     </nav>
 
     <div class="sidebar-footer">
         <div class="user-box">
-            
             <div class="user-mini">
                 <div class="avatar-mini <?php echo $es_super_admin ? 'avatar-admin' : ''; ?>">
                     <?php echo strtoupper(substr($usuario_nombre, 0, 1)); ?>
@@ -398,9 +511,7 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
                     <span class="role"><?php echo htmlspecialchars($rol_display); ?></span>
                 </div>
             </div>
-            
             <div class="user-box-divider"></div>
-            
             <div class="user-actions">
                 <a href="<?php echo $es_super_admin ? '#' : 'perfil.php'; ?>" class="action-btn">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16">
@@ -409,7 +520,6 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
                     </svg>
                     Configuración
                 </a>
-                
                 <a href="#" onclick="showConfirmModal('Cerrar Sesión', '¿Estás seguro de que deseas salir de tu cuenta?', 'logout.php', 'danger', 'Sí, cerrar sesión'); return false;" class="action-btn exit-btn">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -417,7 +527,6 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
                     Cerrar Sesión
                 </a>
             </div>
-
         </div>
     </div>
 </aside>
@@ -432,13 +541,8 @@ if (isset($_SESSION['usuario_id']) && isset($conn) && !$es_super_admin) {
         function toggleMenu() {
             mainSidebar.classList.toggle('active');
             sidebarOverlay.classList.toggle('active');
-            if (mainSidebar.classList.contains('active')) {
-                document.body.style.overflow = 'hidden'; 
-            } else {
-                document.body.style.overflow = '';
-            }
+            document.body.style.overflow = mainSidebar.classList.contains('active') ? 'hidden' : '';
         }
-
         if (btnOpenSidebar) btnOpenSidebar.addEventListener('click', toggleMenu);
         if (btnCloseSidebar) btnCloseSidebar.addEventListener('click', toggleMenu);
         if (sidebarOverlay) sidebarOverlay.addEventListener('click', toggleMenu);

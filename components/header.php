@@ -1,4 +1,7 @@
 <?php
+// Asegurarnos de tener la página actual para el título
+$current_page = basename($_SERVER['PHP_SELF']);
+
 // Lógica para que el título del Header cambie según la página
 $titulo_header = "Panel de Control";
 if ($current_page == 'trabajadores.php') $titulo_header = "Gestión de Personal";
@@ -8,14 +11,59 @@ if ($current_page == 'evaluaciones.php') $titulo_header = "Evaluaciones SG-SST";
 if ($current_page == 'mis_encuestas.php') $titulo_header = "Mis Encuestas";
 if ($current_page == 'notificaciones.php') $titulo_header = "Centro de Notificaciones";
 if ($current_page == 'perfil.php') $titulo_header = "Configuración del Perfil";
-?>
-<?php
-// Consulta para contar notificaciones no leídas
+if ($current_page == 'planes.php') $titulo_header = "Gestión de Planes";
+if ($current_page == 'accesos.php') $titulo_header = "Control de Accesos";
+if ($current_page == 'solicitudes.php') $titulo_header = "Solicitudes de Registro";
+
+// Consultas para la barra superior
 $unread_count = 0;
-if (isset($_SESSION['usuario_id'])) {
+$nombre_plan_header = null;
+$clase_plan_header = 'plan-badge-gray'; // Color por defecto si no tiene plan
+
+// Identificar el rol
+$usuario_rol_header = $_SESSION['usuario_rol'] ?? '';
+$rol_display = $_SESSION['rol_display'] ?? 'Usuario';
+
+if (isset($_SESSION['cpanel_admin_id'])) {
+    $rol_display = 'Super Administrador';
+}
+
+if (isset($_SESSION['usuario_id']) && !isset($_SESSION['cpanel_admin_id'])) {
+    // 1. Consulta para contar notificaciones no leídas
     $stmt_notif = $conn->prepare("SELECT COUNT(*) FROM notificaciones WHERE usuario_id = ? AND leida = 0");
     $stmt_notif->execute([$_SESSION['usuario_id']]);
     $unread_count = $stmt_notif->fetchColumn();
+
+    // 2. Consulta para obtener el plan (SOLO SI ES REPRESENTANTE LEGAL)
+    if ($usuario_rol_header === 'representante') {
+        // Usamos LEFT JOIN por si la empresa aún tiene el plan_id en NULL
+        $stmt_plan_hdr = $conn->prepare("
+            SELECT p.nombre 
+            FROM usuarios u
+            JOIN solicitudes_empresas se ON u.empresa_id = se.id
+            LEFT JOIN planes p ON se.plan_id = p.id
+            WHERE u.id = ?
+        ");
+        $stmt_plan_hdr->execute([$_SESSION['usuario_id']]);
+        $plan_data_hdr = $stmt_plan_hdr->fetch(PDO::FETCH_ASSOC);
+        
+        if ($plan_data_hdr && !empty($plan_data_hdr['nombre'])) {
+            $nombre_plan_header = $plan_data_hdr['nombre'];
+            
+            // Asignar colores dinámicos al badge según el nombre del plan
+            if (stripos(strtolower($nombre_plan_header), 'pro') !== false) {
+                $clase_plan_header = 'plan-badge-pro';
+            } elseif (stripos(strtolower($nombre_plan_header), 'enterprise') !== false) {
+                $clase_plan_header = 'plan-badge-enterprise';
+            } else {
+                $clase_plan_header = 'plan-badge-basic';
+            }
+        } else {
+            // Si el plan_id es NULL o no tiene nombre
+            $nombre_plan_header = "Sin Plan";
+            $clase_plan_header = 'plan-badge-gray';
+        }
+    }
 }
 ?>
 <style>
@@ -24,18 +72,18 @@ if (isset($_SESSION['usuario_id'])) {
         background: rgba(255, 255, 255, 0.55);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.8); /* Borde blanco sutil en todos lados */
-        border-radius: 20px; /* Bordes bien redondeados */
+        border: 1px solid rgba(255, 255, 255, 0.8); 
+        border-radius: 20px; 
         height: 55px; 
         padding: 0 24px; 
-        margin: 16px 30px; /* Margen para despegarlo del techo y del sidebar */
+        margin: 16px 30px; 
         display: flex;
         justify-content: space-between;
         align-items: center;
         position: sticky;
-        top: 16px; /* Al hacer scroll, respeta 16px de espacio arriba */
+        top: 16px; 
         z-index: 100;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02); /* Sombra 3D suave */
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
     }
 
     .header-left-group {
@@ -80,11 +128,29 @@ if (isset($_SESSION['usuario_id'])) {
         padding: 4px 10px; 
         border-radius: 12px;
         font-size: 0.7rem; 
-        font-weight: 700;
+        font-weight: 800;
         letter-spacing: 0.02em;
         text-transform: uppercase;
         border: 1px solid rgba(255, 138, 31, 0.2);
     }
+
+    /* ESTILOS DINÁMICOS PARA EL BADGE DEL PLAN */
+    .plan-badge {
+        padding: 4px 10px; 
+        border-radius: 12px;
+        font-size: 0.7rem; 
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .plan-badge-gray { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+    .plan-badge-basic { background: #e0f2fe; color: #2563eb; border: 1px solid #bfdbfe; }
+    .plan-badge-pro { background: rgba(255, 138, 31, 0.12); color: var(--primary2); border: 1px solid rgba(255, 138, 31, 0.2); }
+    .plan-badge-enterprise { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.2); }
 
     .icon-btn {
         background: rgba(255, 255, 255, 0.7); 
@@ -130,20 +196,10 @@ if (isset($_SESSION['usuario_id'])) {
     }
 
     @media (max-width: 768px) {
-        .top-header {
-            margin: 12px 16px; /* Más pegado en celulares para ahorrar espacio */
-            top: 12px;
-            padding: 0 16px;
-        }
-        .btn-mobile-menu {
-            display: flex;
-        }
-        .role-badge {
-            display: none;
-        }
-        .header-title {
-            font-size: 1rem;
-        }
+        .top-header { margin: 12px 16px; top: 12px; padding: 0 16px; }
+        .btn-mobile-menu { display: flex; }
+        .role-badge, .plan-badge { display: none; }
+        .header-title { font-size: 1rem; }
     }
 </style>
 
@@ -158,7 +214,15 @@ if (isset($_SESSION['usuario_id'])) {
     </div>
 
     <div class="top-header-actions">
-        <div class="role-badge"><?php echo htmlspecialchars($rol_display ?? 'Usuario'); ?></div>
+        
+        <?php if ($nombre_plan_header !== null): ?>
+            <div class="plan-badge <?php echo $clase_plan_header; ?>" title="Suscripción Actual">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                Plan <?php echo htmlspecialchars($nombre_plan_header); ?>
+            </div>
+        <?php endif; ?>
+
+        <div class="role-badge"><?php echo htmlspecialchars($rol_display); ?></div>
 
         <a href="notificaciones.php" class="icon-btn" title="Notificaciones">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">

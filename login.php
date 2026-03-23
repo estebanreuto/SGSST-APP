@@ -39,20 +39,21 @@ loadEnvSimple(__DIR__ . '/.env');
 // ==========================================
 // FUNCIÓN PARA OCULTAR EL CORREO (Data Masking)
 // ==========================================
-function maskEmail(string $email): string {
+function maskEmail(string $email): string
+{
     $parts = explode('@', $email);
     if (count($parts) !== 2) return $email;
-    
+
     $name = $parts[0];
     $domain = $parts[1];
     $len = strlen($name);
-    
+
     if ($len <= 2) {
         $maskedName = substr($name, 0, 1) . '***';
     } else {
         $maskedName = substr($name, 0, 2) . '***' . substr($name, -1);
     }
-    
+
     return $maskedName . '@' . $domain;
 }
 
@@ -141,7 +142,7 @@ $success = '';
 if (isset($_GET['resend']) && !empty($_SESSION['usuario_temp'])) {
     $usuario = $_SESSION['usuario_temp'];
     $_SESSION['codigo_2fa'] = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-    $_SESSION['codigo_expira'] = time() + 300; 
+    $_SESSION['codigo_expira'] = time() + 300;
     $_SESSION['correo_censurado'] = maskEmail($usuario['email']);
 
     $fullName = trim(($usuario['nombre'] ?? '') . ' ' . ($usuario['apellido'] ?? ''));
@@ -161,9 +162,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $identifier = trim($_POST['identifier'] ?? '');
     $codigo_2fa = trim($_POST['codigo_2fa'] ?? '');
 
+    // === NUEVO: REDIRECCIÓN SECRETA A SUPER ADMIN ===
+    // Cambia 'acceso_master' por la palabra clave que quieras usar
+    $palabra_secreta = 'acceso_master';
+
+    // Si escribió la palabra secreta y no está en el paso del código 2FA, lo mandamos al admin
+    if (strtolower($identifier) === $palabra_secreta && empty($_SESSION['codigo_2fa'])) {
+        header('Location: admin/login.php');
+        exit;
+    }
+    // ================================================
+
     $mostrar_2fa = !empty($_SESSION['codigo_2fa']);
     if ($mostrar_2fa && $identifier === '' && isset($_SESSION['usuario_temp']['email'])) {
-        $identifier = $_SESSION['usuario_temp']['email']; 
+        $identifier = $_SESSION['usuario_temp']['email'];
     }
 
     if (empty($identifier)) {
@@ -200,7 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         unset($_SESSION['codigo_2fa'], $_SESSION['usuario_temp'], $_SESSION['codigo_expira'], $_SESSION['correo_censurado']);
                         $error = 'No se pudo enviar el código por correo. Detalle técnico: ' . $msg;
                     }
-                } 
+                }
                 // Paso 2: Validar Código
                 else {
                     if ($codigo_2fa !== '' && $codigo_2fa === $_SESSION['codigo_2fa'] && time() < ($_SESSION['codigo_expira'] ?? 0)) {
@@ -208,7 +220,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         log_activity($conn, (int) $usuario['id'], 'LOGIN_OK', 'Ingreso exitoso con 2FA');
 
                         unset($_SESSION['codigo_2fa'], $_SESSION['usuario_temp'], $_SESSION['codigo_expira'], $_SESSION['correo_censurado']);
-                        
+
                         header('Location: dashboard.php');
                         exit;
                     } else {
@@ -223,13 +235,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-
 $mostrar_2fa = !empty($_SESSION['codigo_2fa']);
 $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
 ?>
 
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <title>Iniciar Sesión | SG-SST Pro</title>
@@ -277,12 +289,32 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
             opacity: 0.35;
             animation: float 12s infinite ease-in-out alternate;
         }
-        .blob-1 { top: -5%; left: -5%; width: 500px; height: 500px; background: var(--blue-main); }
-        .blob-2 { bottom: -10%; right: -5%; width: 600px; height: 600px; background: var(--primary); animation-delay: -6s; }
+
+        .blob-1 {
+            top: -5%;
+            left: -5%;
+            width: 500px;
+            height: 500px;
+            background: var(--blue-main);
+        }
+
+        .blob-2 {
+            bottom: -10%;
+            right: -5%;
+            width: 600px;
+            height: 600px;
+            background: var(--primary);
+            animation-delay: -6s;
+        }
 
         @keyframes float {
-            0% { transform: translateY(0px) scale(1); }
-            100% { transform: translateY(40px) scale(1.05); }
+            0% {
+                transform: translateY(0px) scale(1);
+            }
+
+            100% {
+                transform: translateY(40px) scale(1.05);
+            }
         }
 
         /* ANIMACIONES DE ENTRADA */
@@ -291,15 +323,26 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
             opacity: 0;
             transform: translateY(20px);
         }
-        .delay-1 { animation-delay: 0.1s; }
-        .delay-2 { animation-delay: 0.2s; }
 
-        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+        .delay-1 {
+            animation-delay: 0.1s;
+        }
+
+        .delay-2 {
+            animation-delay: 0.2s;
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
         /* ===== LAYOUT ===== */
         .wrapper {
             display: grid;
-            grid-template-columns: 42% 58%; 
+            grid-template-columns: 42% 58%;
             height: 100vh;
             overflow: hidden;
         }
@@ -347,11 +390,13 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
             z-index: 2;
         }
 
-        .form-area::-webkit-scrollbar { width: 0; }
+        .form-area::-webkit-scrollbar {
+            width: 0;
+        }
 
         .card {
             width: 100%;
-            max-width: 480px; 
+            max-width: 480px;
             margin: auto;
             background: var(--card-bg);
             backdrop-filter: blur(16px);
@@ -392,8 +437,18 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
             line-height: 1.4;
             font-weight: 500;
         }
-        .alert-error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-        .alert-success { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+
+        .alert-error {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .alert-success {
+            background-color: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
 
         /* ===== INPUTS ===== */
         .field {
@@ -410,7 +465,9 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
             color: var(--text-main);
         }
 
-        .control { position: relative; }
+        .control {
+            position: relative;
+        }
 
         .icon {
             position: absolute;
@@ -442,7 +499,9 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
             box-shadow: 0 0 0 3px rgba(255, 138, 31, .15);
         }
 
-        input:focus ~ .icon { color: var(--primary); }
+        input:focus~.icon {
+            color: var(--primary);
+        }
 
         /* Estilo especial para el input del código 2FA */
         .input-2fa {
@@ -451,10 +510,12 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
             letter-spacing: 6px;
             font-weight: 700;
             color: var(--primary);
-            padding-left: 14px !important; 
+            padding-left: 14px !important;
         }
-        
-        .input-2fa ~ .icon { display: none; }
+
+        .input-2fa~.icon {
+            display: none;
+        }
 
         /* Temporizador */
         .timer-badge {
@@ -465,6 +526,7 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
             align-items: center;
             gap: 4px;
         }
+
         .timer-badge span {
             color: var(--primary);
             font-weight: 700;
@@ -522,9 +584,15 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
 
         .spin-icon {
             animation: spin 1s linear infinite;
-            width: 18px; height: 18px;
+            width: 18px;
+            height: 18px;
         }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
 
         /* ===== FOOTER LINKS ===== */
         .footer-links {
@@ -544,8 +612,11 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
             transition: color 0.2s;
             margin-left: 4px;
         }
-        
-        .footer-links a:hover { color: var(--blue-dark); text-decoration: underline; }
+
+        .footer-links a:hover {
+            color: var(--blue-dark);
+            text-decoration: underline;
+        }
 
         .btn-outline {
             display: inline-flex;
@@ -570,15 +641,35 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
 
         /* RESPONSIVE */
         @media(max-width:1100px) {
-            .wrapper { grid-template-columns: 1fr; height: auto; }
-            .brand { padding: 40px 40px 20px; text-align: center; }
-            .brand p { margin: 16px auto 0; }
-            .form-area { padding: 20px 40px 60px; height: auto; overflow: visible; }
+            .wrapper {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+
+            .brand {
+                padding: 40px 40px 20px;
+                text-align: center;
+            }
+
+            .brand p {
+                margin: 16px auto 0;
+            }
+
+            .form-area {
+                padding: 20px 40px 60px;
+                height: auto;
+                overflow: visible;
+            }
         }
 
         @media(max-width:500px) {
-            .form-area { padding: 20px; }
-            .card { padding: 30px 24px; }
+            .form-area {
+                padding: 20px;
+            }
+
+            .card {
+                padding: 30px 24px;
+            }
         }
     </style>
 </head>
@@ -613,48 +704,60 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
 
                 <?php if ($error): ?>
                     <div class="alert alert-error">
-                        <svg fill="none" stroke="currentColor" width="20" height="20" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <svg fill="none" stroke="currentColor" width="20" height="20" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
                         <span><?php echo htmlspecialchars($error); ?></span>
                     </div>
                 <?php endif; ?>
 
                 <?php if ($success): ?>
                     <div class="alert alert-success">
-                        <svg fill="none" stroke="currentColor" width="20" height="20" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <svg fill="none" stroke="currentColor" width="20" height="20" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
                         <span><?php echo $success; ?></span>
                     </div>
                 <?php endif; ?>
 
                 <form method="POST" action="login.php" id="loginForm">
-                    
+
                     <?php if (!$mostrar_2fa): ?>
                         <div class="field">
                             <label for="identifier">Cédula o Correo Electrónico</label>
                             <div class="control">
                                 <input type="text" id="identifier" name="identifier" required placeholder="Ej: 1002345678 o correo" autofocus>
-                                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
                             </div>
                         </div>
                         <button type="submit" class="btn-submit" id="btnSubmit">Continuar</button>
-                    
+
                     <?php else: ?>
                         <div class="field" style="margin-bottom: 8px;">
                             <label for="codigo_2fa">
                                 Código de Verificación
                                 <div class="timer-badge" id="timerContainer">
-                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
                                     Expira en: <span id="timerDisplay">05:00</span>
                                 </div>
                             </label>
                             <div class="control">
                                 <input type="text" class="input-2fa" id="codigo_2fa" name="codigo_2fa" required placeholder="Ej: 123456" maxlength="6" autocomplete="off" autofocus>
-                                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path>
+                                </svg>
                             </div>
                         </div>
 
                         <div id="resendContainer" style="display: none; text-align: right; margin-bottom: 20px;">
                             <a href="login.php?resend=1" class="resend-link-subtle" id="resendLink">
-                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
                                 Reenviar código
                             </a>
                         </div>
@@ -680,7 +783,7 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
                             Ingresar con otra cédula o correo
                         </a>
                     <?php endif; ?>
-                    
+
                     <a href="index.php" class="btn-outline" style="width: 100%;">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
@@ -696,15 +799,15 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            
+
             // Animación al presionar "Continuar" o "Entrar"
             const loginForm = document.getElementById('loginForm');
             if (loginForm) {
                 loginForm.addEventListener('submit', function() {
                     const btn = document.getElementById('btnSubmit');
                     const is2FAStep = document.getElementById('codigo_2fa') !== null;
-                    
-                    if(!is2FAStep) {
+
+                    if (!is2FAStep) {
                         btn.innerHTML = '<svg class="spin-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Enviando código...';
                     } else {
                         btn.innerHTML = '<svg class="spin-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Verificando...';
@@ -756,7 +859,7 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
                     // Si ya expiró al recargar la página
                     endTimer();
                 }
-                
+
                 // Mostrar el botón de reenviar a los 30 segundos por si el correo no llegó
                 setTimeout(() => {
                     if (resendContainer.style.display === 'none') {
@@ -764,8 +867,9 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
                     }
                 }, 30000);
             <?php endif; ?>
-            
+
         });
     </script>
 </body>
+
 </html>
