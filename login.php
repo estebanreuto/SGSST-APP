@@ -25,7 +25,6 @@ function loadEnvSimple(string $path): void
         $key = trim($key);
         $value = trim($value);
 
-        // quitar comillas si vienen
         $value = trim($value, "\"'");
 
         if ($key !== '' && getenv($key) === false) {
@@ -119,12 +118,46 @@ function send2FAEmail(string $toEmail, string $toName, string $code): array
 }
 
 // ==========================================
-// LÓGICA DE CANCELAR / CAMBIAR CUENTA (NUEVO)
+// LÓGICA DE CANCELAR / CAMBIAR CUENTA
 // ==========================================
 if (isset($_GET['cancel'])) {
-    unset($_SESSION['codigo_2fa'], $_SESSION['usuario_temp'], $_SESSION['codigo_expira'], $_SESSION['correo_censurado']);
+    unset($_SESSION['codigo_2fa'], $_SESSION['usuario_temp'], $_SESSION['codigo_expira'], $_SESSION['correo_censurado'], $_SESSION['remember_me']);
     header('Location: login.php');
     exit;
+}
+
+// ==========================================
+// LÓGICA AUTO-LOGIN (RECORDAR SESIÓN)
+// ==========================================
+if (!isset($_SESSION['usuario_id']) && isset($_COOKIE['sgsst_remember'])) {
+    $token = $_COOKIE['sgsst_remember'];
+
+    // Buscar si el token existe, está activo y no ha expirado
+    $stmt_check = $conn->prepare("
+        SELECT u.*, s.id as sesion_id 
+        FROM usuarios u 
+        JOIN sesiones s ON u.id = s.usuario_id 
+        WHERE s.token = ? AND s.activa = 1 AND s.fecha_expiracion > NOW()
+    ");
+    $stmt_check->execute([$token]);
+    $auto_user = $stmt_check->fetch(PDO::FETCH_ASSOC);
+
+    if ($auto_user) {
+        // Recrear variables de sesión como si se hubiera logueado normal
+        $_SESSION['usuario_id'] = $auto_user['id'];
+        $_SESSION['usuario_nombre'] = $auto_user['nombre'];
+        $_SESSION['usuario_apellido'] = $auto_user['apellido'];
+        $_SESSION['usuario_rol'] = $auto_user['rol'];
+
+        // Actualizar último acceso
+        $conn->prepare("UPDATE usuarios SET ultimo_acceso = NOW() WHERE id = ?")->execute([$auto_user['id']]);
+
+        header('Location: dashboard.php');
+        exit;
+    } else {
+        // Si el token es inválido o viejo, destruimos la cookie
+        setcookie('sgsst_remember', '', time() - 3600, '/');
+    }
 }
 
 // Si ya hay sesión activa, redirigir
@@ -162,16 +195,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $identifier = trim($_POST['identifier'] ?? '');
     $codigo_2fa = trim($_POST['codigo_2fa'] ?? '');
 
-    // === NUEVO: REDIRECCIÓN SECRETA A SUPER ADMIN ===
-    // Cambia 'acceso_master' por la palabra clave que quieras usar
+    // === REDIRECCIÓN SECRETA A SUPER ADMIN ===
     $palabra_secreta = 'acceso_master';
-
-    // Si escribió la palabra secreta y no está en el paso del código 2FA, lo mandamos al admin
     if (strtolower($identifier) === $palabra_secreta && empty($_SESSION['codigo_2fa'])) {
         header('Location: admin/login.php');
         exit;
     }
-    // ================================================
 
     $mostrar_2fa = !empty($_SESSION['codigo_2fa']);
     if ($mostrar_2fa && $identifier === '' && isset($_SESSION['usuario_temp']['email'])) {
@@ -198,6 +227,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($usuario) {
                 // Paso 1: Generar código inicial
                 if (empty($_SESSION['codigo_2fa'])) {
+
+                    // Guardamos la decisión del "Recuérdame" en sesión temporal
+                    if (isset($_POST['remember_me'])) {
+                        $_SESSION['remember_me'] = true;
+                    }
+
                     $_SESSION['codigo_2fa'] = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
                     $_SESSION['usuario_temp'] = $usuario;
                     $_SESSION['codigo_expira'] = time() + 300; // 5 minutos
@@ -216,10 +251,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Paso 2: Validar Código
                 else {
                     if ($codigo_2fa !== '' && $codigo_2fa === $_SESSION['codigo_2fa'] && time() < ($_SESSION['codigo_expira'] ?? 0)) {
+
+                        // Crear sesión base de datos normal
                         create_db_session($conn, $usuario, 8);
                         log_activity($conn, (int) $usuario['id'], 'LOGIN_OK', 'Ingreso exitoso con 2FA');
 
-                        unset($_SESSION['codigo_2fa'], $_SESSION['usuario_temp'], $_SESSION['codigo_expira'], $_SESSION['correo_censurado']);
+                        // ==========================================
+                        // INYECCIÓN DE LA COOKIE "RECÚERDAME"
+                        // ==========================================
+                        if (!empty($_SESSION['remember_me'])) {
+                            // Generamos un Token aleatorio super seguro (64 caracteres)
+                            $remember_token = bin2hex(random_bytes(32));
+                            $dias_expiracion = 30; // Válido por 30 días
+                            $expiracion = date('Y-m-d H:i:s', time() + ($dias_expiracion * 24 * 60 * 60));
+
+                            // Insertamos en la tabla sesiones
+                            $stmt_token = $conn->prepare("INSERT INTO sesiones (usuario_id, token, ip_address, user_agent, fecha_expiracion, activa) VALUES (?, ?, ?, ?, ?, 1)");
+                            $stmt_token->execute([
+                                $usuario['id'],
+                                $remember_token,
+                                $_SERVER['REMOTE_ADDR'] ?? '',
+                                $_SERVER['HTTP_USER_AGENT'] ?? '',
+                                $expiracion
+                            ]);
+
+                            // Creamos la Cookie en el navegador del usuario (HttpOnly por seguridad)
+                            setcookie('sgsst_remember', $remember_token, time() + ($dias_expiracion * 24 * 60 * 60), '/', '', false, true);
+                        }
+
+                        // Limpiar los temporales
+                        unset($_SESSION['codigo_2fa'], $_SESSION['usuario_temp'], $_SESSION['codigo_expira'], $_SESSION['correo_censurado'], $_SESSION['remember_me']);
 
                         header('Location: dashboard.php');
                         exit;
@@ -250,7 +311,6 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
 
     <style>
         :root {
-            /* PALETA DE COLORES PREMIUM (Glassmorphism) */
             --primary: #ff8a1f;
             --primary2: #ff7a00;
             --bg-top: #e8f0f8;
@@ -347,7 +407,6 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
             overflow: hidden;
         }
 
-        /* ===== BRAND (IZQUIERDA) ===== */
         .brand {
             padding: 64px;
             display: flex;
@@ -379,7 +438,6 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
             line-height: 1.6;
         }
 
-        /* ===== FORM AREA (DERECHA) ===== */
         .form-area {
             display: flex;
             align-items: center;
@@ -452,7 +510,7 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
 
         /* ===== INPUTS ===== */
         .field {
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
 
         .field label {
@@ -481,7 +539,8 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
             transition: all .2s ease;
         }
 
-        input {
+        input[type="text"],
+        input[type="email"] {
             width: 100%;
             padding: 12px 14px 12px 40px;
             font-size: 0.95rem;
@@ -503,7 +562,6 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
             color: var(--primary);
         }
 
-        /* Estilo especial para el input del código 2FA */
         .input-2fa {
             text-align: center;
             font-size: 1.3rem;
@@ -515,6 +573,30 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
 
         .input-2fa~.icon {
             display: none;
+        }
+
+        /* RECORDAR SESIÓN CHECKBOX */
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .remember-me input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+            accent-color: var(--primary);
+            cursor: pointer;
+            transform: scale(1.1);
+        }
+
+        .remember-me label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            cursor: pointer;
+            margin: 0;
         }
 
         /* Temporizador */
@@ -533,7 +615,6 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
             font-variant-numeric: tabular-nums;
         }
 
-        /* ===== ENLACE SUTIL DE REENVÍO ===== */
         .resend-link-subtle {
             font-size: 0.8rem;
             color: var(--blue-main);
@@ -567,7 +648,6 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
             justify-content: center;
             gap: 10px;
             box-shadow: 0 8px 20px rgba(255, 138, 31, 0.25);
-            margin-top: 24px;
         }
 
         .btn-submit:hover:not(:disabled) {
@@ -639,7 +719,6 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
             text-decoration: none !important;
         }
 
-        /* RESPONSIVE */
         @media(max-width:1100px) {
             .wrapper {
                 grid-template-columns: 1fr;
@@ -732,6 +811,12 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
                                 </svg>
                             </div>
                         </div>
+
+                        <div class="remember-me">
+                            <input type="checkbox" id="remember_me" name="remember_me" value="1">
+                            <label for="remember_me">Mantener sesión iniciada</label>
+                        </div>
+
                         <button type="submit" class="btn-submit" id="btnSubmit">Continuar</button>
 
                     <?php else: ?>
@@ -796,7 +881,7 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
         </div>
 
     </div>
-
+    <?php include 'components/cookie_banner.php'; ?>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
@@ -830,7 +915,6 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
                 const btnSubmit = document.getElementById('btnSubmit');
 
                 function endTimer() {
-                    // Texto sutil y no exagerado
                     timerContainer.innerHTML = '<span style="color: #ef4444; font-size: 0.75rem;">Expirado</span>';
                     resendContainer.style.display = 'block';
                     if (codeInput) {
@@ -856,11 +940,9 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
                         }
                     }, 1000);
                 } else {
-                    // Si ya expiró al recargar la página
                     endTimer();
                 }
 
-                // Mostrar el botón de reenviar a los 30 segundos por si el correo no llegó
                 setTimeout(() => {
                     if (resendContainer.style.display === 'none') {
                         resendContainer.style.display = 'block';

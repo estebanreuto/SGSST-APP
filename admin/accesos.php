@@ -21,20 +21,22 @@ $rol_display = "Super Administrador";
 $stmt_planes = $conn->query("SELECT * FROM planes ORDER BY precio_normal ASC");
 $planes_disponibles = $stmt_planes->fetchAll(PDO::FETCH_ASSOC);
 
-$default_plan = count($planes_disponibles) > 0 ? $planes_disponibles[0] : ['id'=>1, 'nombre'=>'Básico'];
-
 /* ================================================================
-// CONSULTA: TRAER SOLO LAS SOLICITUDES APROBADAS
+// CONSULTA: TRAER LAS SOLICITUDES APROBADAS + SU PLAN REAL
 ================================================================ */
-$stmt = $conn->query("SELECT * FROM solicitudes_empresas WHERE estado = 'aprobada' ORDER BY fecha_creacion DESC");
+// Hacemos un LEFT JOIN para traer el nombre del plan real desde la BD
+$stmt = $conn->query("
+    SELECT se.*, p.nombre as plan_nombre 
+    FROM solicitudes_empresas se 
+    LEFT JOIN planes p ON se.plan_id = p.id 
+    WHERE se.estado = 'aprobada' 
+    ORDER BY se.fecha_creacion DESC
+");
 $aprobadas_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $accesos = [];
-$contador = 0;
 foreach ($aprobadas_db as $s) {
-    // SIMULACIÓN: Hacemos que algunas tengan plan y otras no para probar el diseño
-    $tiene_plan = ($contador % 2 == 0); 
-
+    // AHORA SÍ LEEMOS LOS DATOS REALES DE LA BASE DE DATOS
     $accesos[] = [
         'id' => $s['id'],
         'fecha' => $s['fecha_creacion'],
@@ -43,12 +45,11 @@ foreach ($aprobadas_db as $s) {
         'email' => htmlspecialchars($s['email'] ?? ''),
         'telefono' => htmlspecialchars($s['telefono'] ?? ''),
         'ciudad' => htmlspecialchars($s['ciudad'] ?? 'N/A'),
-        'plan_id' => $tiene_plan ? $default_plan['id'] : null,
-        'plan_nombre' => $tiene_plan ? $default_plan['nombre'] : 'Sin Plan',
-        'trabajadores_extra' => 0, 
-        'precio_trabajador_extra' => 10000 // Valor por defecto editable
+        'plan_id' => $s['plan_id'], // Trae el ID real de la BD
+        'plan_nombre' => $s['plan_nombre'] ?? 'Sin Plan', // Trae el nombre real
+        'trabajadores_extra' => $s['trabajadores_extra'] ?? 0, // Trae los extra reales
+        'precio_trabajador_extra' => 10000 // Valor base fijo por ahora
     ];
-    $contador++;
 }
 $total_aprobadas = count($accesos);
 ?>
@@ -134,7 +135,8 @@ $total_aprobadas = count($accesos);
         .status-sin-plan { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 
         /* Estilo del Plan asignado */
-        .plan-tag { background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; border: 1px solid #e2e8f0;}
+        .plan-tag { padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; border: 1px solid #e2e8f0;}
+        .plan-tag.basic { background: #e0f2fe; color: #2563eb; border-color: #bfdbfe; }
         .plan-tag.pro { background: rgba(255, 138, 31, 0.1); color: var(--primary2); border-color: rgba(255, 138, 31, 0.2);}
         .plan-tag.enterprise { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border-color: rgba(139, 92, 246, 0.2);}
 
@@ -249,7 +251,13 @@ $total_aprobadas = count($accesos);
                             <tr class="no-data-row"><td colspan="5" style="text-align: center; padding: 40px; color: var(--muted); font-style: italic;">Aún no hay solicitudes aprobadas.</td></tr>
                         <?php else: ?>
                             <?php foreach ($accesos as $acc): 
-                                $clase_plan = strpos(strtolower($acc['plan_nombre']), 'pro') !== false ? 'pro' : (strtolower($acc['plan_nombre']) === 'enterprise' ? 'enterprise' : '');
+                                // Color dinámico del badge según el nombre del plan real
+                                $clase_plan = 'basic';
+                                if (stripos(strtolower($acc['plan_nombre']), 'pro') !== false) {
+                                    $clase_plan = 'pro';
+                                } elseif (stripos(strtolower($acc['plan_nombre']), 'enterprise') !== false) {
+                                    $clase_plan = 'enterprise';
+                                }
                             ?>
                                 <tr class="filter-item" data-text="<?php echo strtolower($acc['empresa'] . ' ' . $acc['cedula'] . ' ' . $acc['email']); ?>">
                                     
@@ -271,6 +279,9 @@ $total_aprobadas = count($accesos);
                                     <td>
                                         <?php if ($acc['plan_id']): ?>
                                             <span class="plan-tag <?php echo $clase_plan; ?>"><?php echo $acc['plan_nombre']; ?></span>
+                                            <?php if ($acc['trabajadores_extra'] > 0): ?>
+                                                <div style="font-size: 0.65rem; color: var(--muted); margin-top: 4px;">+<?php echo $acc['trabajadores_extra']; ?> cupos extra</div>
+                                            <?php endif; ?>
                                         <?php else: ?>
                                             <span class="badge-status status-sin-plan">Sin Plan</span>
                                         <?php endif; ?>
@@ -296,7 +307,12 @@ $total_aprobadas = count($accesos);
 
             <div class="cards-wrapper active" id="viewCards">
                 <?php foreach ($accesos as $acc): 
-                    $clase_plan = strpos(strtolower($acc['plan_nombre']), 'pro') !== false ? 'pro' : (strtolower($acc['plan_nombre']) === 'enterprise' ? 'enterprise' : '');
+                    $clase_plan = 'basic';
+                    if (stripos(strtolower($acc['plan_nombre']), 'pro') !== false) {
+                        $clase_plan = 'pro';
+                    } elseif (stripos(strtolower($acc['plan_nombre']), 'enterprise') !== false) {
+                        $clase_plan = 'enterprise';
+                    }
                 ?>
                     <div class="req-card filter-item" data-text="<?php echo strtolower($acc['empresa'] . ' ' . $acc['cedula'] . ' ' . $acc['email']); ?>">
                         
@@ -328,6 +344,12 @@ $total_aprobadas = count($accesos);
                                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                                 <span class="text-truncate"><?php echo $acc['email']; ?></span>
                             </p>
+                            <?php if ($acc['trabajadores_extra'] > 0): ?>
+                                <p class="req-card-tipo" style="margin-top: 6px;">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                    <span style="color: var(--primary); font-weight: 600;">+<?php echo $acc['trabajadores_extra']; ?> cupos extra asignados</span>
+                                </p>
+                            <?php endif; ?>
                         </div>
 
                         <div class="req-card-footer">
@@ -428,6 +450,17 @@ $total_aprobadas = count($accesos);
         window_planes = <?php echo json_encode($planes_disponibles); ?>;
 
         document.addEventListener('DOMContentLoaded', function() {
+            
+            // Detectar si la URL tiene el mensaje de éxito del upgrade de plan
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('upgrade') === 'success') {
+                alert("¡Suscripción actualizada exitosamente en la Base de Datos!");
+                window.history.replaceState(null, null, window.location.pathname);
+            } else if (urlParams.get('upgrade') === 'error') {
+                alert("Hubo un error al actualizar el plan en la base de datos.");
+                window.history.replaceState(null, null, window.location.pathname);
+            }
+
             const btnTable = document.getElementById('btnViewTable');
             const btnCards = document.getElementById('btnViewCards');
             const viewTable = document.getElementById('viewTable');

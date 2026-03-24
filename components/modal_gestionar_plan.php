@@ -17,7 +17,7 @@
             </button>
         </div>
         
-        <form id="formGestionarPlan" action="procesar_upgrade.php" method="POST" style="display:flex; flex-direction:column; flex:1; min-height:0;">
+        <form id="formGestionarPlan" onsubmit="enviarUpgradeAjax(event)" style="display:flex; flex-direction:column; flex:1; min-height:0;">
             <input type="hidden" id="gp_empresa_id" name="empresa_id">
             
             <div class="modal-detalles-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; padding: 30px; overflow-y: auto;">
@@ -31,7 +31,7 @@
                     <div style="margin-bottom: 20px;">
                         <label style="font-size: 0.75rem; color: var(--text); font-weight: 700; margin-bottom: 8px; display: block;">Plan Base Asignado</label>
                         <select id="gp_plan_select" name="plan_id" onchange="calcularProyeccion()" style="width: 100%; padding: 12px 32px 12px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 600; color: var(--text); cursor: pointer; background-color: #f8fafc; appearance: none; background-image: url('data:image/svg+xml,%3Csvg fill=\'none\' stroke=\'%2394a3b8\' viewBox=\'0 0 24 24\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E'); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; transition: all 0.2s;">
-                            </select>
+                        </select>
                     </div>
 
                     <div style="margin-bottom: 16px;">
@@ -94,9 +94,9 @@
             
             <div class="modal-detalles-footer" style="padding: 20px 30px; border-top: 1px solid var(--border); background: #f8fafc; display: flex; justify-content: flex-end; gap: 12px; flex-shrink: 0;">
                 <button type="button" class="btn-secondary" style="background: #ffffff; color: #475569; border: 1px solid #cbd5e1; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem;" onclick="cerrarModalGestionPlan()">Cancelar</button>
-                <button type="submit" class="btn-primary-action" style="background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; border: none; padding: 10px 24px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: transform 0.2s; display: flex; align-items: center; gap: 8px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                <button type="submit" id="btnSubmitUpgrade" class="btn-primary-action" style="background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; border: none; padding: 10px 24px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: transform 0.2s; display: flex; align-items: center; gap: 8px;">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
-                    Actualizar Plan
+                    <span>Actualizar Plan</span>
                 </button>
             </div>
         </form>
@@ -104,16 +104,14 @@
 </div>
 
 <script>
-    // Variables globales que le pasará accesos.php
     let window_planes = []; 
 
     function abrirModalGestionPlan(empresa_id, empresa_nombre, plan_id_actual, extra_actuales, precio_extra) {
         document.getElementById('gp_empresa_id').value = empresa_id;
         document.getElementById('gp_empresa_nombre').innerText = empresa_nombre;
         
-        // Llenar el select de planes
         const select = document.getElementById('gp_plan_select');
-        select.innerHTML = '<option value="">-- Seleccionar Plan --</option>'; // Opción por defecto
+        select.innerHTML = '<option value="">-- Seleccionar Plan --</option>';
         
         window_planes.forEach(p => {
             const option = document.createElement('option');
@@ -125,14 +123,10 @@
             select.appendChild(option);
         });
 
-        // Setear los trabajadores extra y su costo actual
         document.getElementById('gp_extra_workers').value = extra_actuales || 0;
         document.getElementById('gp_costo_extra').value = precio_extra || 10000;
 
-        // Calcular matemática
         calcularProyeccion();
-
-        // Mostrar modal
         document.getElementById('modalGestionPlan').classList.add('active');
     }
 
@@ -151,7 +145,6 @@
         const costoExtra = trabajadoresExtra * costoPorTrabajadorExtra;
         const formatter = new Intl.NumberFormat('es-CO');
 
-        // Si no hay plan seleccionado, mostramos solo los extras
         if (!plan) {
             document.getElementById('lbl_base_workers').innerText = '0';
             document.getElementById('lbl_base_price').innerText = '$0';
@@ -159,11 +152,10 @@
             document.getElementById('lbl_extra_price').innerText = '$' + formatter.format(costoExtra);
             document.getElementById('lbl_total_price').innerText = '$' + formatter.format(costoExtra) + ' COP';
             document.getElementById('lbl_total_limit').innerText = trabajadoresExtra;
-            document.getElementById('lbl_platform_users').innerText = (trabajadoresExtra + 2); // 2 fijos
+            document.getElementById('lbl_platform_users').innerText = (trabajadoresExtra + 2); 
             return;
         }
         
-        // El precio base ya viene con descuento si aplica
         const precioBase = (plan.precio_descuento > 0 && plan.precio_descuento < plan.precio_normal) ? plan.precio_descuento : plan.precio_normal;
         const total = parseInt(precioBase) + costoExtra;
         
@@ -171,22 +163,81 @@
         
         const limitBase = isIlimitado ? 'Ilimitados' : plan.trabajadores;
         const limitTotal = isIlimitado ? 'Ilimitados' : (parseInt(plan.trabajadores) + trabajadoresExtra);
-        // El total en plataforma incluye al Representante y al Responsable SST (2 cuentas fijas)
         const platformUsers = isIlimitado ? 'Ilimitados' : (limitTotal + 2);
 
-        // Actualizar UI
         document.getElementById('lbl_base_workers').innerText = limitBase;
         document.getElementById('lbl_base_price').innerText = '$' + formatter.format(precioBase);
-        
         document.getElementById('lbl_extra_workers').innerText = trabajadoresExtra;
         document.getElementById('lbl_extra_price').innerText = '$' + formatter.format(costoExtra);
-        
         document.getElementById('lbl_total_price').innerText = '$' + formatter.format(total) + ' COP';
         document.getElementById('lbl_total_limit').innerText = limitTotal;
         document.getElementById('lbl_platform_users').innerText = platformUsers;
     }
 
-    // Cerrar dando clic afuera
+    // ==========================================
+    // MAGIA AJAX (ENVÍO SIN RECARGAR) + TOAST
+    // ==========================================
+    function enviarUpgradeAjax(e) {
+        e.preventDefault(); // Evita que la página recargue
+        const form = e.target;
+        const formData = new FormData(form);
+        const btn = document.getElementById('btnSubmitUpgrade');
+        const btnText = btn.querySelector('span');
+        
+        // Bloquear botón
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        btnText.innerText = 'Guardando...';
+
+        fetch('procesar_upgrade.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                mostrarNotificacion(data.message, 'success');
+                cerrarModalGestionPlan();
+                // Recargar la página suavemente después de 1 segundo para ver las tarjetas actualizadas
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                mostrarNotificacion(data.message, 'error');
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btnText.innerText = 'Actualizar Plan';
+            }
+        })
+        .catch(error => {
+            mostrarNotificacion('Error de conexión con el servidor.', 'error');
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btnText.innerText = 'Actualizar Plan';
+        });
+    }
+
+    // CREADOR DE NOTIFICACIONES FLOTANTES
+    function mostrarNotificacion(mensaje, tipo = 'success') {
+        const toast = document.createElement('div');
+        const colorBg = tipo === 'success' ? '#10b981' : '#ef4444';
+        const icono = tipo === 'success' 
+            ? `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>` 
+            : `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+
+        toast.style.cssText = `position: fixed; top: 20px; right: 20px; padding: 14px 20px; border-radius: 12px; color: white; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.85rem; z-index: 100000; transform: translateX(120%); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 10px 25px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 10px; background: ${colorBg};`;
+        
+        toast.innerHTML = `${icono} <span>${mensaje}</span>`;
+        document.body.appendChild(toast);
+        
+        // Animación de entrada
+        setTimeout(() => toast.style.transform = 'translateX(0)', 10);
+        
+        // Animación de salida (después de 3 segundos)
+        setTimeout(() => {
+            toast.style.transform = 'translateX(120%)';
+            setTimeout(() => toast.remove(), 400);
+        }, 3000);
+    }
+
     document.getElementById('modalGestionPlan').addEventListener('click', function(e) {
         if (e.target === this) cerrarModalGestionPlan();
     });
