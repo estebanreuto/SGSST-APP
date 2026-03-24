@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: localhost
--- Tiempo de generación: 23-03-2026 a las 04:50:51
+-- Tiempo de generación: 24-03-2026 a las 04:43:23
 -- Versión del servidor: 10.4.28-MariaDB
 -- Versión de PHP: 8.2.4
 
@@ -71,6 +71,13 @@ CREATE TABLE `encuesta_sociodemografica` (
   `fecha_actualizacion` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Volcado de datos para la tabla `encuesta_sociodemografica`
+--
+
+INSERT INTO `encuesta_sociodemografica` (`id`, `usuario_id`, `edad`, `estado_civil`, `genero`, `personas_cargo`, `escolaridad`, `vivienda`, `tiempo_libre`, `experiencia`, `estrato`, `convive_con`, `raza`, `tipo_contrato`, `turno`, `antiguedad`, `enfermedad`, `fuma`, `alcohol`, `deporte`, `tipo_personal`, `fecha_registro`, `fecha_actualizacion`) VALUES
+(1, 3, 35, 'Casado', 'Masculino', 2, 'Bachillerato', 'Propia', NULL, NULL, NULL, NULL, NULL, 'Indefinido', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2026-03-24 02:45:36', NULL);
+
 -- --------------------------------------------------------
 
 --
@@ -100,6 +107,21 @@ CREATE TABLE `logs_actividad` (
   `ip_address` varchar(45) DEFAULT NULL,
   `fecha` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `logs_actividad`
+--
+
+INSERT INTO `logs_actividad` (`id`, `usuario_id`, `accion`, `descripcion`, `ip_address`, `fecha`) VALUES
+(1, 1, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-03-24 02:46:14'),
+(2, 1, 'LOGOUT', 'Cierre de sesión', '::1', '2026-03-24 02:46:35'),
+(3, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-03-24 02:49:08'),
+(4, 2, 'LOGOUT', 'Cierre de sesión', '::1', '2026-03-24 02:52:35'),
+(5, 1, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-03-24 02:52:59'),
+(6, 1, 'LOGOUT', 'Cierre de sesión', '::1', '2026-03-24 02:53:24'),
+(7, 1, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-03-24 03:05:51'),
+(8, 1, 'LOGOUT', 'Cierre de sesión', '::1', '2026-03-24 03:10:58'),
+(9, 1, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-03-24 03:40:44');
 
 -- --------------------------------------------------------
 
@@ -174,6 +196,18 @@ CREATE TABLE `sesiones` (
   `activa` tinyint(1) DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Volcado de datos para la tabla `sesiones`
+--
+
+INSERT INTO `sesiones` (`id`, `usuario_id`, `token`, `codigo_2fa`, `codigo_2fa_expira`, `ip_address`, `user_agent`, `fecha_creacion`, `fecha_expiracion`, `activa`) VALUES
+(1, 1, 'a62dd2859892b68e98ef497843d951adf93ee155e3e57359d5a9c506b6ffccf7', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36', '2026-03-24 02:46:14', '2026-03-24 16:46:14', 0),
+(2, 2, 'e83e14196d9a68c0dd782dfa2faf8ec5e1a786a28f7f0fdf7b6d758ae2053b7b', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36', '2026-03-24 02:49:08', '2026-03-24 16:49:08', 0),
+(3, 1, 'c53354be96a9468f5b5314aa0902f5b93c4148eb8620cd2a424f01654f10b739', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36', '2026-03-24 02:52:59', '2026-03-24 16:52:59', 0),
+(4, 1, '5ce153081785d18188e3897438f20d820935d4ed483a32f59bbc1823c81849ab', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36', '2026-03-24 03:05:51', '2026-03-24 17:05:51', 0),
+(5, 1, '2fa9801b299431c98e1bb492c08ba2f18fe6b0eb2222912bf2ac1f61cc5428ad', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36', '2026-03-24 03:40:44', '2026-03-24 17:40:44', 1),
+(6, 1, '582bddb96bce8f003b94ae0ab06b818d6db6482c09b3a392304a6ac071c51cf5', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36', '2026-03-24 03:40:44', '2026-04-23 10:40:44', 1);
+
 -- --------------------------------------------------------
 
 --
@@ -197,6 +231,13 @@ CREATE TABLE `solicitudes_empresas` (
   `plan_id` int(11) DEFAULT NULL,
   `trabajadores_extra` int(11) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Volcado de datos para la tabla `solicitudes_empresas`
+--
+
+INSERT INTO `solicitudes_empresas` (`id`, `nombre`, `apellido`, `cedula`, `email`, `telefono`, `direccion`, `ciudad`, `barrio`, `localidad`, `firma`, `estado`, `fecha_creacion`, `plan_id`, `trabajadores_extra`) VALUES
+(1, 'Constructora Vertix S.A.S', 'Reuto', '900111222', 'estebanreuto4@gmail.com', '3001112233', NULL, 'Bogotá', NULL, NULL, NULL, 'aprobada', '2026-03-24 02:45:36', 1, 0);
 
 -- --------------------------------------------------------
 
@@ -254,6 +295,15 @@ CREATE TABLE `usuarios` (
   `tipo_doc_empresa` varchar(20) DEFAULT NULL,
   `num_doc_empresa` varchar(50) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `usuarios`
+--
+
+INSERT INTO `usuarios` (`id`, `empresa_id`, `nombre`, `apellido`, `cedula`, `email`, `telefono`, `rol`, `licencia_sst`, `tipo_licencia`, `numero_licencia`, `fecha_licencia`, `expedida_por`, `direccion`, `ciudad`, `barrio`, `localidad`, `firma`, `fecha_registro`, `ultimo_acceso`, `activo`, `logo_empresa`, `nombre_empresa`, `tipo_persona`, `regimen_tributario`, `tipo_doc_empresa`, `num_doc_empresa`) VALUES
+(1, 1, 'Esteban', 'Reuto (Rep)', '1010', 'estebanreuto4@gmail.com', '3001112233', 'representante', NULL, NULL, NULL, NULL, NULL, NULL, 'Bogotá', NULL, NULL, NULL, '2026-03-24 02:45:36', NULL, 1, NULL, NULL, NULL, NULL, NULL, NULL),
+(2, 1, 'W', 'Reuto (SST)', '2020', 'wreuto@estudiantes.areandina.edu.co', '3109998877', 'sst', 'si', 'Profesional', 'L-12345', NULL, NULL, NULL, 'Bogotá', NULL, NULL, NULL, '2026-03-24 02:45:36', NULL, 1, NULL, NULL, NULL, NULL, NULL, NULL),
+(3, 1, 'Esteban', 'Reuto (Trab)', '3030', 'estebanreuto27@gmail.com', '3205554433', 'trabajador', NULL, NULL, NULL, NULL, NULL, NULL, 'Bogotá', NULL, NULL, NULL, '2026-03-24 02:45:36', NULL, 1, NULL, NULL, NULL, NULL, NULL, NULL);
 
 --
 -- Índices para tablas volcadas
@@ -351,7 +401,7 @@ ALTER TABLE `usuarios`
 -- AUTO_INCREMENT de la tabla `doc_asignacion_sst`
 --
 ALTER TABLE `doc_asignacion_sst`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `encuesta_sociodemografica`
@@ -369,13 +419,13 @@ ALTER TABLE `estandar2_planillas`
 -- AUTO_INCREMENT de la tabla `logs_actividad`
 --
 ALTER TABLE `logs_actividad`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=71;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT de la tabla `notificaciones`
 --
 ALTER TABLE `notificaciones`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `planes`
@@ -393,13 +443,13 @@ ALTER TABLE `plan_caracteristicas`
 -- AUTO_INCREMENT de la tabla `sesiones`
 --
 ALTER TABLE `sesiones`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=42;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT de la tabla `solicitudes_empresas`
 --
 ALTER TABLE `solicitudes_empresas`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT de la tabla `super_admins`
@@ -411,7 +461,7 @@ ALTER TABLE `super_admins`
 -- AUTO_INCREMENT de la tabla `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- Restricciones para tablas volcadas
