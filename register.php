@@ -144,6 +144,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro | SG-SST Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
@@ -159,26 +160,25 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         * { box-sizing: border-box; }
 
-        body { margin: 0; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--bg-top) 0%, var(--bg-mid) 50%, var(--bg-bottom) 100%); color: var(--text-main); overflow-x: hidden; position: relative; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--bg-top) 0%, var(--bg-mid) 50%, var(--bg-bottom) 100%); color: var(--text-main); position: relative; min-height: 100vh; }
 
         .blob { position: fixed; border-radius: 50%; filter: blur(80px); z-index: -1; opacity: 0.35; animation: float 12s infinite ease-in-out alternate; }
-        .blob-1 { top: -5%; left: -5%; width: 500px; height: 500px; background: var(--blue-main); }
-        .blob-2 { bottom: -10%; right: -5%; width: 600px; height: 600px; background: var(--primary); animation-delay: -6s; }
+        .blob-1 { top: -5%; left: -5%; width: 50vw; height: 50vw; background: var(--blue-main); max-width: 500px; max-height: 500px; }
+        .blob-2 { bottom: -10%; right: -5%; width: 60vw; height: 60vw; background: var(--primary); animation-delay: -6s; max-width: 600px; max-height: 600px; }
         @keyframes float { 0% { transform: translateY(0px) scale(1); } 100% { transform: translateY(40px) scale(1.05); } }
 
-        .wrapper { display: grid; grid-template-columns: 42% 58%; height: 100vh; overflow: hidden; }
+        .wrapper { display: flex; flex-direction: row; min-height: 100vh; width: 100%; }
 
-        .brand { padding: 64px; display: flex; flex-direction: column; justify-content: center; z-index: 2; }
-        .brand h1 { margin: 0; font-size: 2rem; line-height: 1.15; color: var(--blue-dark); font-weight: 800; }
+        .brand { flex: 0 0 40%; padding: 64px; display: flex; flex-direction: column; justify-content: center; z-index: 2; position: sticky; top: 0; height: 100vh; }
+        .brand h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.5rem); line-height: 1.15; color: var(--blue-dark); font-weight: 800; }
         .brand h1 span { background: linear-gradient(135deg, var(--primary), #ff5e00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .brand p { margin: 16px 0 0; color: var(--text-muted); font-size: 1rem; max-width: 440px; }
 
-        .form-area { display: flex; align-items: center; justify-content: center; padding: 48px 64px; overflow-y: auto; height: 100vh; z-index: 2; }
-        .form-area::-webkit-scrollbar { width: 0; }
+        .form-area { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 48px; z-index: 2; min-height: 100vh; overflow-y: auto; }
+        
+        .card { width: 100%; max-width: 900px; background: var(--card-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--card-border); border-radius: var(--radius); box-shadow: var(--shadow-soft); padding: 32px; margin: auto; }
 
-        .card { width: 100%; max-width: 1040px; margin: auto; background: var(--card-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--card-border); border-radius: var(--radius); box-shadow: var(--shadow-soft); padding: 28px 32px 24px; }
-
-        .success-card { max-width: 500px; padding: 56px 48px; text-align: center; display: flex; flex-direction: column; align-items: center; animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .success-card { max-width: 500px; padding: 56px 48px; text-align: center; display: flex; flex-direction: column; align-items: center; animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; margin: auto;}
         .success-icon-wrapper { width: 90px; height: 90px; background: linear-gradient(135deg, rgba(255, 138, 31, 0.15), rgba(255, 122, 0, 0.05)); color: var(--primary2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 30px; position: relative; }
         .success-icon-wrapper::after { content: ''; position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--primary); animation: pulse-orange 2s infinite; }
         .success-icon-wrapper svg { width: 42px; height: 42px; animation: floatingIcon 3s ease-in-out infinite; }
@@ -191,9 +191,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         @keyframes pulse-orange { 0% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 0 0 rgba(255, 138, 31, 0.4); } 70% { transform: scale(1.3); opacity: 0; box-shadow: 0 0 0 20px rgba(255, 138, 31, 0); } 100% { transform: scale(1.3); opacity: 0; box-shadow: 0 0 0 0 rgba(255, 138, 31, 0); } }
         @keyframes floatingIcon { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 
-        .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+        .header { margin-bottom: 20px; }
         .header h2 { margin: 0; font-size: 1.35rem; color: var(--blue-dark); font-weight: 800; }
-        .header .hint { margin: 4px 0 0; font-size: .8rem; color: var(--text-muted); }
+        .header .hint { margin: 4px 0 0; font-size: .85rem; color: var(--text-muted); }
 
         .alert-error {
             background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 14px 20px; 
@@ -201,50 +201,79 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.1);
         }
 
-        .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 16px; }
-        .field label { display: block; font-size: .72rem; font-weight: 600; margin: 0 0 4px; }
+        .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        .full-width { grid-column: 1 / -1 !important; } 
+
+        @media (min-width: 600px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (min-width: 992px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+
+        .field label { display: block; font-size: .75rem; font-weight: 600; margin: 0 0 6px; color: var(--text-main); }
         .label-opt { font-weight: 400; color: #94a3b8; font-size: 0.65rem; }
         .control { position: relative; }
-        .icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; opacity: .45; color: #94a3b8; pointer-events: none; transition: all .2s ease; }
-        input, select { width: 100%; padding: 10px 12px 10px 36px; font-size: .82rem; border: 1px solid var(--border); border-radius: 10px; background: #ffffff; color: var(--text-main); transition: all .2s ease; font-family: inherit; }
+        .icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; opacity: .45; color: #94a3b8; pointer-events: none; transition: all .2s ease; }
+        
+        input, select { width: 100%; padding: 12px 12px 12px 38px; font-size: .85rem; border: 1px solid var(--border); border-radius: 10px; background: #ffffff; color: var(--text-main); transition: all .2s ease; font-family: inherit; box-sizing: border-box; }
         input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255, 138, 31, .14); }
         input:focus ~ .icon, select:focus ~ .icon { opacity: .75; color: var(--primary); }
 
         .input-nit { border-color: var(--primary); background: #fffaf5; font-weight: 600; }
 
-        .section { margin-top: 20px; border: 1px solid var(--card-border); background: rgba(255, 255, 255, 0.5); border-radius: 16px; padding: 16px; }
-        .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-        .section-title h3 { margin: 0; font-size: .95rem; color: var(--blue-dark); }
-        .badge { font-size: .72rem; background: rgba(43, 90, 158, 0.1); color: var(--blue-main); padding: 6px 12px; border-radius: 999px; font-weight: 600; }
+        .section { margin-top: 24px; border: 1px solid var(--card-border); background: rgba(255, 255, 255, 0.6); border-radius: 16px; padding: 24px; }
+        .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;}
+        .section-title h3 { margin: 0; font-size: 1rem; color: var(--blue-dark); font-weight: 700;}
+        .badge { font-size: .7rem; background: rgba(43, 90, 158, 0.1); color: var(--blue-main); padding: 4px 10px; border-radius: 999px; font-weight: 600; white-space: nowrap;}
         
-        .legal { margin-top: 20px; background: rgba(241, 245, 249, 0.6); border: 1px dashed var(--border); border-radius: 16px; padding: 16px; }
-        .legal p { margin: 0 0 10px; font-size: .78rem; color: var(--text-muted); line-height: 1.4; }
+        .legal { margin-top: 24px; background: rgba(241, 245, 249, 0.6); border: 1px dashed var(--border); border-radius: 16px; padding: 24px; }
+        .legal p { margin: 0 0 14px; font-size: .8rem; color: var(--text-muted); line-height: 1.5; }
 
-        .signature { margin-top: 20px; }
-        .signature h3 { margin: 0 0 10px; font-size: .95rem; color: var(--blue-dark); }
-        canvas { width: 100%; height: 120px; border: 1px dashed var(--border); border-radius: 14px; background: #fff; }
+        .signature { margin-top: 24px; }
+        .signature h3 { margin: 0 0 12px; font-size: 1rem; color: var(--blue-dark); font-weight: 700; }
+        
+        .canvas-container { width: 100%; position: relative; }
+        canvas { width: 100%; height: 150px; border: 2px dashed #cbd5e1; border-radius: 14px; background: #ffffff; cursor: crosshair; touch-action: none; }
 
-        #trabajador { max-height: 540px; overflow-y: auto; padding-right: 8px; }
-        #trabajador::-webkit-scrollbar { width: 8px; }
-        #trabajador::-webkit-scrollbar-track { background: transparent; }
-        #trabajador::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-
-        @media(max-width:1200px) { .wrapper { grid-template-columns: 1fr; height: auto; } .brand { padding: 40px 40px 20px; text-align: center; } .brand p { margin: 16px auto 0; } .form-area { padding: 20px 40px 60px; height: auto; overflow: visible; } }
-        @media(max-width:900px) { .grid { grid-template-columns: repeat(2, 1fr) } }
-        @media(max-width:560px) { .form-area { padding: 20px } .card { padding: 20px } .grid { grid-template-columns: 1fr } }
+        #trabajador { padding-right: 8px; }
+        @media (min-width: 992px) {
+            #trabajador { max-height: 600px; overflow-y: auto; }
+            #trabajador::-webkit-scrollbar { width: 6px; }
+            #trabajador::-webkit-scrollbar-track { background: transparent; }
+            #trabajador::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        }
 
         .hidden { display: none !important; }
 
-        .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
-        .footer a { text-decoration: none; font-size: .875rem; color: var(--blue-main); font-weight: 600; padding: 10px 16px; border-radius: 8px; transition: all .25s ease; display: inline-flex; align-items: center; gap: 8px; }
+        .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 16px; }
+        .footer a { text-decoration: none; font-size: .85rem; color: var(--blue-main); font-weight: 600; padding: 10px 16px; border-radius: 8px; transition: all .25s ease; display: inline-flex; align-items: center; gap: 8px; }
         .footer a:hover { background: rgba(43, 90, 158, 0.1); color: var(--blue-dark); }
-        .actions { display: flex; gap: 10px; }
         
-        button { border: none; padding: 11px 26px; font-size: .875rem; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all .25s ease; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); }
-        .btn-danger { background: #ffffff; border: 1px solid var(--border); color: var(--text-muted); }
+        .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+        
+        button { border: none; padding: 12px 24px; font-size: .85rem; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all .25s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; }
+        .btn-danger { background: #ffffff; border: 1px solid #cbd5e1; color: #475569; }
         .btn-danger:hover { background: #f1f5f9; color: var(--text-main); }
-        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: #ffffff; box-shadow: 0 4px 12px rgba(255, 138, 31, .25); justify-content: center; }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: #ffffff; box-shadow: 0 4px 12px rgba(255, 138, 31, .25); }
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(255, 138, 31, .35); }
+
+        /* =========================================
+           MEDIA QUERIES - MAGIA RESPONSIVE (MÓVILES)
+           ========================================= */
+        @media(max-width: 992px) { 
+            .wrapper { flex-direction: column; height: auto; overflow: visible; }
+            .brand { flex: none; height: auto; padding: 40px 24px 20px; text-align: center; position: relative; }
+            .brand p { margin: 16px auto 0; } 
+            
+            .form-area { padding: 16px; height: auto; overflow: visible; }
+            .card { padding: 24px 16px; border-radius: 16px; }
+            
+            /* Ajuste estrella: Reducir padding lateral en móviles para que los inputs se vean del mismo tamaño */
+            .section { padding: 20px 10px; margin-top: 20px; border-radius: 12px; }
+            .legal { padding: 16px 10px; margin-top: 20px; border-radius: 12px; }
+            
+            .footer { flex-direction: column-reverse; align-items: stretch; gap: 20px; }
+            .footer a { justify-content: center; background: #f1f5f9; }
+            .actions { flex-direction: column-reverse; width: 100%; }
+            .actions button { width: 100%; }
+        }
     </style>
 </head>
 
@@ -303,8 +332,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                         <div class="grid">
                             
-                            <div class="field" style="grid-column: span 3;">
-                                <label>Rol</label>
+                            <div class="field full-width">
+                                <label>Rol de Ingreso</label>
                                 <div class="control">
                                     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5z" />
@@ -319,7 +348,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 </div>
                             </div>
 
-                            <div class="field hidden" id="empresa_section" style="grid-column: span 3;">
+                            <div class="field full-width hidden" id="empresa_section">
                                 <label style="color: var(--primary);">NIT o Cédula de la Empresa a la que pertenece</label>
                                 <div class="control">
                                     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -454,7 +483,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                     </div>
                                 </div>
 
-                                <div class="field">
+                                <div class="field full-width">
                                     <label>Expedida por</label>
                                     <div class="control">
                                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18" /><path d="M5 8h14" /><path d="M5 16h14" /></svg>
@@ -630,7 +659,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                     </div>
                                 </div>
 
-                                <div class="field"><label>Turno</label>
+                                <div class="field full-width"><label>Turno</label>
                                     <div class="control">
                                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 6v6l4 2" /><circle cx="12" cy="12" r="10" /></svg>
                                         <select name="turno" id="turnoSelect">
@@ -655,7 +684,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                     </div>
                                 </div>
 
-                                <div class="field"><label>Enfermedad</label>
+                                <div class="field full-width"><label>Enfermedad</label>
                                     <div class="control">
                                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-8-4.5-8-11a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 6.5-10 11-10 11z" /></svg>
                                         <select name="enfermedad" id="enfermedadSelect">
@@ -706,7 +735,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                     </div>
                                 </div>
 
-                                <div class="field"><label>Tipo personal</label>
+                                <div class="field full-width"><label>Tipo personal</label>
                                     <div class="control">
                                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" /></svg>
                                         <select name="tipo_personal" id="personalSelect">
@@ -721,13 +750,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             </div>
                         </div>
 
-                        <div class="legal">
+                        <div class="legal full-width">
                             <p>
                                 Autorizo el tratamiento de datos personales por parte del Responsable del Tratamiento,
                                 conforme a la Ley 1581 de 2012.
                             </p>
                             <div class="grid">
-                                <div class="field">
+                                <div class="field full-width">
                                     <label>Acepto la autorización</label>
                                     <div class="control">
                                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4" /><path d="M20 12a8 8 0 1 1-16 0 8 8 0 0 1 16 0z" /></svg>
@@ -741,9 +770,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             </div>
                         </div>
 
-                        <div class="signature">
+                        <div class="signature full-width">
                             <h3>Firma Digital</h3>
-                            <canvas id="firma"></canvas>
+                            <div class="canvas-container" id="canvasContainer">
+                                <canvas id="firma"></canvas>
+                            </div>
                             <input type="hidden" name="firmaDigital" id="firmaDigital">
 
                             <div class="footer">
@@ -788,14 +819,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     return;
                 }
 
-                // Efecto de "Cargando..."
                 feedback.innerHTML = '<span style="color: var(--text-muted);">Buscando empresa...</span>';
-                
-                // Bloqueamos el botón por precaución mientras busca
                 btnSubmit.disabled = true;
                 btnSubmit.style.opacity = '0.5';
 
-                // Espera medio segundo (500ms) después de dejar de escribir para no saturar la base de datos
                 debounceTimer = setTimeout(() => {
                     fetch('ajax_check_empresa.php?nit=' + encodeURIComponent(nit))
                     .then(response => response.json())
@@ -806,7 +833,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             btnSubmit.style.opacity = '1';
                         } else {
                             feedback.innerHTML = '<span style="color: #ef4444; font-size: 0.8rem; display: flex; align-items: center; gap: 4px;"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg> No se encontró empresa aprobada con este NIT.</span>';
-                            // Lo dejamos bloqueado porque el NIT no sirve
                         }
                     })
                     .catch(err => {
@@ -839,7 +865,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 inputEmpresa.setAttribute('required', 'required');
             } else {
                 inputEmpresa.removeAttribute('required');
-                // Si vuelve a Representante, limpiamos el error del NIT
                 if(feedback) feedback.innerHTML = ''; 
                 if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.style.opacity = '1'; }
             }
@@ -853,23 +878,29 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             } else {
                 selectsTrabajador.forEach(s => s.removeAttribute('required'));
             }
+            
+            // Reajustar el canvas al cambiar de secciones por si cambia el ancho
+            setTimeout(resizeCanvas, 100);
         }
 
-        // ===== Firma =====
+        // ===== Firma Responsiva =====
         const canvas = document.getElementById("firma");
+        const canvasContainer = document.getElementById("canvasContainer");
         const ctx = canvas.getContext("2d");
         let draw = false;
 
         function resizeCanvas() {
-            if(!canvas) return;
-            const rect = canvas.getBoundingClientRect();
+            if(!canvas || !canvasContainer) return;
+            // Toma el ancho real del contenedor para evitar que se aplaste o estire
+            const rect = canvasContainer.getBoundingClientRect();
             canvas.width = rect.width;
-            canvas.height = rect.height;
+            canvas.height = 150; // Altura fija
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
+        
         window.addEventListener("resize", resizeCanvas);
-        setTimeout(resizeCanvas, 50);
+        setTimeout(resizeCanvas, 100);
 
         function getPos(e) {
             const rect = canvas.getBoundingClientRect();

@@ -271,7 +271,12 @@ function mostrarDato($dato)
                 </div>
             <?php endif; ?>
 
-            <?php include 'components/estandares_minimos.php'; ?>
+            <?php 
+                // AQUÍ ES DONDE PROTEGEMOS LOS ESTÁNDARES MÍNIMOS PARA QUE EL TRABAJADOR NO LOS VEA
+                if ($usuario_rol === 'sst' || $usuario_rol === 'representante'): 
+            ?>
+                <?php include 'components/estandares_minimos.php'; ?>
+            <?php endif; ?>
 
         </div>
     </main>

@@ -10,7 +10,7 @@ if ($current_page == 'empresa.php') $titulo_header = "Datos de la Empresa";
 if ($current_page == 'evaluaciones.php') $titulo_header = "Evaluaciones SG-SST";
 if ($current_page == 'mis_encuestas.php') $titulo_header = "Mis Encuestas";
 if ($current_page == 'notificaciones.php') $titulo_header = "Centro de Notificaciones";
-if ($current_page == 'perfil.php') $titulo_header = "Configuración del Perfil";
+if ($current_page == 'configuracion.php') $titulo_header = "Configuración de Cuenta";
 if ($current_page == 'planes.php') $titulo_header = "Gestión de Planes";
 if ($current_page == 'accesos.php') $titulo_header = "Control de Accesos";
 if ($current_page == 'solicitudes.php') $titulo_header = "Solicitudes de Registro";
@@ -150,7 +150,7 @@ if (isset($_SESSION['cpanel_admin_id'])) {
             <?php endif; ?>
         </a>
 
-        <a href="perfil.php" class="icon-btn" title="Mi Perfil">
+        <a href="configuracion.php" class="icon-btn" title="Configuración">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
         </a>
     </div>

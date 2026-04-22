@@ -28,16 +28,13 @@ if ($usuario_rol === 'sst') {
 }
 
 // ========================================================
-// LÓGICA ESTÁNDAR 2 (PLANILLAS DE SEGURIDAD SOCIAL)
+// LÓGICA ESTÁNDAR 2 (REVISIÓN DE ESTADO GENERAL)
 // ========================================================
-$meses_nombres = [1=>'Enero', 2=>'Febrero', 3=>'Marzo', 4=>'Abril', 5=>'Mayo', 6=>'Junio', 7=>'Julio', 8=>'Agosto', 9=>'Septiembre', 10=>'Octubre', 11=>'Noviembre', 12=>'Diciembre'];
-$anio_seleccionado = isset($_GET['anio_planillas']) ? (int)$_GET['anio_planillas'] : (int)date('Y');
-
-// Obtener planillas subidas para este año
+$anio_actual = (int)date('Y');
 $planillas_db = [];
 try {
-    $stmt_p = $conn->prepare("SELECT id, mes, archivo_url, fecha_subida FROM estandar2_planillas WHERE anio = ?");
-    $stmt_p->execute([$anio_seleccionado]);
+    $stmt_p = $conn->prepare("SELECT id, mes FROM estandar2_planillas WHERE anio = ?");
+    $stmt_p->execute([$anio_actual]);
     while ($row = $stmt_p->fetch(PDO::FETCH_ASSOC)) {
         $planillas_db[$row['mes']] = $row;
     }
@@ -54,11 +51,11 @@ $hoy->setTime(0, 0, 0);
 $std1_estado = ($doc_asignacion && $doc_asignacion['estado'] === 'firmado') ? 'Completado' : 'Pendiente';
 $std1_class = ($std1_estado === 'Completado') ? 'badge-std-success' : 'badge-std-pending';
 
-// Estado Estándar 2 (Revisar si hay vencidos)
+// Estado Estándar 2 (Revisar si hay vencidos en el año actual)
 $std2_tiene_vencidos = false;
 for ($m = 1; $m <= 12; $m++) {
     if (!isset($planillas_db[$m])) {
-        $fecha_vencimiento = new DateTime("$anio_seleccionado-" . sprintf('%02d', $m) . "-10");
+        $fecha_vencimiento = new DateTime("$anio_actual-" . sprintf('%02d', $m) . "-10");
         $fecha_vencimiento->modify('+1 month'); 
         $fecha_vencimiento->setTime(0, 0, 0);
         $intervalo = $hoy->diff($fecha_vencimiento);
@@ -136,41 +133,35 @@ $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
     .btn-versiones { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 9px 18px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; font-family: inherit; }
     .btn-versiones:hover { background: #e2e8f0; }
 
-    /* VISTA ESTÁNDAR 2 (TARJETAS DE MESES) */
-    .year-selector { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 24px; font-size: 1.2rem; font-weight: 700; color: var(--text); }
-    .year-btn { background: #fff; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 8px; color: var(--text); text-decoration: none; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-    .year-btn:hover { background: #f1f5f9; border-color: #94a3b8; }
-    
-    .grid-meses { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
-    .mes-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); transition: 0.2s; position: relative; overflow: hidden; }
-    .mes-card:hover { border-color: #cbd5e1; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); transform: translateY(-2px); }
-    .mes-titulo { font-size: 1.1rem; font-weight: 700; color: var(--text); margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.05em; }
-    
-    .badge-estado { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; margin-bottom: 16px; }
-    .bg-subido { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-    .bg-pendiente { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
-    .bg-alerta { background: #fef08a; color: #854d0e; border: 1px solid #fde047; animation: pulse-border 2s infinite; }
-    .bg-vencido { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-
-    @keyframes pulse-border { 0% { box-shadow: 0 0 0 0 rgba(253, 224, 71, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(253, 224, 71, 0); } 100% { box-shadow: 0 0 0 0 rgba(253, 224, 71, 0); } }
-
-    .acciones-mes { display: flex; justify-content: center; gap: 8px; }
-    .btn-action { width: 100%; background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; padding: 8px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; }
-    .btn-action.primary { background: rgba(255, 138, 31, 0.1); color: var(--primary2); border: 1px solid transparent; }
-    .btn-action.primary:hover { background: var(--primary); color: white; }
-    .btn-action.danger { width: auto; background: #fee2e2; color: #dc2626; border-color: transparent; }
-    .btn-action.danger:hover { background: #ef4444; color: white; }
-    
+    /* ========================================================
+       AJUSTES EXCLUSIVOS PARA MÓVILES (Celulares)
+       ======================================================== */
     @media (max-width: 768px) {
-        .document-format { padding: 20px; }
-        .signatures-grid { flex-direction: column; gap: 40px; }
+        .document-format { padding: 20px 16px; }
+        .signatures-grid { flex-direction: column; gap: 32px; margin-top: 40px; }
         .sig-box { width: 100%; }
-        .toolbar-acta { flex-direction: column; }
+        .toolbar-acta { flex-direction: column; gap: 12px; }
         .toolbar-acta button, .toolbar-acta a { width: 100%; justify-content: center; }
-        .grid-meses { grid-template-columns: 1fr 1fr; }
-    }
-    @media (max-width: 480px) {
-        .grid-meses { grid-template-columns: 1fr; }
+        
+        /* Estructura Perfecta de Acordeón en Celular */
+        .accordion-header { padding: 16px; align-items: center; gap: 12px; }
+        .header-left { 
+            display: grid; 
+            grid-template-columns: auto 1fr; 
+            column-gap: 14px; 
+            row-gap: 8px; 
+            flex: 1; 
+            min-width: 0; /* Permite que el grid respete el ancho de la pantalla */
+        }
+        .header-left .icon-box { grid-row: 1 / span 2; align-self: center; }
+        .header-left .accordion-title { font-size: 0.95rem; line-height: 1.3; }
+        .header-left .badge-std { justify-self: flex-start; padding: 4px 8px;}
+        
+        /* Ajustes específicos de las tarjetas internas */
+        .estandar-card { padding: 16px !important; }
+        .estandar-card a { width: 100%; justify-content: center; box-sizing: border-box; }
+        
+        .content-inner { padding: 16px; }
     }
 </style>
 
@@ -284,86 +275,83 @@ $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
             <svg class="chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
         </button>
         <div class="accordion-content">
-            <div class="content-inner" style="background: #f8fafc;">
-                <p style="margin-top:0;">Control y carga mensual de la planilla de pago de Seguridad Social (PILA). El vencimiento estándar es el día 10 del mes siguiente.</p>
+            <div class="content-inner" style="background: #f8fafc; padding: 24px;">
                 
-                <div class="year-selector">
-                    <a href="dashboard.php?anio_planillas=<?php echo $anio_seleccionado - 1; ?>&std=2" class="year-btn" title="Año Anterior">&laquo;</a>
-                    <span>Año <?php echo $anio_seleccionado; ?></span>
-                    <a href="dashboard.php?anio_planillas=<?php echo $anio_seleccionado + 1; ?>&std=2" class="year-btn" title="Año Siguiente">&raquo;</a>
-                </div>
-
-                <div class="grid-meses">
-                    <?php 
-                    for ($m = 1; $m <= 12; $m++): 
-                        // Lógica de tarjetas
-                        $estado_texto = "Pendiente";
-                        $clase_estado = "bg-pendiente";
-                        $esta_subido = isset($planillas_db[$m]);
-                        
-                        if ($esta_subido) {
-                            $estado_texto = "Subido";
-                            $clase_estado = "bg-subido";
-                        } else {
-                            $fecha_vencimiento = new DateTime("$anio_seleccionado-" . sprintf('%02d', $m) . "-10");
-                            $fecha_vencimiento->modify('+1 month'); // Pasa al siguiente mes
-                            $fecha_vencimiento->setTime(0, 0, 0);
-
-                            $intervalo = $hoy->diff($fecha_vencimiento);
-                            $dias_restantes = (int)$intervalo->format('%R%a');
-
-                            if ($dias_restantes < 0) {
-                                $estado_texto = "Vencido";
-                                $clase_estado = "bg-vencido";
-                            } elseif ($dias_restantes >= 0 && $dias_restantes <= 3) {
-                                $estado_texto = "¡Vence en " . ($dias_restantes == 0 ? 'hoy' : "$dias_restantes días!") . "!";
-                                $clase_estado = "bg-alerta";
-                            }
-                        }
-                    ?>
-                        <div class="mes-card">
-                            <h4 class="mes-titulo"><?php echo $meses_nombres[$m]; ?></h4>
-                            <span class="badge-estado <?php echo $clase_estado; ?>"><?php echo $estado_texto; ?></span>
-                            
-                            <div class="acciones-mes">
-                                <?php if ($esta_subido): ?>
-                                    <a href="<?php echo htmlspecialchars($planillas_db[$m]['archivo_url']); ?>" target="_blank" class="btn-action">
-                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg> Ver
-                                    </a>
-                                    <?php if ($usuario_rol === 'sst' || $usuario_rol === 'representante'): ?>
-                                        <a href="#" onclick="showConfirmModal('Eliminar Planilla', '¿Eliminar la planilla de <?php echo $meses_nombres[$m]; ?>?', 'procesar_estandar2.php?accion=eliminar_planilla&id=<?php echo $planillas_db[$m]['id']; ?>', 'danger', 'Sí, eliminar'); return false;" class="btn-action danger" title="Eliminar archivo">
-                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                        </a>
-                                    <?php endif; ?>
-                                <?php else: ?>
-                                    <?php if ($usuario_rol === 'sst' || $usuario_rol === 'representante'): ?>
-                                        <form action="procesar_estandar2.php" method="POST" enctype="multipart/form-data" id="formPlanilla_<?php echo $m; ?>" style="width:100%;">
-                                            <input type="hidden" name="accion" value="subir_planilla">
-                                            <input type="hidden" name="mes" value="<?php echo $m; ?>">
-                                            <input type="hidden" name="anio" value="<?php echo $anio_seleccionado; ?>">
-                                            <input type="file" name="archivo" id="filePlanilla_<?php echo $m; ?>" style="display:none;" accept=".pdf,.png,.jpg,.jpeg" onchange="mostrarCargandoCorreos('Subiendo planilla de seguridad social...'); this.form.submit();">
-                                            <button type="button" class="btn-action primary" onclick="document.getElementById('filePlanilla_<?php echo $m; ?>').click();">
-                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                                                Cargar Planilla
-                                            </button>
-                                        </form>
-                                    <?php else: ?>
-                                        <span style="font-size: 0.8rem; color: var(--muted);">No disponible</span>
-                                    <?php endif; ?>
-                                <?php endif; ?>
-                            </div>
+                <div class="estandar-card" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                        <div style="background: rgba(255, 138, 31, 0.1); color: var(--primary); padding: 8px; border-radius: 8px;">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                         </div>
-                    <?php endfor; ?>
+                        <h3 style="margin: 0; font-size: 1rem; color: var(--blue-dark, #1e3a8a);">Estándar 2: Planillas de Seguridad Social</h3>
+                    </div>
+                    
+                    <?php if ($usuario_rol === 'sst'): ?>
+                        <p style="font-size: 0.85rem; color: var(--muted); margin: 0 0 20px 0; line-height: 1.5;">
+                            Gestiona los soportes y planillas de pago de seguridad social de la empresa. En este panel centralizado podrás revisar el historial por mes y año, además de subir los nuevos certificados de pago a través de la PILA.
+                        </p>
+                        <a href="estandar2.php" style="background: #f8fafc; color: var(--primary2); border: 1px solid #cbd5e1; padding: 10px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; text-decoration: none; display: inline-flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s;">
+                            Abrir Panel de Planillas
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        </a>
+                    <?php elseif ($usuario_rol === 'representante'): ?>
+                        <p style="font-size: 0.85rem; color: var(--muted); margin: 0 0 16px 0; line-height: 1.5;">
+                            El Responsable SG-SST se encarga de subir las planillas de seguridad social. Aquí podrás visualizar el resumen de cumplimiento de tu empresa.
+                        </p>
+                        <div style="background: rgba(241, 245, 249, 0.5); border: 1px dashed #cbd5e1; border-radius: 8px; padding: 20px; text-align: center;">
+                            <span style="font-size: 0.85rem; color: #64748b; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                Resumen de planillas (Próximamente)
+                            </span>
+                        </div>
+                    <?php endif; ?>
                 </div>
 
             </div>
         </div>
     </div>
 
-    <div class="accordion-item"><button class="accordion-header"><div class="header-left"><div class="icon-box"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477 4.5 1.253" /></svg></div>
-    <span class="accordion-title">3. Capacitación en SST</span>
-    <span class="badge-std <?php echo $std3_class; ?>"><?php echo $std3_estado; ?></span>
-    </div><svg class="chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg></button><div class="accordion-content"><div class="content-inner"><h4>Modo de Verificación:</h4><p>Elaborar y ejecutar programa de capacitación en promoción y prevención.</p></div></div></div>
+    <div class="accordion-item" <?php if(isset($_GET['std']) && $_GET['std'] == 3) echo 'id="estandar3_open"'; ?>>
+        <button class="accordion-header">
+            <div class="header-left">
+                <div class="icon-box"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477 4.5 1.253" /></svg></div>
+                <span class="accordion-title">3. Capacitación en SST</span>
+                <span class="badge-std <?php echo $std3_class; ?>"><?php echo $std3_estado; ?></span>
+            </div>
+            <svg class="chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+        </button>
+        <div class="accordion-content">
+            <div class="content-inner" style="background: #f8fafc; padding: 24px;">
+                
+                <div class="estandar-card" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                        <div style="background: rgba(255, 138, 31, 0.1); color: var(--primary); padding: 8px; border-radius: 8px;">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477 4.5 1.253"></path></svg>
+                        </div>
+                        <h3 style="margin: 0; font-size: 1rem; color: var(--blue-dark, #1e3a8a);">Estándar 3: Plan de Capacitación en SST</h3>
+                    </div>
+                    
+                    <?php if ($usuario_rol === 'sst'): ?>
+                        <p style="font-size: 0.85rem; color: var(--muted); margin: 0 0 20px 0; line-height: 1.5;">
+                            Elabora, ejecuta y realiza el seguimiento al programa de capacitación en promoción y prevención. Aquí podrás planificar los cursos, registrar la asistencia y evaluar el impacto en los trabajadores.
+                        </p>
+                        <a href="estandar3.php" style="background: #f8fafc; color: var(--primary2); border: 1px solid #cbd5e1; padding: 10px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; text-decoration: none; display: inline-flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s;">
+                            Abrir Panel de Capacitaciones
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        </a>
+                    <?php elseif ($usuario_rol === 'representante'): ?>
+                        <p style="font-size: 0.85rem; color: var(--muted); margin: 0 0 20px 0; line-height: 1.5;">
+                            El Responsable SG-SST gestionará las capacitaciones desde este módulo. Como Representante Legal, puedes visualizar el cronograma y estado de las capacitaciones del personal.
+                        </p>
+                        <a href="estandar3.php" style="background: #f8fafc; color: var(--primary2); border: 1px solid #cbd5e1; padding: 10px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; text-decoration: none; display: inline-flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s;">
+                            Ver Estado de Capacitaciones
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                        </a>
+                    <?php endif; ?>
+                </div>
+
+            </div>
+        </div>
+    </div>
     
     <div class="accordion-item"><button class="accordion-header"><div class="header-left"><div class="icon-box"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg></div>
     <span class="accordion-title">4. Plan Anual de Trabajo</span>
@@ -402,7 +390,7 @@ $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
         document.body.appendChild(overlay);
     };
 
-    // GENERADOR DE PDF (Con mPDF)
+    // GENERADOR DE PDF (Con html2pdf)
     async function generarYGuardarPDF() {
         const btn = document.getElementById('btnDescargarPDF');
         const originalText = btn.innerHTML;
@@ -450,8 +438,18 @@ $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
             });
         });
 
+        // Autoscroll para Estándar 2
         if(document.getElementById('estandar2_open')) {
             const acc = document.getElementById('estandar2_open').querySelector('.accordion-header');
+            if(acc) {
+                acc.click();
+                setTimeout(() => acc.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+            }
+        }
+        
+        // Autoscroll para Estándar 3
+        if(document.getElementById('estandar3_open')) {
+            const acc = document.getElementById('estandar3_open').querySelector('.accordion-header');
             if(acc) {
                 acc.click();
                 setTimeout(() => acc.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
