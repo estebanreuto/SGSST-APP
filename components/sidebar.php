@@ -7,6 +7,7 @@ if ($es_super_admin) {
     $usuario_nombre = $_SESSION['cpanel_admin_nombre'] ?? 'Super Admin';
     $rol_display = 'Super Administrador';
     $usuario_rol = 'super_admin';
+    $nivel_plan = 3; // Super admin tiene todo activo
 } else {
     $usuario_nombre = $_SESSION['usuario_nombre'] ?? $_SESSION['nombre'] ?? 'Usuario';
     $usuario_rol = $_SESSION['usuario_rol'] ?? $_SESSION['rol'] ?? '';
@@ -26,13 +27,12 @@ $current_page = basename($_SERVER['PHP_SELF']);
 $unread_count = 0;
 $nivel_plan = 0; // 1 = Básico, 2 = Pro, 3 = Enterprise
 
-// LÓGICA INTELIGENTE DE NOTIFICACIONES SEGÚN EL ROL
+// LÓGICA INTELIGENTE DE NOTIFICACIONES SEGÚN EL ROL Y PLANES
 if ($es_super_admin) {
-    // Si es Super Admin, contamos las solicitudes pendientes
     $stmt_notif = $conn->query("SELECT COUNT(*) FROM solicitudes_empresas WHERE estado = 'pendiente'");
     $unread_count = $stmt_notif->fetchColumn();
+    $nivel_plan = 3; // Super admin tiene nivel máximo
 } elseif (isset($_SESSION['usuario_id']) && isset($conn)) {
-    // Si es un usuario normal, contamos sus notificaciones no leídas
     $stmt_notif = $conn->prepare("SELECT COUNT(*) FROM notificaciones WHERE usuario_id = ? AND leida = 0");
     $stmt_notif->execute([$_SESSION['usuario_id']]);
     $unread_count = $stmt_notif->fetchColumn();
@@ -61,6 +61,72 @@ if ($es_super_admin) {
         $nivel_plan = 0; 
     }
 }
+
+// ==========================================
+// DICCIONARIO DE NOMBRES DE ESTÁNDARES
+// ==========================================
+$nombres_estandares = [
+    1 => "Asignación de persona que diseña el Sistema de Gestión de SST",
+    2 => "Afiliación al Sistema de Seguridad Social Integral",
+    3 => "Capacitación en SST",
+    4 => "Plan Anual de Trabajo",
+    5 => "Evaluaciones médicas ocupacionales",
+    6 => "Identificación de peligros; evaluación y valoración de riesgos",
+    7 => "Medidas de prevención y control frente a peligros/riesgos identificados",
+    8 => "Asignación de recursos para el Sistema de Gestión de SST",
+    9 => "Conformación y funcionamiento del COPASST",
+    10 => "Conformación y funcionamiento del Comité de Convivencia Laboral",
+    11 => "Política de Seguridad y Salud en el Trabajo",
+    12 => "Archivo y retención documental del Sistema de Gestión de SST",
+    13 => "Descripción socio demográfica y Diagnóstico de condiciones de salud",
+    14 => "Actividades de medicina del trabajo y de prevención y promoción de la salud",
+    15 => "Restricciones y recomendaciones médicas laborales",
+    16 => "Reporte de accidentes de trabajo y enfermedades laborales",
+    17 => "Investigación de incidentes, accidentes de trabajo y enfermedades cuando sean diagnosticadas como laborales",
+    18 => "Mantenimiento periódico de instalaciones, equipos, máquinas y herramientas",
+    19 => "Entrega de los elementos de protección personal – EPP y capacitación en uso adecuado",
+    20 => "Plan de prevención, preparación y respuesta ante emergencias",
+    21 => "Brigada de prevención, preparación y respuesta ante emergencias",
+    22 => "Revisión por la alta dirección",
+    23 => "Asignación de responsabilidades en SST",
+    24 => "Identificación de trabajadores que se dediquen en forma permanente a actividades de alto riesgo y cotización de pensión especial",
+    25 => "Capacitación de los integrantes del COPASST",
+    26 => "Inducción y reinducción en SST",
+    27 => "Curso Virtual de capacitación de cincuenta (50) horas en SST",
+    28 => "Objetivos de SST",
+    29 => "Evaluación Inicial del Sistema de Gestión",
+    30 => "Rendición de cuentas",
+    31 => "Matriz legal",
+    32 => "Mecanismos de comunicación",
+    33 => "Identificación y evaluación para la adquisición de bienes y servicios",
+    34 => "Evaluación y selección de proveedores y contratistas",
+    35 => "Gestión del cambio",
+    36 => "Perfiles de cargos",
+    37 => "Custodia de las historias clínicas",
+    38 => "Estilos de vida y entorno saludable",
+    39 => "Servicios de higiene",
+    40 => "Manejo de Residuos",
+    41 => "Registro y análisis estadístico de accidentes de trabajo y enfermedades laborales",
+    42 => "Frecuencia de accidentalidad",
+    43 => "Severidad de accidentalidad",
+    44 => "Proporción de accidentes de trabajo mortales",
+    45 => "Prevalencia de la enfermedad laboral",
+    46 => "Incidencia de la enfermedad laboral",
+    47 => "Ausentismo por causa médica",
+    48 => "Metodología para identificación de peligros, evaluación y valoración de riesgos",
+    49 => "Identificación de sustancias catalogadas como carcinógenas o con toxicidad aguda",
+    50 => "Mediciones ambientales",
+    51 => "Aplicación de medidas de prevención y control por parte de los trabajadores",
+    52 => "Procedimientos e instructivos internos de seguridad y salud en el trabajo",
+    53 => "Inspecciones a instalaciones, maquinaria o equipos",
+    54 => "Definición de indicadores del Sistema de Gestión de Seguridad y Salud en el Trabajo",
+    55 => "Auditoría anual",
+    56 => "Planificación de la auditoría con el COPASST",
+    57 => "Acciones preventivas y/o correctivas",
+    58 => "Acciones de mejora conforme a revisión de la Alta Dirección",
+    59 => "Acciones de mejora con base en investigaciones de accidentes de trabajo y enfermedades laborales",
+    60 => "Plan de mejoramiento"
+];
 ?>
 <style>
     :root {
@@ -73,12 +139,14 @@ if ($es_super_admin) {
 
     .sidebar { width: 260px; background: #ffffff; border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100vh; position: fixed; left: 0; top: 0; font-family: 'Inter', sans-serif; z-index: 1050; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 4px 0 15px rgba(0, 0, 0, 0.02); }
     
-    .sidebar-header { height: 55px; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
-    .brand { display: flex; align-items: center; font-weight: 800; color: var(--blue-dark, #1e3a8a); font-size: 1.15rem; letter-spacing: -0.02em; }
-    .btn-close-sidebar { display: none; background: none; border: none; color: var(--muted); cursor: pointer; padding: 4px; transition: color 0.2s; }
-    .btn-close-sidebar:hover { color: #ef4444; }
+    .sidebar-header { height: 68px; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); box-sizing: border-box; }
+    .brand { display: flex; align-items: center; flex: 1; min-width: 0; margin-right: 12px; }
+    .brand img { max-height: 28px; max-width: 100%; width: auto; object-fit: contain; object-position: left center; display: block; }
+    
+    .btn-close-sidebar { display: none; background: #f1f5f9; border: 1px solid #cbd5e1; color: var(--muted); cursor: pointer; padding: 6px; border-radius: 8px; transition: all 0.2s ease; flex-shrink: 0; }
+    .btn-close-sidebar:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
 
-    .sidebar-nav { padding: 12px 16px; flex: 1; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+    .sidebar-nav { padding: 12px 16px; flex: 1; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; overflow-x: hidden; }
     .sidebar-nav::-webkit-scrollbar { width: 4px; }
     .sidebar-nav::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
@@ -88,24 +156,78 @@ if ($es_super_admin) {
     .nav-item:hover { background: #f8fafc; transform: translateX(3px); color: var(--blue-dark, #1e3a8a); }
     .nav-item.active { background: linear-gradient(135deg, rgba(255, 138, 31, 0.12), rgba(255, 122, 0, 0.05)); color: var(--primary2); font-weight: 700; }
     .nav-item.active::before { content: ''; position: absolute; left: 0; top: 20%; height: 60%; width: 3px; background: var(--primary); border-radius: 0 4px 4px 0; }
-    .nav-item svg { opacity: 0.6; transition: opacity 0.2s, color 0.2s; }
-    .nav-item:hover svg, .nav-item.active svg { opacity: 1; color: var(--primary); }
+    .nav-item > svg { opacity: 0.6; transition: opacity 0.2s, color 0.2s; flex-shrink: 0;}
+    .nav-item:hover > svg, .nav-item.active > svg { opacity: 1; color: var(--primary); }
 
     .nav-item-locked { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; color: #94a3b8; text-decoration: none; font-size: 0.85rem; font-weight: 500; border-radius: 8px; cursor: not-allowed; background: #f8fafc; opacity: 0.7; }
     .nav-item-locked .lock-left { display: flex; align-items: center; gap: 12px; }
-    .nav-item-locked svg { opacity: 0.5; }
+    .nav-item-locked > svg { opacity: 0.5; }
 
-    /* ESTILO DEL PUNTICO DE NOTIFICACIÓN */
+    /* ==============================================
+       BUSCADOR EN SIDEBAR
+       ============================================== */
+    .sidebar-search-box {
+        position: relative; margin: 4px 0 12px 0;
+    }
+    .sidebar-search-box input {
+        width: 100%; padding: 10px 14px 10px 36px; border: 1px solid #cbd5e1;
+        border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.8rem;
+        background: #f8fafc; color: var(--text); box-sizing: border-box; transition: all 0.2s;
+    }
+    .sidebar-search-box input:focus {
+        outline: none; border-color: var(--primary); background: #ffffff; box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.15);
+    }
+    .sidebar-search-box svg {
+        position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; width: 16px; height: 16px;
+    }
+
+    /* ==============================================
+       MENÚ DESPLEGABLE (ACORDEÓN DE ESTÁNDARES)
+       ============================================== */
+    .nav-dropdown { display: flex; flex-direction: column; }
+    .nav-dropdown-toggle {
+        display: flex; align-items: center; justify-content: space-between; padding: 10px 14px;
+        color: var(--text); text-decoration: none; font-size: 0.85rem; font-weight: 500; 
+        border-radius: 8px; cursor: pointer; transition: all 0.2s ease; user-select: none;
+    }
+    .nav-dropdown-toggle:hover { background: #f8fafc; color: var(--blue-dark, #1e3a8a); }
+    .nav-dropdown-toggle .dropdown-left { display: flex; align-items: center; gap: 12px; }
+    .nav-dropdown-toggle .dropdown-left svg { opacity: 0.6; width: 18px; height: 18px; transition: 0.2s; }
+    .nav-dropdown-toggle:hover .dropdown-left svg { opacity: 1; color: var(--primary); }
+    .chevron-icon { width: 16px; height: 16px; color: #94a3b8; transition: transform 0.3s ease; }
+    
+    .nav-dropdown.active .nav-dropdown-toggle { background: #f8fafc; color: var(--primary2); font-weight: 600; } 
+    .nav-dropdown.active .nav-dropdown-toggle .dropdown-left svg { color: var(--primary); opacity: 1; }
+    .nav-dropdown.active .chevron-icon { transform: rotate(180deg); color: var(--primary); }
+
+    .nav-dropdown-menu { display: none; padding-left: 36px; padding-top: 4px; padding-bottom: 4px; flex-direction: column; gap: 2px; border-left: 2px solid #e2e8f0; margin-left: 22px; margin-bottom: 4px;}
+    .nav-dropdown.active .nav-dropdown-menu { display: flex; }
+
+    /* ESTILOS REDISEÑADOS PARA LOS SUB-ITEMS (ESTÁNDARES) */
+    .sub-item {
+        display: flex; align-items: flex-start; /* Cambio para alinear arriba si hay salto de línea */
+        justify-content: space-between; padding: 8px 12px;
+        color: var(--muted); text-decoration: none; font-size: 0.75rem; /* Letra un poco más pequeña */
+        font-weight: 500; border-radius: 6px; transition: all 0.2s; position: relative;
+        line-height: 1.35; gap: 8px;
+    }
+    .sub-item span { flex: 1; } /* Permite que el texto se expanda y rompa línea si es necesario */
+    .sub-item::before { content: ''; position: absolute; left: -14px; top: 12px; width: 10px; height: 2px; background: #e2e8f0; }
+    .sub-item:hover { color: var(--primary2); background: #fff8f3; }
+    .sub-item.active { color: var(--primary2); background: #fff8f3; font-weight: 700; }
+    
+    .sub-item.locked { color: #94a3b8; background: transparent; cursor: not-allowed; opacity: 0.7;}
+    .sub-item.locked:hover { background: #f8fafc; }
+    .sub-item.locked svg { width: 14px; height: 14px; opacity: 0.6; flex-shrink: 0; margin-top: 1px;}
+
     @keyframes pulse-dot {
         0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
         70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
         100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
     }
-    .dot-indicator {
-        width: 8px; height: 8px; background: #ef4444; border-radius: 50%;
-        margin-left: auto; animation: pulse-dot 2s infinite;
-    }
+    .dot-indicator { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; margin-left: auto; animation: pulse-dot 2s infinite; }
 
+    /* FOOTER Y CUENTA */
     .sidebar-footer { padding: 16px; border-top: 1px solid rgba(0, 0, 0, 0.04); background: #ffffff; }
     .user-box { display: flex; flex-direction: column; background: #f8fafc; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; transition: box-shadow 0.2s; gap: 12px; }
     .user-box:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04); }
@@ -123,7 +245,6 @@ if ($es_super_admin) {
     .action-btn:hover { background: #e2e8f0; color: var(--primary); }
     .action-btn:hover svg { color: var(--primary); }
     
-    /* ESTADO ACTIVO PARA LOS BOTONES DE ABAJO */
     .action-btn.active { background: rgba(255, 138, 31, 0.12); color: var(--primary2); font-weight: 700; }
     .action-btn.active svg { color: var(--primary); }
 
@@ -132,10 +253,12 @@ if ($es_super_admin) {
     .action-btn.exit-btn:hover { background: #fee2e2; color: #dc2626; }
     .action-btn.exit-btn:hover svg { color: #dc2626; }
 
+    /* MÓVIL RESPONSIVE */
     @media (max-width: 768px) {
         .sidebar { transform: translateX(-100%); }
         .sidebar.active { transform: translateX(0); }
         .btn-close-sidebar { display: block; }
+        .sidebar-header { padding: 0 20px; }
     }
 </style>
 
@@ -144,9 +267,9 @@ if ($es_super_admin) {
 <aside class="sidebar" id="mainSidebar">
     <div class="sidebar-header">
         <div class="brand">
-            SG-SST <span style="color: var(--primary); margin-left: 4px;">Pro</span>
+            <img src="assets/logo_prevenwork.jpeg" alt="PrevenWork">
         </div>
-        <button class="btn-close-sidebar" id="btnCloseSidebar">
+        <button class="btn-close-sidebar" id="btnCloseSidebar" title="Cerrar Menú">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -156,6 +279,7 @@ if ($es_super_admin) {
     <nav class="sidebar-nav">
 
         <?php if ($es_super_admin): ?>
+            <!-- VISTA SUPER ADMIN -->
             <div class="nav-section">Super Administrador</div>
             <a href="index.php" class="nav-item <?php echo $current_page == 'index.php' ? 'active' : ''; ?>">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg> Dashboard
@@ -171,6 +295,7 @@ if ($es_super_admin) {
             </a>
 
         <?php else: ?>
+            <!-- VISTA EMPRESAS (REPRESENTANTE / SST) -->
             <div class="nav-section">Principal</div>
             <a href="dashboard.php" class="nav-item <?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg> Dashboard
@@ -178,9 +303,93 @@ if ($es_super_admin) {
 
             <?php if ($usuario_rol === 'representante' || $usuario_rol === 'sst'): ?>
                 <div class="nav-section">Administración</div>
-                <a href="trabajadores.php" class="nav-item <?php echo $current_page == 'trabajadores.php' ? 'active' : ''; ?>">
+                
+                <a href="trabajadores.php" class="nav-item <?php echo in_array($current_page, ['trabajadores.php', 'grupos.php']) ? 'active' : ''; ?>">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg> Personal
                 </a>
+
+                <!-- ==========================================
+                     NUEVO: ACORDEONES DE ESTÁNDARES INTELIGENTES
+                     ========================================== -->
+                <div class="nav-section" style="margin-top: 20px;">Estándares SG-SST</div>
+                
+                <!-- Buscador Híbrido (Busca por número o por nombre) -->
+                <div class="sidebar-search-box">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <input type="text" id="searchInputSidebar" placeholder="Buscar estándar (Ej. 15)">
+                </div>
+
+                <!-- 1. ESTÁNDARES PEM (1 al 7) -->
+                <div class="nav-dropdown" id="dropdownPEM">
+                    <div class="nav-dropdown-toggle">
+                        <div class="dropdown-left">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            Estándares PEM
+                        </div>
+                        <svg class="chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                    <div class="nav-dropdown-menu">
+                        <?php for($i = 1; $i <= 7; $i++): ?>
+                            <!-- Data-search permite buscar por número (ej. "3") o nombre (ej. "capacitacion") -->
+                            <a href="estandar<?php echo $i; ?>.php" class="sub-item std-item <?php echo $current_page == 'estandar'.$i.'.php' ? 'active' : ''; ?>" data-search="<?php echo $i . ' ' . strtolower(htmlspecialchars($nombres_estandares[$i])); ?>">
+                                <span><?php echo htmlspecialchars($nombres_estandares[$i]); ?></span>
+                            </a>
+                        <?php endfor; ?>
+                    </div>
+                </div>
+
+                <!-- 2. ESTÁNDARES MEM (8 al 21) -->
+                <div class="nav-dropdown" id="dropdownMEM">
+                    <div class="nav-dropdown-toggle">
+                        <div class="dropdown-left">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                            Estándares MEM
+                        </div>
+                        <svg class="chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                    <div class="nav-dropdown-menu">
+                        <?php for($i = 8; $i <= 21; $i++): ?>
+                            <?php if ($nivel_plan >= 2): // Requiere Pro (2) o Superior ?>
+                                <a href="estandar<?php echo $i; ?>.php" class="sub-item std-item <?php echo $current_page == 'estandar'.$i.'.php' ? 'active' : ''; ?>" data-search="<?php echo $i . ' ' . strtolower(htmlspecialchars($nombres_estandares[$i])); ?>">
+                                    <span><?php echo htmlspecialchars($nombres_estandares[$i]); ?></span>
+                                </a>
+                            <?php else: ?>
+                                <a href="javascript:void(0)" onclick="alert('El Estándar <?php echo $i; ?> requiere Plan Pro o Enterprise.')" class="sub-item std-item locked" data-search="<?php echo $i . ' ' . strtolower(htmlspecialchars($nombres_estandares[$i])); ?>">
+                                    <span><?php echo htmlspecialchars($nombres_estandares[$i]); ?></span>
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                </a>
+                            <?php endif; ?>
+                        <?php endfor; ?>
+                    </div>
+                </div>
+
+                <!-- 3. ESTÁNDARES GEM (22 al 60) -->
+                <div class="nav-dropdown" id="dropdownGEM">
+                    <div class="nav-dropdown-toggle">
+                        <div class="dropdown-left">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                            Estándares GEM
+                        </div>
+                        <svg class="chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                    <div class="nav-dropdown-menu">
+                        <?php for($i = 22; $i <= 60; $i++): ?>
+                            <?php if ($nivel_plan >= 3): // Requiere Enterprise (3) ?>
+                                <a href="estandar<?php echo $i; ?>.php" class="sub-item std-item <?php echo $current_page == 'estandar'.$i.'.php' ? 'active' : ''; ?>" data-search="<?php echo $i . ' ' . strtolower(htmlspecialchars($nombres_estandares[$i])); ?>">
+                                    <span><?php echo htmlspecialchars($nombres_estandares[$i]); ?></span>
+                                </a>
+                            <?php else: ?>
+                                <a href="javascript:void(0)" onclick="alert('El Estándar <?php echo $i; ?> requiere Plan Enterprise.')" class="sub-item std-item locked" data-search="<?php echo $i . ' ' . strtolower(htmlspecialchars($nombres_estandares[$i])); ?>">
+                                    <span><?php echo htmlspecialchars($nombres_estandares[$i]); ?></span>
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                </a>
+                            <?php endif; ?>
+                        <?php endfor; ?>
+                    </div>
+                </div>
+                <!-- ========================================== -->
+
+                <div class="nav-section" style="margin-top: 20px;">Herramientas</div>
                 <?php if ($nivel_plan >= 2): ?>
                     <a href="reportes.php" class="nav-item <?php echo $current_page == 'reportes.php' ? 'active' : ''; ?>">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> Generar Reportes
@@ -194,6 +403,7 @@ if ($es_super_admin) {
             <?php endif; ?>
 
             <?php if ($usuario_rol === 'trabajador'): ?>
+                <!-- VISTA TRABAJADOR -->
                 <div class="nav-section">Mis Tareas</div>
                 <a href="mis_encuestas.php" class="nav-item <?php echo $current_page == 'mis_encuestas.php' ? 'active' : ''; ?>">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Mis Encuestas
@@ -244,6 +454,74 @@ if ($es_super_admin) {
 </aside>
 
 <script>
+    // LÓGICA DE ACORDEONES
+    const dropdownToggles = document.querySelectorAll('.nav-dropdown-toggle');
+    dropdownToggles.forEach(toggle => {
+        toggle.addEventListener('click', function() {
+            const parent = this.parentElement;
+            parent.classList.toggle('active');
+        });
+    });
+
+    // LÓGICA DEL BUSCADOR HÍBRIDO DE ESTÁNDARES EN TIEMPO REAL
+    const searchInput = document.getElementById('searchInputSidebar');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            let filter = this.value.toLowerCase().trim();
+            let dropdowns = document.querySelectorAll('.nav-dropdown');
+
+            dropdowns.forEach(dropdown => {
+                let items = dropdown.querySelectorAll('.std-item');
+                let hasVisibleItem = false;
+
+                items.forEach(item => {
+                    // Busca utilizando el data-search oculto que incluye el número y el nombre
+                    let searchData = item.getAttribute('data-search') || '';
+                    if (searchData.includes(filter)) {
+                        item.style.display = 'flex';
+                        hasVisibleItem = true;
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+
+                // Si hay texto escrito y encontró algo, abre el menú. Si no hay nada, lo esconde.
+                if (filter !== '') {
+                    if (hasVisibleItem) {
+                        dropdown.style.display = 'flex';
+                        dropdown.classList.add('active');
+                    } else {
+                        dropdown.style.display = 'none';
+                        dropdown.classList.remove('active');
+                    }
+                } else {
+                    // Si el buscador se limpia, restaurar el estado original de la barra
+                    dropdown.style.display = 'flex';
+                    item.style.display = 'flex';
+                    // Mantener abierto solo si hay un item activo (el que el usuario está visitando)
+                    if (!dropdown.querySelector('.std-item.active')) {
+                        dropdown.classList.remove('active');
+                    }
+                }
+            });
+        });
+    }
+
+    // AUTO-ABRIR EL DESPLEGABLE SI EL ESTÁNDAR ESTÁ ACTIVO
+    document.addEventListener('DOMContentLoaded', () => {
+        const activeSubItem = document.querySelector('.sub-item.active');
+        if (activeSubItem) {
+            const parentDropdown = activeSubItem.closest('.nav-dropdown');
+            if (parentDropdown) {
+                parentDropdown.classList.add('active');
+                // Pequeño timeout para asegurar que el navegador renderizó la UI antes del scroll
+                setTimeout(() => {
+                    activeSubItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 150);
+            }
+        }
+    });
+
     // REEMPLAZAMOS EL CONFIRM NATIVO POR EL MODAL PREMIUM
     function cerrarSesionSegura() {
         if (typeof showConfirmModal === 'function') {
@@ -262,6 +540,7 @@ if ($es_super_admin) {
         }
     }
 
+    // LÓGICA RESPONSIVE MÓVIL
     document.addEventListener('DOMContentLoaded', () => {
         const btnOpenSidebar = document.getElementById('btnOpenSidebar');
         const btnCloseSidebar = document.getElementById('btnCloseSidebar');
@@ -269,9 +548,11 @@ if ($es_super_admin) {
         const sidebarOverlay = document.getElementById('sidebarOverlay');
 
         function toggleMenu() {
-            mainSidebar.classList.toggle('active');
-            sidebarOverlay.classList.toggle('active');
-            document.body.style.overflow = mainSidebar.classList.contains('active') ? 'hidden' : '';
+            if (mainSidebar && sidebarOverlay) {
+                mainSidebar.classList.toggle('active');
+                sidebarOverlay.classList.toggle('active');
+                document.body.style.overflow = mainSidebar.classList.contains('active') ? 'hidden' : '';
+            }
         }
         if (btnOpenSidebar) btnOpenSidebar.addEventListener('click', toggleMenu);
         if (btnCloseSidebar) btnCloseSidebar.addEventListener('click', toggleMenu);

@@ -91,10 +91,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $nombre_rep = trim($rep['nombre'] . ' ' . $rep['apellido']);
                 $msg_notif = "El Responsable SG-SST ($currentUserName) ha enviado un acta para tu aprobación.";
                 $msg_correo = "El Responsable <b>$currentUserName</b> ha generado el Acta de Designación y está esperando tu firma.<br><br>Ingresa a la plataforma para aprobarla.";
-                notificarUsuario($conn, $rep['id'], $rep['email'], $nombre_rep, "Firma Requerida: Acta SG-SST", $msg_notif, $msg_correo, "dashboard.php");
+                notificarUsuario($conn, $rep['id'], $rep['email'], $nombre_rep, "Firma Requerida: Acta SG-SST", $msg_notif, $msg_correo, "estandar1.php");
             }
 
-            header("Location: dashboard.php?doc=enviado");
+            header("Location: estandar1.php?doc=enviado");
             exit;
         }
     } 
@@ -120,10 +120,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $nombre_sst = trim($sst['nombre'] . ' ' . $sst['apellido']);
                 $msg_notif = "El Representante Legal ($currentUserName) ha firmado y legalizado tu acta.";
                 $msg_correo = "El Representante Legal <b>$currentUserName</b> ha firmado el Acta de Designación.<br><br>El documento ya está legalizado, puedes ingresar a la plataforma y descargar el PDF oficial.";
-                notificarUsuario($conn, $sst['id'], $sst['email'], $nombre_sst, "Acta Aprobada y Firmada", $msg_notif, $msg_correo, "dashboard.php");
+                notificarUsuario($conn, $sst['id'], $sst['email'], $nombre_sst, "Acta Aprobada y Firmada", $msg_notif, $msg_correo, "estandar1.php");
             }
 
-            header("Location: dashboard.php?doc=firmado");
+            header("Location: estandar1.php?doc=firmado");
             exit;
         }
     }
@@ -277,9 +277,9 @@ elseif ($accion === 'nueva_version' && $usuario_rol === 'sst') {
     $sql = "INSERT INTO doc_asignacion_sst (sst_id, estado) VALUES (?, 'borrador')";
     $stmt = $conn->prepare($sql);
     $stmt->execute([$usuario_id]);
-    header("Location: dashboard.php?doc=nueva_version");
+    header("Location: estandar1.php?doc=nueva_version");
     exit;
 }
 
-header("Location: dashboard.php");
+header("Location: estandar1.php");
 exit;
