@@ -174,7 +174,7 @@ if ($empresa_id) {
         
         .main-wrapper { margin-left: 260px; width: calc(100% - 260px); display: flex; flex-direction: column; min-height: 100vh; transition: all 0.3s ease; }
         
-        .content-area { padding: 32px 40px 60px 40px; flex: 1; max-width: 1200px; margin: 0 auto; width: 100%; }
+        .content-area { padding: 32px 40px 60px 40px; flex: 1; max-width: 1200px; margin: 0 auto; width: 100%; transition: padding-bottom 0.3s ease; }
         
         /* ENCABEZADO Y BOTONES */
         .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
@@ -370,10 +370,10 @@ if ($empresa_id) {
             
             .header-actions { flex-direction: column; align-items: stretch; gap: 16px; margin-bottom: 24px; }
             
-            /* Botones del encabezado: Fila dividida en 2 equitativamente con TEXTO (NO ICONOS SOLOS) */
+            /* Botones del encabezado: Fila dividida en 2 equitativamente con TEXTO */
             .header-buttons { width: 100%; display: flex; flex-direction: row; gap: 8px; justify-content: space-between; }
             .header-buttons a, .header-buttons button { 
-                flex: 1; justify-content: center; padding: 12px 6px; font-size: 0.8rem; height: auto;
+                flex: 1; justify-content: center; padding: 12px 6px; font-size: 0.8rem; height: auto; text-align: center;
             }
 
             /* Filtros en móvil: Buscador a la izquierda, Íconos a la derecha en la misma línea */
@@ -404,7 +404,10 @@ if ($empresa_id) {
                 border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative; 
             }
             .select-wrapper:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.15); background: #ffffff; }
+            
             .mobile-only-icon { display: block; width: 20px; height: 20px; color: #64748b; pointer-events: none; }
+            
+            /* Select transparente arriba del icono */
             .simple-select { 
                 position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
                 opacity: 0.01; padding: 0; min-width: 0; border: none; 
@@ -412,52 +415,97 @@ if ($empresa_id) {
                 background-image: none !important;
             }
 
-            /* BARRA DE ACCIONES MASIVAS - ESTILO MÓVIL (ESTÁTICA, ABAJO DE LOS FILTROS) */
+            /* BARRA DE ACCIONES MASIVAS - ESTILO MÓVIL (1 SOLA FILA, ESTÁTICA ARRIBA DE LAS TARJETAS) */
             .bulk-action-bar { 
                 position: static !important;
                 transform: none !important;
-                flex-direction: column !important; 
-                padding: 16px !important; 
-                gap: 12px !important;
+                flex-direction: row !important; /* TODO EN UNA SOLA FILA */
+                align-items: center !important;
+                justify-content: space-between !important;
+                padding: 10px 12px !important; 
                 background: #1e293b !important;
-                border-radius: 16px !important;
+                border-radius: 12px !important;
                 width: 100% !important;
                 max-width: 100% !important;
-                margin-bottom: 20px !important;
+                margin-bottom: 16px !important;
+                gap: 6px !important;
+                flex-wrap: nowrap !important;
             }
             
-            .bulk-action-bar .bulk-left { width: 100%; justify-content: center; padding-bottom: 4px; display: flex; align-items: center;}
-            /* Ocultar el texto largo, solo dejamos el badge grande */
+            .bulk-action-bar .bulk-left { 
+                width: auto !important; 
+                padding: 0 !important; 
+                margin: 0 !important; 
+                flex-shrink: 0 !important; 
+                display: flex;
+            }
             #bulkTextPC { display: none !important; }
-            .bulk-badge { font-size: 1rem; padding: 8px 20px; border-radius: 12px; margin: 0;}
-            
-            /* Cuadrícula para botones de acción masiva en móvil en una sola fila + Cancelar abajo */
-            .mobile-bulk-actions {
-                display: flex !important;
-                flex-wrap: wrap;
-                width: 100%;
-                gap: 10px;
-                align-items: center;
-                justify-content: space-between;
+            .bulk-badge { 
+                font-size: 0.85rem !important; 
+                padding: 6px 10px !important; 
+                border-radius: 8px !important; 
+                margin: 0 !important; 
+                white-space: nowrap !important;
             }
             
-            /* Asignar y Eliminar 50/50 y SIN TEXTO */
-            .btn-bulk-assign { flex: 1; justify-content: center; padding: 12px; border-radius: 12px; margin: 0;}
-            .form-eliminar-masivo { flex: 1; display: flex !important; margin: 0; padding: 0; }
-            .form-eliminar-masivo .btn-bulk { width: 100%; justify-content: center; padding: 12px; border-radius: 12px; margin: 0;}
+            .bulk-right, .mobile-bulk-actions {
+                display: flex !important;
+                flex-direction: row !important;
+                width: auto !important;
+                gap: 6px !important;
+                align-items: center !important;
+                justify-content: flex-end !important;
+                margin: 0 !important;
+                flex: 1 !important;
+                flex-wrap: nowrap !important;
+            }
             
-            .btn-bulk-assign .btn-bulk-text, 
-            .form-eliminar-masivo .btn-bulk-text { display: none !important; }
+            /* Ocultamos los textos SOLO de Asignar y Eliminar */
+            .btn-bulk-assign .btn-text-pc, 
+            .form-eliminar-masivo .btn-text-pc { display: none !important; }
             
-            /* Cancelar ocupa 100% en la fila de abajo y muestra su texto */
-            .btn-bulk-cancel { width: 100%; justify-content: center; padding: 12px; border-radius: 12px; margin-top: 4px; font-size: 0.95rem; }
-            .btn-bulk-cancel .btn-bulk-text { display: inline !important; }
+            /* Botones cuadrados solo con ícono para Asignar y Eliminar */
+            .btn-bulk-assign { 
+                width: 36px !important; height: 36px !important; padding: 0 !important; justify-content: center !important; border-radius: 8px !important; margin: 0 !important; flex-shrink: 0 !important;
+            }
+            .form-eliminar-masivo { 
+                display: block !important; margin: 0 !important; padding: 0 !important; width: 36px !important; height: 36px !important; flex-shrink: 0 !important;
+            }
+            .form-eliminar-masivo .btn-bulk { 
+                width: 100% !important; height: 100% !important; padding: 0 !important; justify-content: center !important; border-radius: 8px !important; margin: 0 !important;
+            }
             
-            /* Ajustes para evitar overflow (Scroll horizontal) en las tarjetas */
-            .worker-card { padding: 16px; gap: 12px; }
-            .user-info-td { width: 100%; overflow: hidden; }
-            .user-info-text-box { max-width: calc(100% - 48px); }
+            /* Botón Cancelar con texto en la misma fila */
+            .btn-bulk-cancel { 
+                width: auto !important; height: 36px !important; margin: 0 !important; padding: 0 10px !important; justify-content: center !important; border-radius: 8px !important; font-size: 0.8rem !important; flex-shrink: 0 !important; white-space: nowrap !important;
+            }
+            .btn-bulk-cancel .btn-text-pc { display: inline !important; }
             
+            /* TARJETAS MÓVIL (MÁS COMPACTAS Y SIN ESPACIOS INNECESARIOS) */
+            .workers-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
+            .worker-card { padding: 12px !important; gap: 8px !important; border-radius: 10px !important; }
+            .card-header { padding-bottom: 8px !important; }
+            .card-body { gap: 4px !important; }
+            .card-footer { padding-top: 8px !important; }
+            
+            .user-avatar { width: 30px !important; height: 30px !important; font-size: 0.8rem !important; border-radius: 6px !important;}
+            .user-name-text { font-size: 0.85rem !important; margin-bottom: 0 !important; }
+            .user-cc-text { font-size: 0.65rem !important; }
+            
+            .info-row { font-size: 0.7rem !important; gap: 6px !important; margin: 0 !important;}
+            .info-row svg { width: 12px !important; height: 12px !important; }
+            
+            /* Ajustes para apretar más los botones y etiquetas */
+            .worker-card .info-row:nth-child(3) { margin-top: 4px !important; }
+            .worker-card .card-body > div:last-child { margin-top: 2px !important; }
+
+            .status-badge, .grupo-badge, .grupo-missing { font-size: 0.6rem !important; padding: 3px 6px !important; border-radius: 4px !important; margin: 0 !important;}
+            .btn-asignar-mini { font-size: 0.65rem !important; margin-top: 0 !important;}
+            
+            .btn-action { width: 28px !important; height: 28px !important; border-radius: 6px !important; }
+            .btn-action svg { width: 14px !important; height: 14px !important; }
+
+            /* Modales en móvil */
             .modal-premium-overlay { padding: 0; }
             .modal-premium-box { height: 100%; max-height: 100%; border-radius: 0; }
             .modal-premium-header { padding: 16px 20px; padding-right: 60px; gap: 12px; }
@@ -474,7 +522,6 @@ if ($empresa_id) {
             
             .view-lista { display: none !important; }
             .view-tarjetas { display: block !important; }
-            .workers-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
         }
         
         @media (max-width: 480px) {
@@ -634,21 +681,21 @@ if ($empresa_id) {
                     <span class="bulk-badge" id="bulkCount">0 seleccionados</span>
                     <span class="bulk-text" id="bulkTextPC">¿Qué deseas hacer con los trabajadores seleccionados?</span>
                 </div>
-                <div class="bulk-right mobile-bulk-actions">
+                <div class="bulk-right">
                     <button type="button" class="btn-bulk btn-bulk-assign" onclick="verificarYabrirModalMasivo()">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                        <span class="btn-bulk-text">Asignar</span>
+                        <span class="btn-text-pc">Asignar</span>
                     </button>
                     <form action="trabajadores.php" method="POST" id="formEliminarMasivo" class="form-eliminar-masivo" onsubmit="return confirm('¿Estás SEGURO de eliminar a TODOS los trabajadores seleccionados?');">
                         <input type="hidden" name="accion" value="eliminar_masivo">
                         <input type="hidden" name="trabajadores_ids" id="input_eliminar_masivo_ids">
                         <button type="submit" class="btn-bulk btn-bulk-danger">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            <span class="btn-bulk-text">Eliminar</span>
+                            <span class="btn-text-pc">Eliminar</span>
                         </button>
                     </form>
                     <button type="button" class="btn-bulk btn-bulk-cancel" onclick="limpiarSeleccion()">
-                        <span class="btn-bulk-text">Cancelar</span>
+                        <span class="btn-text-pc">Cancelar</span>
                     </button>
                 </div>
             </div>

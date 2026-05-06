@@ -133,40 +133,46 @@ if ($empresa_id) {
 
     <style>
         :root { --primary: #ff8a1f; --primary2: #ff7a00; --bg1: #edf4fb; --bg2: #f7f9fc; --card: #ffffff; --text: #1f2d3d; --muted: #5f6f82; --border: #dbe3ec; --radius: 12px; --blue-dark: #1e3a8a; }
-        body { font-family: 'Inter', sans-serif; background: linear-gradient(180deg, var(--bg1), var(--bg2)); margin: 0; padding: 0; min-height: 100vh; color: var(--text); display: flex; font-size: 0.85rem; }
+        
+        /* FIX GLOBAL SCROLL HORIZONTAL */
+        html, body { max-width: 100vw; overflow-x: hidden; }
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(180deg, var(--bg1), var(--bg2)); background-attachment: fixed; margin: 0; padding: 0; min-height: 100vh; color: var(--text); display: flex; font-size: 0.85rem; }
         
         .main-wrapper { margin-left: 260px; width: calc(100% - 260px); display: flex; flex-direction: column; min-height: 100vh; transition: all 0.3s ease; }
-        .content-area { padding: 32px 40px; flex: 1; max-width: 1200px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+        .content-area { padding: 32px 40px 60px 40px; flex: 1; max-width: 1200px; margin: 0 auto; width: 100%; box-sizing: border-box; }
         
-        /* ENCABEZADO */
-        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
-        .estandar-header-group { display: flex; align-items: center; gap: 14px; }
+        /* ENCABEZADO MEJORADO */
+        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 20px; flex-wrap: wrap; gap: 16px;}
+        .estandar-header-group { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 250px;}
         .icon-box-std { width: 44px; height: 44px; background: rgba(255, 138, 31, 0.08); color: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid rgba(255, 138, 31, 0.2); box-shadow: 0 4px 10px rgba(255, 138, 31, 0.05); }
         .icon-box-std svg { width: 22px; height: 22px; }
         .estandar-header-text { display: flex; flex-direction: column; }
         .estandar-title { margin: 0; font-size: 1.15rem; color: var(--blue-dark); font-weight: 800; letter-spacing: -0.01em; line-height: 1.3; }
         .estandar-subtitle { margin: 4px 0 0 0; color: var(--muted); font-size: 0.8rem; font-weight: 500; line-height: 1.4; }
         
-        .btn-back { background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 8px 14px; border-radius: 8px; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease; font-size: 0.8rem; }
-        .btn-back:hover { background: #f1f5f9; color: #0f172a; }
-
-        /* BARRA DE HERRAMIENTAS */
-        .workspace-toolbar {
-            background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-            padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02); flex-wrap: wrap; gap: 16px; margin-bottom: 24px;
-        }
-
-        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 8px; font-family: inherit; box-shadow: 0 4px 10px rgba(255, 138, 31, 0.15); white-space: nowrap; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(255, 138, 31, 0.25); }
-        
-        .btn-secondary { background: #ffffff; color: #475569; border: 1px solid #cbd5e1; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; font-family: inherit; }
-        .btn-secondary:hover { background: #f1f5f9; color: #1e293b; }
+        .btn-back { background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 9px 16px; border-radius: 8px; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease; font-size: 0.85rem; justify-content: center;}
+        .btn-back:hover { background: #f1f5f9; color: #0f172a; border-color: #94a3b8;}
 
         /* ALERTA SIN GRUPO */
-        .alert-warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; padding: 16px 24px; border-radius: 12px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .alert-warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; padding: 16px 24px; border-radius: 12px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box;}
         .alert-warning-text { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 0.9rem; }
-        .alert-warning-text svg { color: #d97706; width: 24px; height: 24px; }
+        .alert-warning-text svg { color: #d97706; width: 24px; height: 24px; flex-shrink: 0;}
+
+        /* BARRA DE HERRAMIENTAS DE WORKSPACE */
+        .workspace-toolbar {
+            background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+            padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02); flex-wrap: wrap; gap: 16px; margin-bottom: 24px;
+        }
+        .workspace-title { font-weight: 800; color: var(--blue-dark); font-size: 1.05rem; }
+
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 8px; font-family: inherit; box-shadow: 0 4px 10px rgba(255, 138, 31, 0.15); white-space: nowrap; justify-content: center;}
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(255, 138, 31, 0.25); }
+        
+        .btn-secondary { background: #ffffff; color: #475569; border: 1px solid #cbd5e1; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; font-family: inherit; justify-content: center; display: inline-flex;}
+        .btn-secondary:hover { background: #f1f5f9; color: #1e293b; }
 
         /* GRID DE GRUPOS */
         .grupos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; }
@@ -174,19 +180,19 @@ if ($empresa_id) {
         .grupo-card {
             background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02); display: flex; flex-direction: column;
-            overflow: hidden; transition: transform 0.2s, box-shadow 0.2s;
+            overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; width: 100%; box-sizing: border-box;
         }
         .grupo-card:hover { box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05); border-color: #cbd5e1; }
         
         .grupo-header {
             background: #f8fafc; padding: 16px 20px; border-bottom: 1px solid var(--border);
-            display: flex; justify-content: space-between; align-items: center;
+            display: flex; justify-content: space-between; align-items: center; gap: 10px;
         }
-        .grupo-title { display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--blue-dark); font-size: 1rem; margin: 0; }
-        .grupo-title svg { color: var(--primary); }
-        .grupo-count { background: #e2e8f0; color: #475569; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; font-weight: 800; }
+        .grupo-title { display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--blue-dark); font-size: 1rem; margin: 0; flex: 1; word-break: break-word;}
+        .grupo-title svg { color: var(--primary); flex-shrink: 0;}
+        .grupo-count { background: #e2e8f0; color: #475569; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; font-weight: 800; flex-shrink: 0;}
         
-        .grupo-actions { display: flex; gap: 6px; }
+        .grupo-actions { display: flex; gap: 6px; flex-shrink: 0;}
         .btn-icon { background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 6px; border-radius: 6px; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
         .btn-icon:hover { background: #e2e8f0; color: var(--blue-dark); }
         .btn-icon.delete:hover { background: #fee2e2; color: #dc2626; }
@@ -197,17 +203,19 @@ if ($empresa_id) {
         .worker-pill {
             background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px;
             display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;
-            color: #334155; font-weight: 600; transition: 0.2s;
+            color: #334155; font-weight: 600; transition: 0.2s; gap: 8px;
         }
         .worker-pill:hover { background: #e2e8f0; border-color: #cbd5e1; }
-        .btn-remove-worker { background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: 0.2s; }
+        .worker-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;}
+        .btn-remove-worker { background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: 0.2s; flex-shrink: 0;}
         .btn-remove-worker:hover { color: #dc2626; background: #fee2e2; }
 
         .empty-group { text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 20px 0; font-style: italic; }
 
         .grupo-footer { padding: 16px 20px; border-top: 1px solid #f1f5f9; background: #ffffff; }
-        .select-assign { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 0.8rem; color: var(--text); background: #f8fafc; margin-bottom: 8px; box-sizing: border-box; }
-        .btn-assign { width: 100%; background: #fff8f3; border: 1px dashed var(--primary); color: var(--primary2); padding: 8px; border-radius: 8px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: 0.2s; }
+        .select-assign { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 0.8rem; color: var(--text); background: #f8fafc; margin-bottom: 8px; box-sizing: border-box; outline: none;}
+        .select-assign:focus { border-color: var(--primary); }
+        .btn-assign { width: 100%; background: #fff8f3; border: 1px dashed var(--primary); color: var(--primary2); padding: 10px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: 0.2s; }
         .btn-assign:hover { background: var(--primary); color: white; border-style: solid; }
 
         /* ALERTAS GLOBALES */
@@ -269,17 +277,32 @@ if ($empresa_id) {
         .input-icon-wrapper input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.15); }
         .input-icon-wrapper input:focus + svg { color: var(--primary); }
 
-        /* MÓVIL RESPONSIVE */
+        /* =======================================
+           MÓVIL RESPONSIVE
+           ======================================= */
         @media (max-width: 768px) {
             .main-wrapper { margin-left: 0; width: 100%; }
-            .content-area { padding: 16px 14px; }
-            .header-actions { flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 20px; border-bottom: none; padding-bottom: 0; }
-            .btn-back { order: -1; width: max-content; }
-            .grupos-grid { grid-template-columns: 1fr; }
+            .content-area { padding: 16px 14px 40px 14px; }
             
+            .header-actions { flex-direction: column; align-items: stretch; gap: 16px; margin-bottom: 20px; border-bottom: none; padding-bottom: 0; }
+            /* Botón volver arriba de todo en móvil para mejor UX */
+            .btn-back { order: -1; width: 100%; justify-content: center; }
+            
+            .workspace-toolbar { flex-direction: column; align-items: stretch; text-align: center; gap: 12px; padding: 16px; margin-bottom: 20px;}
+            .workspace-title { font-size: 1rem; }
+            .workspace-toolbar button { width: 100%; justify-content: center; }
+            
+            /* Tarjetas y Grid en móvil más compactas */
+            .grupos-grid { grid-template-columns: 1fr; gap: 12px; }
+            .grupo-card { border-radius: 12px; }
+            .grupo-header { padding: 14px 16px; }
+            .grupo-body { padding: 16px; gap: 8px; }
+            .grupo-footer { padding: 14px 16px; }
+            
+            /* Modales en móvil */
             .modal-premium-overlay { padding: 0; }
             .modal-premium-box { height: 100%; max-height: 100%; border-radius: 0; }
-            .modal-premium-header { padding: 16px 20px; padding-right: 60px; gap: 12px; }
+            .modal-premium-header { padding: 16px 20px; padding-right: 60px; gap: 12px; border-bottom: 1px solid var(--border);}
             .modal-premium-icon-top { width: 40px; height: 40px; border-radius: 10px;}
             .modal-premium-icon-top svg { width: 20px; height: 20px; }
             .modal-premium-header-text h3 { font-size: 1.05rem; }
@@ -348,7 +371,7 @@ if ($empresa_id) {
             <?php endif; ?>
 
             <div class="workspace-toolbar">
-                <div style="font-weight: 700; color: var(--blue-dark);">
+                <div class="workspace-title">
                     Mis Grupos Activos (<?php echo count($grupos); ?>)
                 </div>
                 <button type="button" class="btn-primary" onclick="openModal('modalCrearGrupo')">
