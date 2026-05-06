@@ -98,11 +98,17 @@ $trabajadores = [];
 $grupos = [];
 $conteo_grupos = ['sin_grupo' => 0];
 
+// Variables para las tarjetas de resumen
+$total_trabajadores = 0;
+$trabajadores_activos = 0;
+$total_grupos = 0;
+
 if ($empresa_id) {
     try {
         $stmt_g = $conn->prepare("SELECT * FROM grupos_personal WHERE empresa_id = ? ORDER BY nombre ASC");
         $stmt_g->execute([$empresa_id]);
         $grupos = $stmt_g->fetchAll(PDO::FETCH_ASSOC);
+        $total_grupos = count($grupos);
 
         $stmt_trab = $conn->prepare("
             SELECT u.id, u.nombre, u.apellido, u.cedula, u.email, u.telefono, u.activo, u.fecha_registro, u.grupo_id, g.nombre as grupo_nombre 
@@ -113,8 +119,13 @@ if ($empresa_id) {
         ");
         $stmt_trab->execute([$empresa_id]);
         $trabajadores = $stmt_trab->fetchAll(PDO::FETCH_ASSOC);
+        $total_trabajadores = count($trabajadores);
 
         foreach ($trabajadores as $t) {
+            if ($t['activo'] == 1) {
+                $trabajadores_activos++;
+            }
+
             if (empty($t['grupo_id'])) {
                 $conteo_grupos['sin_grupo']++;
             } else {
@@ -143,122 +154,119 @@ if ($empresa_id) {
 
     <style>
         :root { --primary: #ff8a1f; --primary2: #ff7a00; --bg1: #edf4fb; --bg2: #f7f9fc; --card: #ffffff; --text: #1f2d3d; --muted: #5f6f82; --border: #dbe3ec; --radius: 12px; --blue-dark: #1e3a8a; }
-        body { font-family: 'Inter', sans-serif; background: linear-gradient(180deg, var(--bg1), var(--bg2)); margin: 0; padding: 0; min-height: 100vh; color: var(--text); display: flex; font-size: 0.85rem; }
+        
+        /* FIX GLOBAL SCROLL HORIZONTAL */
+        html, body {
+            max-width: 100vw;
+            overflow-x: hidden;
+        }
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg2);
+            background-image: linear-gradient(180deg, var(--bg1), var(--bg2)); 
+            background-attachment: fixed; 
+            margin: 0; padding: 0; min-height: 100vh; color: var(--text); display: flex; font-size: 0.85rem; 
+        }
         
         .main-wrapper { margin-left: 260px; width: calc(100% - 260px); display: flex; flex-direction: column; min-height: 100vh; transition: all 0.3s ease; }
-        .content-area { padding: 32px 40px; flex: 1; max-width: 1200px; margin: 0 auto; width: 100%; box-sizing: border-box; }
         
-        /* ENCABEZADO */
-        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
-        .estandar-header-group { display: flex; align-items: center; gap: 14px; }
+        .content-area { padding: 32px 40px 60px 40px; flex: 1; max-width: 1200px; margin: 0 auto; width: 100%; }
+        
+        /* ENCABEZADO Y BOTONES */
+        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+        .estandar-header-group { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 250px;}
         .icon-box-std { width: 44px; height: 44px; background: rgba(255, 138, 31, 0.08); color: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid rgba(255, 138, 31, 0.2); box-shadow: 0 4px 10px rgba(255, 138, 31, 0.05); }
         .icon-box-std svg { width: 22px; height: 22px; }
         .estandar-header-text { display: flex; flex-direction: column; }
         .estandar-title { margin: 0; font-size: 1.15rem; color: var(--blue-dark); font-weight: 800; letter-spacing: -0.01em; line-height: 1.3; }
         .estandar-subtitle { margin: 4px 0 0 0; color: var(--muted); font-size: 0.8rem; font-weight: 500; line-height: 1.4; }
-        
-        .btn-back { background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 8px 14px; border-radius: 8px; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease; font-size: 0.8rem; }
-        .btn-back:hover { background: #f1f5f9; color: #0f172a; }
 
-        /* BARRA DE HERRAMIENTAS (PANEL DE CONTROL) */
-        .controls-panel {
-            background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02); display: flex; flex-direction: column;
-            margin-bottom: 24px; overflow: hidden;
-        }
-
-        .controls-actions-row {
-            padding: 16px 24px; border-bottom: 1px solid var(--border);
-            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;
-        }
-
-        .controls-filters-row {
-            padding: 16px 24px; background: #f8fafc;
-            display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-        }
-
-        .toolbar-buttons { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-        
-        .view-toggle-group { display: flex; background: #f1f5f9; border-radius: 8px; padding: 4px; gap: 4px; border: 1px solid #e2e8f0; }
-        .btn-view-toggle { background: transparent; border: none; color: #64748b; padding: 6px 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 700; font-family: inherit; }
-        .btn-view-toggle.active { background: #ffffff; color: var(--primary2); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .btn-view-toggle:hover:not(.active) { background: #e2e8f0; color: #1e293b; }
-
-        .btn-outline-primary { background: #fff8f3; border: 1px solid var(--primary); color: var(--primary2); padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit; text-decoration: none; }
+        .header-buttons { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .btn-outline-primary { background: #fff8f3; border: 1px solid var(--primary); color: var(--primary2); padding: 9px 18px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit; text-decoration: none; }
         .btn-outline-primary:hover { background: var(--primary); color: white; }
-
-        /* BOTÓN INTELIGENTE: DESACTIVADO */
-        .btn-disabled {
-            opacity: 0.5 !important; pointer-events: none !important; cursor: not-allowed !important;
-            background: #f1f5f9 !important; color: #94a3b8 !important; border-color: #cbd5e1 !important; box-shadow: none !important;
-        }
-
-        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; box-shadow: 0 4px 10px rgba(255, 138, 31, 0.15); white-space: nowrap; }
+        .btn-disabled { opacity: 0.5 !important; pointer-events: none !important; cursor: not-allowed !important; background: #f1f5f9 !important; color: #94a3b8 !important; border-color: #cbd5e1 !important; box-shadow: none !important; }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; border: none; padding: 9px 18px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; box-shadow: 0 4px 10px rgba(255, 138, 31, 0.15); white-space: nowrap; }
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(255, 138, 31, 0.25); }
-        
-        .btn-secondary { background: #f1f5f9; color: #475569; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; font-family: inherit; }
-        .btn-secondary:hover { background: #e2e8f0; color: #1e293b; }
 
-        /* BUSCADOR Y FILTROS */
-        .filter-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px; position: relative; }
-        .filter-group label { font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
-        
-        .search-box { position: relative; width: 100%; }
-        .search-box input { width: 100%; padding: 10px 36px 10px 36px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 0.85rem; color: var(--text); background: #ffffff; transition: all 0.3s ease; box-sizing: border-box; }
-        .search-box input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.15); }
-        .search-box .icon-search { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
-        
-        .filter-select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 0.85rem; color: var(--text); background: #ffffff; outline: none; cursor: pointer; transition: 0.2s; font-weight: 500; appearance: none; background-image: url("data:image/svg+xml,%3Csvg fill='none' stroke='%2394a3b8' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 14px; }
-        .filter-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.15); }
+        /* TARJETAS DE RESUMEN (ESTILO MARCA DE AGUA) */
+        .summary-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 28px; }
+        .summary-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; display: flex; flex-direction: column; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.03); position: relative; overflow: hidden; }
+        .summary-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); border-color: var(--primary2); }
+        .summary-bg-icon { position: absolute; bottom: -15px; right: -15px; width: 90px; height: 90px; color: var(--primary); opacity: 0.15; z-index: 1; transform: rotate(-15deg); pointer-events: none; }
+        .summary-content { position: relative; z-index: 2; }
+        .summary-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+        .summary-icon-box { width: 32px; height: 32px; background: rgba(255, 138, 31, 0.1); color: var(--primary2); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+        .summary-icon-box svg { width: 16px; height: 16px; }
+        .summary-value { font-size: 1.5rem; font-weight: 800; color: var(--blue-dark); margin: 0; line-height: 1; }
+        .summary-title { font-size: 0.85rem; font-weight: 700; color: var(--text); margin: 0 0 4px 0; }
+        .summary-desc { color: var(--muted); font-size: 0.75rem; margin: 0; line-height: 1.3; }
 
-        /* LOADER SPINNER */
-        .spinner-loader {
-            position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-            width: 16px; height: 16px; border: 2px solid #e2e8f0; border-top-color: var(--primary);
-            border-radius: 50%; animation: spin 0.8s linear infinite; display: none;
-        }
+        /* BARRA DE FILTROS ELEGANTE (PC) */
+        .filters-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 8px 16px; display: flex; align-items: center; gap: 16px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+        .filter-search { flex: 1; position: relative; display: flex; align-items: center; }
+        .filter-search input { width: 100%; border: none; background: transparent; padding: 10px 10px 10px 32px; font-size: 0.85rem; color: var(--text); outline: none; font-family: inherit; }
+        .filter-search input::placeholder { color: #94a3b8; }
+        .filter-search svg.icon-search { position: absolute; left: 8px; color: #94a3b8; width: 18px; height: 18px; pointer-events: none; }
+        .filter-divider { width: 1px; height: 30px; background: var(--border); }
+        
+        .filter-item { display: flex; align-items: center; gap: 10px; }
+        .filter-item label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
+        
+        .select-wrapper { position: relative; width: 100%; display: flex; align-items: center; }
+        .mobile-only-icon { display: none; } /* Oculto en PC */
+
+        .simple-select { border: 1px solid transparent; background-color: transparent; padding: 8px 32px 8px 12px; border-radius: 8px; font-size: 0.85rem; color: #1e293b; font-weight: 600; cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg fill='none' stroke='%2394a3b8' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; background-size: 14px; outline: none; min-width: 180px; transition: all 0.2s; font-family: inherit; }
+        .simple-select:hover, .simple-select:focus { border-color: #cbd5e1; background-color: #f8fafc; }
+
+        .spinner-loader { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; border: 2px solid #e2e8f0; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
         @keyframes spin { 100% { transform: translateY(-50%) rotate(360deg); } }
 
-        /* CONTENEDORES DE VISTAS */
-        .view-container { display: none; animation: fadeIn 0.3s ease; }
-        .view-container.active { display: block; }
+        /* VISTAS RESPONSIVAS AUTOMÁTICAS */
+        .view-lista { display: block; animation: fadeIn 0.3s ease; }
+        .view-tarjetas { display: none; animation: fadeIn 0.3s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
         /* CHECKBOX PERSONALIZADO */
-        .custom-checkbox {
-            appearance: none; width: 18px; height: 18px; border: 2px solid #cbd5e1;
-            border-radius: 5px; cursor: pointer; position: relative; transition: all 0.2s;
-            background: #ffffff; display: flex; align-items: center; justify-content: center; margin: 0;
-        }
+        .custom-checkbox { appearance: none; width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 5px; cursor: pointer; position: relative; transition: all 0.2s; background: #ffffff; display: flex; align-items: center; justify-content: center; margin: 0; }
         .custom-checkbox:checked { background: var(--primary); border-color: var(--primary); }
         .custom-checkbox:checked::after { content: ''; position: absolute; left: 5px; top: 2px; width: 4px; height: 8px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
 
-        /* =======================================
-           BARRA FLOTANTE DE ACCIONES MASIVAS
-           ======================================= */
+        /* BARRA DE ACCIONES MASIVAS (PC) - ESTÁTICA ARRIBA DE LA TABLA */
         .bulk-action-bar {
-            position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%);
-            background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            color: white; padding: 12px 24px; border-radius: 50px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
-            display: flex; align-items: center; gap: 16px;
-            transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            z-index: 9999; border: 1px solid rgba(255,255,255,0.1);
+            background: #1e293b; 
+            border-radius: 12px;
+            padding: 16px 24px;
+            display: none; 
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            animation: fadeIn 0.3s ease;
         }
-        .bulk-action-bar.active { bottom: 40px; }
-        .bulk-text { font-weight: 600; font-size: 0.9rem; margin-right: 8px; }
-        .bulk-divider { width: 1px; height: 24px; background: rgba(255,255,255,0.2); }
+        .bulk-action-bar.active { display: flex; }
         
-        .btn-bulk { cursor: pointer; font-weight: 600; font-size: 0.85rem; padding: 8px 16px; border-radius: 20px; transition: 0.2s; display: flex; align-items: center; gap: 6px; font-family: inherit; border: none; background: transparent; color: white;}
-        .btn-bulk:hover { background: rgba(255,255,255,0.1); }
-        .btn-bulk-assign { color: #38bdf8; }
-        .btn-bulk-assign:hover { background: rgba(56, 189, 248, 0.15); }
-        .btn-bulk-danger { color: #f87171; }
-        .btn-bulk-danger:hover { background: rgba(248, 113, 113, 0.15); }
-        .btn-bulk-cancel { background: rgba(255, 255, 255, 0.1); color: #e2e8f0; border: 1px solid rgba(255, 255, 255, 0.2); }
-        .btn-bulk-cancel:hover { background: rgba(255, 255, 255, 0.2); color: white; }
+        .bulk-left { display: flex; align-items: center; gap: 12px; }
+        .bulk-badge { background: var(--primary); color: white; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 0.8rem; }
+        .bulk-text { color: #f8fafc; font-weight: 500; font-size: 0.9rem; margin-right: 8px;}
+        
+        .bulk-right { display: flex; align-items: center; gap: 12px; width: auto;}
+        .form-eliminar-masivo { display: inline; margin: 0; padding: 0; }
+        .btn-bulk { cursor: pointer; font-weight: 600; font-size: 0.85rem; padding: 9px 16px; border-radius: 8px; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit; border: none; }
+        
+        .btn-bulk-text { display: inline; } /* Texto visible siempre en PC */
+        
+        .btn-bulk-assign { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+        .btn-bulk-assign:hover { background: #38bdf8; color: #0f172a; }
+        .btn-bulk-danger { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+        .btn-bulk-danger:hover { background: #ef4444; color: white; }
+        .btn-bulk-cancel { background: transparent; color: #94a3b8; border: 1px solid #475569; }
+        .btn-bulk-cancel:hover { background: #334155; color: white; }
 
-        /* TABLA DE TRABAJADORES */
+        /* TABLAS Y TARJETAS TRABAJADORES */
         .table-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02); overflow: hidden; }
         .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .custom-table { width: 100%; border-collapse: collapse; text-align: left; min-width: 900px; }
@@ -268,28 +276,28 @@ if ($empresa_id) {
         .custom-table tr:last-child td { border-bottom: none; }
         .custom-table tr:hover td { background: #f8fafc; }
 
-        /* TARJETAS DE TRABAJADORES */
         .workers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
         .worker-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02); transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s; display: flex; flex-direction: column; gap: 16px; position: relative; }
         .worker-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05); border-color: #cbd5e1; }
         .worker-card.selected { border-color: var(--primary); background: #fff8f3; }
         .card-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px dashed var(--border); padding-bottom: 12px; }
-        .card-body { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+        .card-body { display: flex; flex-direction: column; gap: 8px; flex: 1; overflow: hidden; }
         .card-footer { display: flex; gap: 8px; justify-content: flex-end; padding-top: 12px; border-top: 1px dashed var(--border); }
-        .info-row { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--muted); }
+        .info-row { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--muted); width: 100%; }
         .info-row svg { color: #94a3b8; flex-shrink: 0; }
+        .info-row span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: calc(100% - 24px); }
 
-        /* ELEMENTOS COMUNES */
-        .user-info-td { display: flex; align-items: center; gap: 12px; }
+        .user-info-td { display: flex; align-items: center; gap: 12px; width: 100%; overflow: hidden; }
         .user-avatar { width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, var(--bg1), #dbe3ec); color: var(--blue-dark); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.9rem; flex-shrink: 0; }
-        .user-name-text { font-weight: 700; color: var(--blue-dark); display: block; margin-bottom: 2px;}
+        .user-info-text-box { display: flex; flex-direction: column; overflow: hidden; flex: 1; }
+        .user-name-text { font-weight: 700; color: var(--blue-dark); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .user-cc-text { font-size: 0.75rem; color: var(--muted); }
 
         .status-badge { font-size: 0.65rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; display: inline-block; text-transform: uppercase; letter-spacing: 0.05em; height: fit-content; white-space: nowrap;}
         .status-active { background: #dcfce7; color: #166534; }
         .status-inactive { background: #fee2e2; color: #991b1b; }
         
-        .grupo-badge { background: #e0f2fe; color: #0284c7; padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
+        .grupo-badge { background: #e0f2fe; color: #0284c7; padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .grupo-missing { background: #fef08a; color: #854d0e; padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; border: 1px dashed #eab308; }
         
         .btn-asignar-mini { background: transparent; border: none; color: var(--primary2); font-size: 0.75rem; font-weight: 700; cursor: pointer; text-decoration: none; padding: 0; margin-top: 4px; display: inline-block; transition: color 0.2s;}
@@ -304,7 +312,6 @@ if ($empresa_id) {
         .btn-delete { background: #fee2e2; color: #dc2626; }
         .btn-delete:hover { background: #fca5a5; }
 
-        /* ALERTAS */
         .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
         .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
         .alert-danger { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
@@ -314,92 +321,143 @@ if ($empresa_id) {
         .empty-state h3 { margin: 0 0 8px 0; color: var(--blue-dark); font-size: 1.1rem; }
         .empty-state p { margin: 0; font-size: 0.85rem; max-width: 400px; margin: 0 auto; line-height: 1.5; }
 
-        /* =========================================
-           MODALES PREMIUM (ESTILO EMPRESA EXACTO)
-           ========================================= */
-        .modal-premium-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%;
-            background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(8px); display: none; justify-content: center; align-items: center; z-index: 10000;
-            opacity: 0; transition: opacity 0.3s ease; padding: 24px; box-sizing: border-box; overflow: hidden;
-        }
+        /* MODALES PREMIUM */
+        .modal-premium-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(8px); display: none; justify-content: center; align-items: center; z-index: 10000; opacity: 0; transition: opacity 0.3s ease; padding: 24px; box-sizing: border-box; overflow: hidden; }
         .modal-premium-overlay.active { display: flex; opacity: 1; }
-
-        .modal-premium-box { 
-            background: #ffffff; border-radius: 20px; width: 100%; max-width: 750px; 
-            height: auto; max-height: 90vh;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3); transform: translateY(-20px) scale(0.98); 
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-            display: flex; flex-direction: column; overflow: visible;
-        }
+        .modal-premium-box { background: #ffffff; border-radius: 20px; width: 100%; max-width: 750px; height: auto; max-height: 90vh; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3); transform: translateY(-20px) scale(0.98); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; flex-direction: column; overflow: visible; }
         .modal-premium-overlay.active .modal-premium-box { transform: translateY(0) scale(1); }
-
         .modal-premium-header { background: linear-gradient(to right, #f8fafc, #ffffff); padding: 24px 32px; padding-right: 64px; border-bottom: 1px solid var(--border); text-align: left; position: relative; display: flex; align-items: center; gap: 16px; flex: 0 0 auto; border-top-left-radius: 20px; border-top-right-radius: 20px; }
         .btn-close-premium { position: absolute; top: 24px; right: 24px; background: #f1f5f9; border: none; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--muted); cursor: pointer; transition: all 0.2s; }
         .btn-close-premium:hover { background: #fee2e2; color: #dc2626; transform: rotate(90deg); }
         .modal-premium-icon-top { width: 48px; height: 48px; background: rgba(255, 138, 31, 0.1); color: #ff8a1f; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 10px rgba(255, 138, 31, 0.1); }
         .modal-premium-icon-top svg { width: 24px; height: 24px; }
-        
         .modal-premium-header-text h3 { margin: 0 0 4px 0; font-size: 1.15rem; color: #1e293b; font-weight: 800; letter-spacing: -0.01em; }
         .modal-premium-header-text p { margin: 0; color: var(--muted); font-size: 0.85rem; line-height: 1.4; }
-
         .modal-premium-body { padding: 32px 32px 24px 32px; flex: 1 1 auto; overflow-y: auto; background: #ffffff; display: flex; flex-direction: column; gap: 16px; }
         .modal-premium-footer { padding: 20px 32px; border-top: 1px solid var(--border); background: #f8fafc; display: flex; justify-content: flex-end; gap: 12px; flex: 0 0 auto; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; align-items: center; }
-        
         .modal-premium-body::-webkit-scrollbar { width: 6px; }
         .modal-premium-body::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
         .modal-premium-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
-
-        /* MODAL INPUTS */
         .input-icon-wrapper-modal { position: relative; width: 100%; }
         .input-icon-wrapper-modal > svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; width: 18px; height: 18px; z-index: 10; pointer-events: none;}
         .input-icon-wrapper-modal input { width: 100%; padding: 12px 14px 12px 42px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.85rem; color: #1e293b; transition: all 0.3s ease; box-sizing: border-box; background: #ffffff; font-weight: 500; }
         .input-icon-wrapper-modal input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.15); }
 
-        /* TARJETAS DE GRUPOS EN LOS MODALES */
-        .modal-groups-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;
-            max-height: 350px; overflow-y: auto; padding-right: 8px; padding-top: 8px; padding-bottom: 12px;
-        }
+        .modal-groups-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; max-height: 350px; overflow-y: auto; padding-right: 8px; padding-top: 8px; padding-bottom: 12px; }
         .modal-groups-grid::-webkit-scrollbar { width: 6px; }
         .modal-groups-grid::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
         .modal-groups-grid::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
-
-        .mini-group-card {
-            background: #ffffff; border: 2px solid #e2e8f0; border-radius: 12px; padding: 16px;
-            display: flex; align-items: center; gap: 14px; cursor: pointer; transition: all 0.25s ease; margin: 0;
-            user-select: none; position: relative; overflow: hidden;
-        }
+        .mini-group-card { background: #ffffff; border: 2px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 14px; cursor: pointer; transition: all 0.25s ease; margin: 0; user-select: none; position: relative; overflow: hidden; }
         .mini-group-card:hover { border-color: #cbd5e1; box-shadow: 0 8px 15px rgba(0,0,0,0.03); transform: translateY(-2px); }
         .mini-group-card input[type="radio"] { display: none; }
-        
         .mini-group-card.selected { border-color: var(--primary); background: #fffaf5; box-shadow: 0 4px 15px rgba(255, 138, 31, 0.1); }
         .mini-group-card.selected .group-icon { background: var(--primary); color: white; }
-        
         .group-icon { width: 42px; height: 42px; background: #f1f5f9; color: #64748b; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.25s; }
         .group-icon svg { width: 22px; height: 22px; }
-
         .group-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
         .g-name { font-weight: 700; color: var(--blue-dark); font-size: 0.95rem; margin:0; line-height: 1.2; }
         .g-count { font-size: 0.75rem; color: var(--muted); font-weight: 500; }
-
         .check-indicator { width: 22px; height: 22px; border-radius: 50%; background: #e2e8f0; color: transparent; display: flex; align-items: center; justify-content: center; transition: all 0.25s; flex-shrink: 0; border: 2px solid transparent; box-sizing: border-box; }
         .mini-group-card.selected .check-indicator { background: var(--primary); color: white; transform: scale(1.1); border-color: #fffaf5; }
         .check-indicator svg { width: 12px; height: 12px; }
 
-        /* MÓVIL RESPONSIVE */
+        /* =======================================
+           MÓVIL RESPONSIVE
+           ======================================= */
         @media (max-width: 768px) {
             .main-wrapper { margin-left: 0; width: 100%; }
-            .content-area { padding: 16px 14px; }
-            .header-actions { flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 20px; border-bottom: none; padding-bottom: 0; }
-            .btn-back { order: -1; width: max-content; }
+            .content-area { padding: 16px 14px 40px 14px; }
             
-            .controls-actions-row, .controls-filters-row { flex-direction: column; align-items: stretch; gap: 12px; }
-            .toolbar-buttons { flex-direction: column; width: 100%; }
-            .toolbar-buttons button, .toolbar-buttons a { width: 100%; justify-content: center; }
-            .view-toggle-group { justify-content: center; width: 100%; }
-            .btn-view-toggle { flex: 1; justify-content: center; }
-            .filter-group { min-width: 100%; }
+            .header-actions { flex-direction: column; align-items: stretch; gap: 16px; margin-bottom: 24px; }
+            
+            /* Botones del encabezado: Fila dividida en 2 equitativamente con TEXTO (NO ICONOS SOLOS) */
+            .header-buttons { width: 100%; display: flex; flex-direction: row; gap: 8px; justify-content: space-between; }
+            .header-buttons a, .header-buttons button { 
+                flex: 1; justify-content: center; padding: 12px 6px; font-size: 0.8rem; height: auto;
+            }
 
+            /* Filtros en móvil: Buscador a la izquierda, Íconos a la derecha en la misma línea */
+            .filters-card { 
+                display: flex; 
+                flex-direction: row; 
+                padding: 12px; 
+                gap: 8px; 
+                border-radius: 12px; 
+                background: var(--card);
+            }
+            .filter-divider { display: none; }
+            
+            .filter-search { flex: 1; height: 44px; }
+            .filter-search input { 
+                padding: 0 12px 0 36px !important; 
+                height: 100% !important; 
+                background: #f8fafc !important; 
+                border: 1px solid #cbd5e1 !important; 
+                border-radius: 12px !important; 
+            }
+            
+            .filter-item { width: 44px; height: 44px; margin: 0; flex-shrink: 0; }
+            .filter-item label { display: none; } /* Ocultamos textos "Grupo" y "Estado" */
+            
+            .select-wrapper { 
+                width: 100%; height: 100%; background: #f8fafc; border: 1px solid #cbd5e1; 
+                border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative; 
+            }
+            .select-wrapper:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.15); background: #ffffff; }
+            .mobile-only-icon { display: block; width: 20px; height: 20px; color: #64748b; pointer-events: none; }
+            .simple-select { 
+                position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+                opacity: 0.01; padding: 0; min-width: 0; border: none; 
+                -webkit-appearance: none; appearance: none; cursor: pointer; z-index: 10;
+                background-image: none !important;
+            }
+
+            /* BARRA DE ACCIONES MASIVAS - ESTILO MÓVIL (ESTÁTICA, ABAJO DE LOS FILTROS) */
+            .bulk-action-bar { 
+                position: static !important;
+                transform: none !important;
+                flex-direction: column !important; 
+                padding: 16px !important; 
+                gap: 12px !important;
+                background: #1e293b !important;
+                border-radius: 16px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin-bottom: 20px !important;
+            }
+            
+            .bulk-action-bar .bulk-left { width: 100%; justify-content: center; padding-bottom: 4px; display: flex; align-items: center;}
+            /* Ocultar el texto largo, solo dejamos el badge grande */
+            #bulkTextPC { display: none !important; }
+            .bulk-badge { font-size: 1rem; padding: 8px 20px; border-radius: 12px; margin: 0;}
+            
+            /* Cuadrícula para botones de acción masiva en móvil en una sola fila + Cancelar abajo */
+            .mobile-bulk-actions {
+                display: flex !important;
+                flex-wrap: wrap;
+                width: 100%;
+                gap: 10px;
+                align-items: center;
+                justify-content: space-between;
+            }
+            
+            /* Asignar y Eliminar 50/50 y SIN TEXTO */
+            .btn-bulk-assign { flex: 1; justify-content: center; padding: 12px; border-radius: 12px; margin: 0;}
+            .form-eliminar-masivo { flex: 1; display: flex !important; margin: 0; padding: 0; }
+            .form-eliminar-masivo .btn-bulk { width: 100%; justify-content: center; padding: 12px; border-radius: 12px; margin: 0;}
+            
+            .btn-bulk-assign .btn-bulk-text, 
+            .form-eliminar-masivo .btn-bulk-text { display: none !important; }
+            
+            /* Cancelar ocupa 100% en la fila de abajo y muestra su texto */
+            .btn-bulk-cancel { width: 100%; justify-content: center; padding: 12px; border-radius: 12px; margin-top: 4px; font-size: 0.95rem; }
+            .btn-bulk-cancel .btn-bulk-text { display: inline !important; }
+            
+            /* Ajustes para evitar overflow (Scroll horizontal) en las tarjetas */
+            .worker-card { padding: 16px; gap: 12px; }
+            .user-info-td { width: 100%; overflow: hidden; }
+            .user-info-text-box { max-width: calc(100% - 48px); }
+            
             .modal-premium-overlay { padding: 0; }
             .modal-premium-box { height: 100%; max-height: 100%; border-radius: 0; }
             .modal-premium-header { padding: 16px 20px; padding-right: 60px; gap: 12px; }
@@ -411,21 +469,14 @@ if ($empresa_id) {
             .modal-premium-body { padding: 20px 16px 30px 16px; }
             .modal-premium-footer { flex-direction: column; padding: 16px; gap: 12px; box-shadow: 0 -4px 15px rgba(0,0,0,0.05); }
             .modal-premium-footer button { width: 100%; justify-content: center; }
-            .bulk-action-bar { width: 95%; flex-wrap: wrap; justify-content: center; bottom: -150px; padding: 12px; }
-            .bulk-action-bar.active { bottom: 20px; }
-            .btn-bulk { width: 100%; justify-content: center; margin-bottom: 4px; }
-            .bulk-divider { display: none; }
             
             .modal-groups-grid { grid-template-columns: 1fr; }
             
-            /* FUERZA VISTA DE TARJETAS EN MÓVIL Y OCULTA LISTA Y SWITCH */
-            .view-toggle-group { display: none; }
-            #vista-lista { display: none !important; }
-            #vista-tarjetas { display: block !important; }
+            .view-lista { display: none !important; }
+            .view-tarjetas { display: block !important; }
             .workers-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
         }
         
-        /* Ajuste para móviles MUY pequeños (iPhone SE) */
         @media (max-width: 480px) {
             .workers-grid { grid-template-columns: 1fr; }
         }
@@ -456,7 +507,7 @@ if ($empresa_id) {
                 <?php endif; ?>
             <?php endif; ?>
 
-            <div class="header-actions">
+            <div class="header-actions" style="margin-bottom: 24px; padding-bottom: 0; border-bottom: none;">
                 <div class="estandar-header-group">
                     <div class="icon-box-std">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="22" height="22">
@@ -468,80 +519,137 @@ if ($empresa_id) {
                         <p class="estandar-subtitle">Administra los trabajadores y agrúpalos por áreas o actividades.</p>
                     </div>
                 </div>
-                <a href="dashboard.php" class="btn-back">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                    </svg>
-                    Volver al Dashboard
-                </a>
+                
+                <div class="header-buttons">
+                    <a href="grupos.php" class="btn-outline-primary">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                        </svg>
+                        <span class="btn-text">Panel de Grupos</span>
+                    </a>
+
+                    <button type="button" class="btn-primary" onclick="alert('Pronto habilitaremos el formulario para registrar un trabajador directamente desde aquí.')">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        <span class="btn-text">Añadir Trabajador</span>
+                    </button>
+                </div>
             </div>
 
-            <div class="controls-panel">
-                <div class="controls-actions-row">
-                    <div class="view-toggle-group">
-                        <button type="button" class="btn-view-toggle active" data-view="lista" title="Ver como Lista">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-                            Lista
-                        </button>
-                        <button type="button" class="btn-view-toggle" data-view="tarjetas" title="Ver como Tarjetas">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-                            Tarjetas
-                        </button>
-                    </div>
-
-                    <div class="toolbar-buttons">
-                        <button type="button" id="btnTopAsignacionMasiva" class="btn-outline-primary btn-disabled" onclick="verificarYabrirModalMasivo()">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                            </svg>
-                            Asignación Masiva
-                        </button>
-
-                        <a href="grupos.php" class="btn-outline-primary">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-                            </svg>
-                            Panel de Grupos
-                        </a>
-
-                        <button type="button" class="btn-primary" onclick="alert('Pronto habilitaremos el formulario para registrar un trabajador directamente desde aquí.')">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
-                            </svg>
-                            Añadir Trabajador
-                        </button>
+            <!-- TARJETAS DE RESUMEN -->
+            <div class="summary-cards-grid">
+                <div class="summary-card">
+                    <svg class="summary-bg-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    <div class="summary-content">
+                        <div class="summary-header">
+                            <div class="summary-icon-box">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                </svg>
+                            </div>
+                            <h2 class="summary-value"><?php echo $total_trabajadores; ?></h2>
+                        </div>
+                        <h3 class="summary-title">Total Trabajadores</h3>
+                        <p class="summary-desc">Personal registrado en la empresa.</p>
                     </div>
                 </div>
 
-                <div class="controls-filters-row">
-                    <div class="filter-group" style="flex: 2;">
-                        <label>Buscar Trabajador</label>
-                        <div class="search-box">
-                            <svg class="icon-search" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                            </svg>
-                            <input type="text" id="searchInput" placeholder="Nombre, cédula o email...">
-                            <div class="spinner-loader" id="filterLoader"></div>
+                <div class="summary-card">
+                    <svg class="summary-bg-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <div class="summary-content">
+                        <div class="summary-header">
+                            <div class="summary-icon-box" style="background: rgba(34, 197, 94, 0.1); color: #16a34a;">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </div>
+                            <h2 class="summary-value" style="color: #16a34a;"><?php echo $trabajadores_activos; ?></h2>
                         </div>
+                        <h3 class="summary-title">Activos</h3>
+                        <p class="summary-desc">Trabajadores actualmente operativos.</p>
                     </div>
+                </div>
 
-                    <div class="filter-group">
-                        <label>Grupo Asignado</label>
-                        <select id="filterGroup" class="filter-select">
+                <div class="summary-card">
+                    <svg class="summary-bg-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    <div class="summary-content">
+                        <div class="summary-header">
+                            <div class="summary-icon-box" style="background: rgba(14, 165, 233, 0.1); color: #0284c7;">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                            </div>
+                            <h2 class="summary-value" style="color: #0284c7;"><?php echo $total_grupos; ?></h2>
+                        </div>
+                        <h3 class="summary-title">Grupos Creados</h3>
+                        <p class="summary-desc">Áreas o equipos de trabajo registrados.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BARRA DE FILTROS ELEGANTE -->
+            <div class="filters-card">
+                <div class="filter-search">
+                    <svg class="icon-search" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <input type="text" id="searchInput" placeholder="Buscar por nombre, cédula o email...">
+                    <div class="spinner-loader" id="filterLoader"></div>
+                </div>
+                
+                <div class="filter-divider"></div>
+                
+                <div class="filter-item">
+                    <label>Grupo:</label>
+                    <div class="select-wrapper">
+                        <!-- Icono solo visible en móvil -->
+                        <svg class="mobile-only-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        <select id="filterGroup" class="simple-select">
                             <option value="all">Todos los grupos</option>
                             <option value="assigned">Con grupo asignado</option>
                             <option value="unassigned">Sin grupo</option>
                         </select>
                     </div>
-
-                    <div class="filter-group">
-                        <label>Estado</label>
-                        <select id="filterStatus" class="filter-select">
+                </div>
+                
+                <div class="filter-divider"></div>
+                
+                <div class="filter-item">
+                    <label>Estado:</label>
+                    <div class="select-wrapper">
+                        <!-- Icono solo visible en móvil -->
+                        <svg class="mobile-only-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <select id="filterStatus" class="simple-select">
                             <option value="all">Todos los estados</option>
                             <option value="1">Activos</option>
                             <option value="0">Inactivos</option>
                         </select>
                     </div>
+                </div>
+            </div>
+
+            <!-- BARRA DE ACCIONES MASIVAS INLINE (Aparece justo arriba de la tabla/tarjetas) -->
+            <div class="bulk-action-bar" id="bulkActionBar">
+                <div class="bulk-left">
+                    <span class="bulk-badge" id="bulkCount">0 seleccionados</span>
+                    <span class="bulk-text" id="bulkTextPC">¿Qué deseas hacer con los trabajadores seleccionados?</span>
+                </div>
+                <div class="bulk-right mobile-bulk-actions">
+                    <button type="button" class="btn-bulk btn-bulk-assign" onclick="verificarYabrirModalMasivo()">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        <span class="btn-bulk-text">Asignar</span>
+                    </button>
+                    <form action="trabajadores.php" method="POST" id="formEliminarMasivo" class="form-eliminar-masivo" onsubmit="return confirm('¿Estás SEGURO de eliminar a TODOS los trabajadores seleccionados?');">
+                        <input type="hidden" name="accion" value="eliminar_masivo">
+                        <input type="hidden" name="trabajadores_ids" id="input_eliminar_masivo_ids">
+                        <button type="submit" class="btn-bulk btn-bulk-danger">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            <span class="btn-bulk-text">Eliminar</span>
+                        </button>
+                    </form>
+                    <button type="button" class="btn-bulk btn-bulk-cancel" onclick="limpiarSeleccion()">
+                        <span class="btn-bulk-text">Cancelar</span>
+                    </button>
                 </div>
             </div>
 
@@ -557,7 +665,8 @@ if ($empresa_id) {
                 </div>
             <?php else: ?>
 
-                <div id="vista-lista" class="view-container active">
+                <!-- VISTA DE LISTA (Se muestra solo en Escritorio) -->
+                <div class="view-lista">
                     <div class="table-card">
                         <div class="table-responsive">
                             <table class="custom-table">
@@ -590,7 +699,7 @@ if ($empresa_id) {
                                             <td>
                                                 <div class="user-info-td">
                                                     <div class="user-avatar"><?php echo strtoupper(substr($t['nombre'], 0, 1)); ?></div>
-                                                    <div>
+                                                    <div class="user-info-text-box">
                                                         <span class="user-name-text"><?php echo htmlspecialchars($t['nombre'] . ' ' . $t['apellido']); ?></span>
                                                         <span class="user-cc-text">C.C. <?php echo htmlspecialchars($t['cedula']); ?></span>
                                                     </div>
@@ -641,7 +750,8 @@ if ($empresa_id) {
                     </div>
                 </div>
 
-                <div id="vista-tarjetas" class="view-container">
+                <!-- VISTA DE TARJETAS (Se muestra solo en Móviles) -->
+                <div class="view-tarjetas">
                     <div class="workers-grid">
                         <?php foreach ($trabajadores as $t): ?>
                             <?php 
@@ -657,7 +767,7 @@ if ($empresa_id) {
                                     <div class="user-info-td">
                                         <input type="checkbox" class="custom-checkbox worker-checkbox" value="<?php echo $t['id']; ?>">
                                         <div class="user-avatar"><?php echo strtoupper(substr($t['nombre'], 0, 1)); ?></div>
-                                        <div>
+                                        <div class="user-info-text-box">
                                             <span class="user-name-text"><?php echo htmlspecialchars($t['nombre'] . ' ' . $t['apellido']); ?></span>
                                             <span class="user-cc-text">C.C. <?php echo htmlspecialchars($t['cedula']); ?></span>
                                         </div>
@@ -710,24 +820,6 @@ if ($empresa_id) {
 
         </div>
     </main>
-
-    <div class="bulk-action-bar" id="bulkActionBar">
-        <span class="bulk-text" id="bulkCount">0 seleccionados</span>
-        <div class="bulk-divider"></div>
-        <button type="button" class="btn-bulk btn-bulk-assign" onclick="verificarYabrirModalMasivo()">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-            Asignar a Grupo
-        </button>
-        <form action="trabajadores.php" method="POST" id="formEliminarMasivo" style="display:inline;" onsubmit="return confirm('¿Estás SEGURO de eliminar a TODOS los trabajadores seleccionados?');">
-            <input type="hidden" name="accion" value="eliminar_masivo">
-            <input type="hidden" name="trabajadores_ids" id="input_eliminar_masivo_ids">
-            <button type="submit" class="btn-bulk btn-bulk-danger">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                Eliminar
-            </button>
-        </form>
-        <button type="button" class="btn-bulk btn-bulk-cancel" onclick="limpiarSeleccion()">Cancelar</button>
-    </div>
 
     <div class="modal-premium-overlay" id="modalAsignarGrupo">
         <form method="POST" class="modal-premium-box modal-masivo">
@@ -869,11 +961,9 @@ if ($empresa_id) {
             document.getElementById('input_trabajador_id').value = id;
             document.getElementById('lbl_trabajador_nombre').textContent = nombre;
             
-            // Limpiar la selección de grupos en el modal individual
             document.querySelectorAll('#modalAsignarGrupo .mini-group-card').forEach(card => card.classList.remove('selected'));
             document.querySelectorAll('#modalAsignarGrupo input[name="grupo_id"]').forEach(r => r.checked = false);
             
-            // Seleccionar el actual
             let valToSelect = currentGroupId ? currentGroupId.toString() : "0";
             let radioToSelect = document.querySelector(`#modalAsignarGrupo input[name="grupo_id"][value="${valToSelect}"]`);
             if (radioToSelect) {
@@ -897,7 +987,6 @@ if ($empresa_id) {
             const count = inputAssignIdsGlobal.value.split(',').length;
             document.getElementById('lbl_masivo_count_modal').textContent = count + (count === 1 ? ' trabajador' : ' trabajadores');
             
-            // Limpiar la selección en el modal masivo
             document.querySelectorAll('#modalAsignarMasivo .mini-group-card').forEach(card => card.classList.remove('selected'));
             document.querySelectorAll('#modalAsignarMasivo input[name="grupo_id"]').forEach(r => r.checked = false);
             
@@ -960,22 +1049,19 @@ if ($empresa_id) {
             Array.from(checkboxesGlobal).filter(cb => cb.checked).forEach(cb => selectedSet.add(cb.value));
             
             const selectedArray = Array.from(selectedSet);
-            const btnTopMasivo = document.getElementById('btnTopAsignacionMasiva');
             
             if (selectedArray.length > 0) {
                 bulkCount.textContent = selectedArray.length + (selectedArray.length === 1 ? ' seleccionado' : ' seleccionados');
-                inputAssignIdsGlobal.value = selectedArray.join(',');
-                inputDeleteIdsGlobal.value = selectedArray.join(',');
-                bulkBar.classList.add('active');
                 
-                // Activar el botón superior de asignación masiva
-                if(btnTopMasivo) btnTopMasivo.classList.remove('btn-disabled');
+                const idString = selectedArray.join(',');
+                inputAssignIdsGlobal.value = idString;
+                inputDeleteIdsGlobal.value = idString;
+                
+                bulkBar.classList.add('active');
             } else {
                 bulkBar.classList.remove('active');
                 if (selectAllTable) selectAllTable.checked = false;
                 
-                // Desactivar el botón superior y limpiar IDs
-                if(btnTopMasivo) btnTopMasivo.classList.add('btn-disabled');
                 inputAssignIdsGlobal.value = '';
                 inputDeleteIdsGlobal.value = '';
             }
@@ -1023,42 +1109,13 @@ if ($empresa_id) {
                 });
 
                 if (loader) loader.style.display = 'none';
-            }, 400); // Retraso de 400ms para efecto Loader
+            }, 400);
         }
 
         // ==========================================
         // EVENTOS DOM GLOBALES
         // ==========================================
         document.addEventListener('DOMContentLoaded', () => {
-            
-            // --- Memoria (Caché Local) de la vista (Lista vs Tarjetas) ---
-            const savedView = localStorage.getItem('trabajadores_view_state') || 'lista';
-            const toggleButtons = document.querySelectorAll('.btn-view-toggle');
-            const viewLista = document.getElementById('vista-lista');
-            const viewTarjetas = document.getElementById('vista-tarjetas');
-
-            function activarVista(targetView) {
-                toggleButtons.forEach(b => b.classList.remove('active'));
-                const btnToActivate = document.querySelector(`.btn-view-toggle[data-view="${targetView}"]`);
-                if(btnToActivate) btnToActivate.classList.add('active');
-                
-                if(viewLista) viewLista.classList.remove('active');
-                if(viewTarjetas) viewTarjetas.classList.remove('active');
-
-                if (targetView === 'lista' && viewLista) viewLista.classList.add('active');
-                else if (targetView === 'tarjetas' && viewTarjetas) viewTarjetas.classList.add('active');
-            }
-            
-            // Aplicar la vista guardada al cargar
-            activarVista(savedView);
-
-            toggleButtons.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const targetView = this.getAttribute('data-view');
-                    activarVista(targetView);
-                    localStorage.setItem('trabajadores_view_state', targetView); 
-                });
-            });
 
             // --- Filtros ---
             const searchInputGlobal = document.getElementById('searchInput');
@@ -1079,7 +1136,7 @@ if ($empresa_id) {
             if (selectAllTable) {
                 selectAllTable.addEventListener('change', function() {
                     const isChecked = this.checked;
-                    document.querySelectorAll('#vista-lista .worker-checkbox').forEach(cb => {
+                    document.querySelectorAll('.view-lista .worker-checkbox').forEach(cb => {
                         const row = cb.closest('.worker-item');
                         if (row && row.style.display !== 'none') {
                             cb.checked = isChecked;

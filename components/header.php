@@ -143,6 +143,17 @@ if (isset($_SESSION['cpanel_admin_id'])) {
 
         <div class="role-badge"><?php echo htmlspecialchars($rol_display); ?></div>
 
+        <?php 
+        // LÓGICA DEL BOTÓN DE NUBE (Solo visible para sst y representante)
+        if ($usuario_rol_header === 'representante' || $usuario_rol_header === 'sst'): 
+        ?>
+        <a href="#" class="icon-btn" title="Almacenamiento en la Nube">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
+            </svg>
+        </a>
+        <?php endif; ?>
+
         <a href="notificaciones.php" class="icon-btn" title="Notificaciones">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
             <?php if ($unread_count > 0): ?>

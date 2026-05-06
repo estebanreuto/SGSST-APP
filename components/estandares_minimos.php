@@ -47,11 +47,9 @@ $hoy->setTime(0, 0, 0);
 // ESTADOS DE LOS ESTÁNDARES (PARA LOS BADGES VISUALES)
 // ========================================================
 
-// Estado Estándar 1
 $std1_estado = ($doc_asignacion && $doc_asignacion['estado'] === 'firmado') ? 'Completado' : 'Pendiente';
 $std1_class = ($std1_estado === 'Completado') ? 'badge-std-success' : 'badge-std-pending';
 
-// Estado Estándar 2 (Revisar si hay vencidos en el año actual)
 $std2_tiene_vencidos = false;
 for ($m = 1; $m <= 12; $m++) {
     if (!isset($planillas_db[$m])) {
@@ -69,117 +67,203 @@ for ($m = 1; $m <= 12; $m++) {
 $std2_estado = $std2_tiene_vencidos ? 'Pendiente' : 'Al Día';
 $std2_class = $std2_tiene_vencidos ? 'badge-std-pending' : 'badge-std-success';
 
-// Estado Estándares 3 al 7 (Por defecto en Pendiente hasta que se programen)
 $std3_estado = 'Pendiente'; $std3_class = 'badge-std-pending';
 $std4_estado = 'Pendiente'; $std4_class = 'badge-std-pending';
 $std5_estado = 'Pendiente'; $std5_class = 'badge-std-pending';
 $std6_estado = 'Pendiente'; $std6_class = 'badge-std-pending';
 $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
-
 ?>
 
 <style>
     /* ========================================================
-       ESTILOS PARA LOS BADGES DE ESTADO (Completado / Pendiente)
+       ESTILOS DEL ENCABEZADO DE ESTÁNDARES
        ======================================================== */
-    .badge-std {
-        font-size: 0.65rem;
-        padding: 4px 8px;
-        border-radius: 8px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        white-space: nowrap;
+    .header-estandares {
+        margin: 32px 0 20px 0;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
     }
-    .badge-std-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-    .badge-std-pending { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
 
-    /* ========================================================
-       NUEVO DISEÑO DE GRID PARA ESTÁNDARES COMPACTO
-       ======================================================== */
-    .standards-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-        gap: 16px;
-        margin-top: 12px;
-        font-family: 'Inter', sans-serif;
-    }
-    .standard-card {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 16px;
+    .header-estandares .section-title {
+        margin: 0 0 10px 0;
+        border-bottom: none;
+        padding-bottom: 0;
         display: flex;
-        flex-direction: column;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-    }
-    .standard-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 16px rgba(0,0,0,0.04);
-        border-color: #cbd5e1;
-    }
-    .std-header {
-        display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: 12px;
+        gap: 10px;
+        flex-wrap: wrap;
     }
-    .std-icon-box {
-        width: 36px;
-        height: 36px;
-        background: rgba(255, 138, 31, 0.08);
-        color: var(--primary2);
+
+    .header-estandares .title-icon-wrapper {
+        background: rgba(255, 138, 31, 0.12);
+        padding: 6px;
         border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
     }
-    .std-icon-box svg {
-        width: 18px;
-        height: 18px;
+
+    .badge-worker-count {
+        background: #f1f5f9;
+        color: #475569;
+        font-size: 0.7rem;
+        padding: 4px 10px;
+        border-radius: 20px;
+        text-transform: none;
+        letter-spacing: normal;
+        border: 1px solid #e2e8f0;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
     }
-    .std-title {
+
+    .header-estandares-desc {
+        color: var(--muted);
         font-size: 0.85rem;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* ========================================================
+       ESTILOS PARA LOS BADGES DE ESTADO (Completado / Pendiente)
+       ======================================================== */
+    .badge-std {
+        font-size: 0.65rem;
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+        position: relative;
+        z-index: 2;
+    }
+    .badge-std-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .badge-std-pending { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+    /* ========================================================
+       DISEÑO DE GRID PARA ESTÁNDARES COMPACTO
+       ======================================================== */
+    .standards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+        margin-top: 16px;
+        font-family: 'Inter', sans-serif;
+    }
+    
+    .standard-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        position: relative;
+        overflow: hidden;
+        min-height: 180px;
+    }
+
+    .standard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.06);
+        border-color: var(--primary2);
+    }
+
+    /* EL ICONO DE FONDO MODERNO */
+    .std-bg-icon {
+        position: absolute;
+        bottom: -20px;
+        left: -20px;
+        width: 130px;
+        height: 130px;
+        color: var(--primary);
+        opacity: 0.15; /* BRO: AQUÍ SUBÍ LA OPACIDAD AL 15% PARA QUE SE VEA MÁS */
+        z-index: 1;
+        transform: rotate(-15deg);
+        pointer-events: none;
+    }
+
+    /* CONTENEDOR PARA MANTENER EL TEXTO ARRIBA DEL ICONO */
+    .std-content-wrapper {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .std-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .std-icon-box {
+        width: 38px;
+        height: 38px;
+        background: rgba(255, 138, 31, 0.1);
+        color: var(--primary2);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .std-icon-box svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .std-title {
+        font-size: 0.95rem;
         font-weight: 700;
         color: var(--text);
-        margin: 0 0 6px 0;
+        margin: 0 0 8px 0;
         line-height: 1.3;
     }
+
     .std-desc {
         color: var(--muted);
-        font-size: 0.75rem;
-        line-height: 1.3;
-        margin: 0 0 12px 0;
+        font-size: 0.8rem;
+        line-height: 1.4;
+        margin: 0 0 16px 0;
         flex-grow: 1;
     }
+
     .std-footer {
         margin-top: auto;
-        padding-top: 12px;
-        border-top: 1px solid var(--border);
     }
+
     .btn-std {
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 6px;
         width: 100%;
-        padding: 6px 10px;
+        padding: 10px;
         background: #f8fafc;
         color: var(--primary2);
         border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        font-size: 0.75rem;
+        border-radius: 8px;
+        font-size: 0.8rem;
         font-weight: 700;
         text-decoration: none;
         transition: all 0.2s ease;
         box-sizing: border-box;
     }
+
     .btn-std:hover {
         background: var(--primary);
         color: #fff;
         border-color: var(--primary);
     }
+
     .btn-std.disabled {
         background: #f1f5f9;
         color: #94a3b8;
@@ -187,179 +271,175 @@ $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
         cursor: not-allowed;
     }
     
-    @media (max-width: 1024px) {
-        .standards-grid {
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 14px;
-        }
-    }
-
     @media (max-width: 768px) {
-        .standards-grid {
-            grid-template-columns: repeat(auto-fill, minmax(100%, 1fr));
-            gap: 12px;
-        }
-        .standard-card {
-            padding: 12px;
-        }
-        .std-header {
-             margin-bottom: 8px;
-        }
-        .std-icon-box {
-            width: 32px;
-            height: 32px;
-        }
-        .std-icon-box svg {
-            width: 16px;
-            height: 16px;
-        }
-        .std-title {
-            font-size: 0.9rem;
-        }
-        .std-desc {
-            font-size: 0.75rem;
-            margin-bottom: 12px;
-        }
-        .btn-std {
-            padding: 8px 10px;
-            font-size: 0.75rem;
-        }
+        .standards-grid { grid-template-columns: 1fr; }
+        .std-bg-icon { width: 100px; height: 100px; }
     }
 </style>
 
-<h2 class="section-title" style="margin-top: 24px; border-bottom: none; padding-bottom: 0;">
-    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color: var(--primary2);">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-    </svg>
-    Estándares Mínimos (10 o menos trabajadores)
-</h2>
-<p style="color: var(--muted); font-size: 0.85rem; margin-top: 0; margin-bottom: 8px;">Resolución 0312 de 2019: Requisitos aplicables para empresas, empleadores y contratantes clasificados en riesgo I, II o III.</p>
+<!-- ENCABEZADO MEJORADO -->
+<div class="header-estandares">
+    <h2 class="section-title">
+        <div class="title-icon-wrapper">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20" style="color: var(--primary2);">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+            </svg>
+        </div>
+        Estándares Mínimos
+        <span class="badge-worker-count">10 o menos trabajadores</span>
+    </h2>
+    <p class="header-estandares-desc">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <strong>Resolución 0312 de 2019:</strong> Requisitos aplicables para riesgo I, II o III.
+    </p>
+</div>
 
 <div class="standards-grid">
     
     <!-- ESTÁNDAR 1 -->
     <div class="standard-card">
-        <div class="std-header">
-            <div class="std-icon-box">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+        <svg class="std-bg-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+        <div class="std-content-wrapper">
+            <div class="std-header">
+                <div class="std-icon-box">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                </div>
+                <span class="badge-std <?php echo $std1_class; ?>"><?php echo $std1_estado; ?></span>
             </div>
-            <span class="badge-std <?php echo $std1_class; ?>"><?php echo $std1_estado; ?></span>
+            <h3 class="std-title">1. Asignación SG-SST</h3>
+            <?php if ($usuario_rol === 'sst'): ?>
+                <p class="std-desc">Genera, firma y envía el documento de designación del responsable SG-SST.</p>
+                <div class="std-footer">
+                    <a href="estandar1.php" class="btn-std">Panel de Designación <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></a>
+                </div>
+            <?php elseif ($usuario_rol === 'representante'): ?>
+                <p class="std-desc">Revisa y aprueba el acta de designación del Responsable SG-SST.</p>
+                <div class="std-footer">
+                    <a href="estandar1.php" class="btn-std">Ver Estado de Acta <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg></a>
+                </div>
+            <?php endif; ?>
         </div>
-        <h3 class="std-title">1. Asignación de persona que diseña el SG-SST</h3>
-        <?php if ($usuario_rol === 'sst'): ?>
-            <p class="std-desc">Genera el documento de designación, fírmalo y envíalo para la aprobación del Representante Legal.</p>
-            <div class="std-footer">
-                <a href="estandar1.php" class="btn-std">Abrir Panel de Designación <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></a>
-            </div>
-        <?php elseif ($usuario_rol === 'representante'): ?>
-            <p class="std-desc">El Responsable SG-SST gestionará el acta de designación desde este módulo. Revisa y aprueba el documento.</p>
-            <div class="std-footer">
-                <a href="estandar1.php" class="btn-std">Ver Estado de Acta <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg></a>
-            </div>
-        <?php endif; ?>
     </div>
 
     <!-- ESTÁNDAR 2 -->
     <div class="standard-card">
-        <div class="std-header">
-            <div class="std-icon-box">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+        <svg class="std-bg-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+        <div class="std-content-wrapper">
+            <div class="std-header">
+                <div class="std-icon-box">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                </div>
+                <span class="badge-std <?php echo $std2_class; ?>"><?php echo $std2_estado; ?></span>
             </div>
-            <span class="badge-std <?php echo $std2_class; ?>"><?php echo $std2_estado; ?></span>
+            <h3 class="std-title">2. Afiliación Seg. Social</h3>
+            <?php if ($usuario_rol === 'sst'): ?>
+                <p class="std-desc">Control y carga mensual de las planillas PILA de Seguridad Social.</p>
+                <div class="std-footer">
+                    <a href="estandar2.php" class="btn-std">Panel de Planillas <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></a>
+                </div>
+            <?php elseif ($usuario_rol === 'representante'): ?>
+                <p class="std-desc">Visualiza el resumen y estado de las planillas PILA mensuales.</p>
+                <div class="std-footer">
+                    <a href="estandar2.php" class="btn-std">Ver Estado <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg></a>
+                </div>
+            <?php endif; ?>
         </div>
-        <h3 class="std-title">2. Afiliación al Sistema de Seguridad Social</h3>
-        <?php if ($usuario_rol === 'sst'): ?>
-            <p class="std-desc">Control y carga mensual de las planillas de pago de Seguridad Social (PILA) de la empresa.</p>
-            <div class="std-footer">
-                <a href="estandar2.php" class="btn-std">Abrir Panel de Planillas <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></a>
-            </div>
-        <?php elseif ($usuario_rol === 'representante'): ?>
-            <p class="std-desc">El Responsable SG-SST se encarga de subir las planillas. Visualiza el resumen de cumplimiento mensual.</p>
-            <div class="std-footer">
-                <a href="estandar2.php" class="btn-std">Ver Estado <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg></a>
-            </div>
-        <?php endif; ?>
     </div>
 
     <!-- ESTÁNDAR 3 -->
     <div class="standard-card">
-        <div class="std-header">
-            <div class="std-icon-box">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477 4.5 1.253" /></svg>
+        <svg class="std-bg-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477 4.5 1.253" /></svg>
+        <div class="std-content-wrapper">
+            <div class="std-header">
+                <div class="std-icon-box">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477 4.5 1.253" /></svg>
+                </div>
+                <span class="badge-std <?php echo $std3_class; ?>"><?php echo $std3_estado; ?></span>
             </div>
-            <span class="badge-std <?php echo $std3_class; ?>"><?php echo $std3_estado; ?></span>
+            <h3 class="std-title">3. Capacitación en SST</h3>
+            <?php if ($usuario_rol === 'sst'): ?>
+                <p class="std-desc">Ejecuta y haz seguimiento al programa de capacitaciones preventivas.</p>
+                <div class="std-footer">
+                    <a href="estandar3.php" class="btn-std">Panel Capacitaciones <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></a>
+                </div>
+            <?php elseif ($usuario_rol === 'representante'): ?>
+                <p class="std-desc">Consulta el estado y cronograma de capacitaciones del personal.</p>
+                <div class="std-footer">
+                    <a href="estandar3.php" class="btn-std">Ver Capacitaciones <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg></a>
+                </div>
+            <?php endif; ?>
         </div>
-        <h3 class="std-title">3. Capacitación en SST</h3>
-        <?php if ($usuario_rol === 'sst'): ?>
-            <p class="std-desc">Elabora, ejecuta y realiza el seguimiento al programa de capacitación en promoción y prevención.</p>
-            <div class="std-footer">
-                <a href="estandar3.php" class="btn-std">Abrir Panel de Capacitaciones <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></a>
-            </div>
-        <?php elseif ($usuario_rol === 'representante'): ?>
-            <p class="std-desc">El Responsable SG-SST gestionará las capacitaciones. Consulta el cronograma y estado del personal.</p>
-            <div class="std-footer">
-                <a href="estandar3.php" class="btn-std">Ver Capacitaciones <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg></a>
-            </div>
-        <?php endif; ?>
     </div>
 
     <!-- ESTÁNDAR 4 -->
     <div class="standard-card">
-        <div class="std-header">
-            <div class="std-icon-box">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+        <svg class="std-bg-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+        <div class="std-content-wrapper">
+            <div class="std-header">
+                <div class="std-icon-box">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                </div>
+                <span class="badge-std <?php echo $std4_class; ?>"><?php echo $std4_estado; ?></span>
             </div>
-            <span class="badge-std <?php echo $std4_class; ?>"><?php echo $std4_estado; ?></span>
-        </div>
-        <h3 class="std-title">4. Plan Anual de Trabajo</h3>
-        <p class="std-desc">Elaborar el Plan Anual de Trabajo firmado por el empleador o contratante.</p>
-        <div class="std-footer">
-            <button class="btn-std disabled" disabled>Próximamente</button>
+            <h3 class="std-title">4. Plan Anual de Trabajo</h3>
+            <p class="std-desc">Elaboración del Plan Anual de Trabajo avalado por la gerencia.</p>
+            <div class="std-footer">
+                <button class="btn-std disabled" disabled>Próximamente</button>
+            </div>
         </div>
     </div>
 
     <!-- ESTÁNDAR 5 -->
     <div class="standard-card">
-        <div class="std-header">
-            <div class="std-icon-box">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+        <svg class="std-bg-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+        <div class="std-content-wrapper">
+            <div class="std-header">
+                <div class="std-icon-box">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                </div>
+                <span class="badge-std <?php echo $std5_class; ?>"><?php echo $std5_estado; ?></span>
             </div>
-            <span class="badge-std <?php echo $std5_class; ?>"><?php echo $std5_estado; ?></span>
-        </div>
-        <h3 class="std-title">5. Evaluaciones médicas ocupacionales</h3>
-        <p class="std-desc">Realizar las evaluaciones médicas ocupacionales (ingreso, periódicas, retiro).</p>
-        <div class="std-footer">
-            <button class="btn-std disabled" disabled>Próximamente</button>
+            <h3 class="std-title">5. Evaluaciones médicas</h3>
+            <p class="std-desc">Control de evaluaciones médicas de ingreso, periódicas y de retiro.</p>
+            <div class="std-footer">
+                <button class="btn-std disabled" disabled>Próximamente</button>
+            </div>
         </div>
     </div>
 
     <!-- ESTÁNDAR 6 -->
     <div class="standard-card">
-        <div class="std-header">
-            <div class="std-icon-box">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+        <svg class="std-bg-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+        <div class="std-content-wrapper">
+            <div class="std-header">
+                <div class="std-icon-box">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                </div>
+                <span class="badge-std <?php echo $std6_class; ?>"><?php echo $std6_estado; ?></span>
             </div>
-            <span class="badge-std <?php echo $std6_class; ?>"><?php echo $std6_estado; ?></span>
-        </div>
-        <h3 class="std-title">6. Identificación de peligros, evaluación de riesgos</h3>
-        <p class="std-desc">Realizar la identificación de peligros y la evaluación y valoración de los riesgos.</p>
-        <div class="std-footer">
-            <button class="btn-std disabled" disabled>Próximamente</button>
+            <h3 class="std-title">6. Matriz de Riesgos</h3>
+            <p class="std-desc">Identificación de peligros y valoración de riesgos laborales.</p>
+            <div class="std-footer">
+                <button class="btn-std disabled" disabled>Próximamente</button>
+            </div>
         </div>
     </div>
 
     <!-- ESTÁNDAR 7 -->
     <div class="standard-card">
-        <div class="std-header">
-            <div class="std-icon-box">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" /></svg>
+        <svg class="std-bg-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" /></svg>
+        <div class="std-content-wrapper">
+            <div class="std-header">
+                <div class="std-icon-box">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" /></svg>
+                </div>
+                <span class="badge-std <?php echo $std7_class; ?>"><?php echo $std7_estado; ?></span>
             </div>
-            <span class="badge-std <?php echo $std7_class; ?>"><?php echo $std7_estado; ?></span>
-        </div>
-        <h3 class="std-title">7. Medidas de prevención y control</h3>
-        <p class="std-desc">Ejecutar medidas de prevención y control con base en los resultados de la identificación de peligros.</p>
-        <div class="std-footer">
-            <button class="btn-std disabled" disabled>Próximamente</button>
+            <h3 class="std-title">7. Medidas de prevención</h3>
+            <p class="std-desc">Ejecución de medidas preventivas basadas en la matriz de riesgos.</p>
+            <div class="std-footer">
+                <button class="btn-std disabled" disabled>Próximamente</button>
+            </div>
         </div>
     </div>
 

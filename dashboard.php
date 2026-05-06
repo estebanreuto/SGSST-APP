@@ -115,20 +115,48 @@ function mostrarDato($dato)
         .content-area { padding: 32px 40px; flex: 1; max-width: 1400px; margin: 0 auto; width: 100%; box-sizing: border-box; }
         .alert-success { background: #dcfce7; color: #166534; padding: 14px 20px; border-radius: 8px; margin-bottom: 24px; font-weight: 600; display: flex; align-items: center; gap: 10px; border: 1px solid #bbf7d0; transition: opacity 0.5s ease, transform 0.5s ease; opacity: 1; transform: translateY(0); }
         .alert-success.hide { opacity: 0; transform: translateY(-10px); pointer-events: none; }
+        
         .header-actions { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-        .welcome-title { margin: 0 0 6px 0; font-size: 1.25rem; color: var(--text); letter-spacing: -0.01em; }
+        .welcome-title-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+        .welcome-title { margin: 0; font-size: 1.15rem; color: var(--text); font-weight: 600; }
         .welcome-text { color: var(--muted); margin: 0; font-size: 0.85rem; }
-        .btn-edit { background-color: var(--primary); color: #fff; border: none; padding: 9px 18px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background-color 0.2s, transform 0.1s; }
+        
+        .btn-edit { background-color: var(--primary); color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background-color 0.2s, transform 0.1s; }
         .btn-edit:hover { background-color: var(--primary2); transform: translateY(-1px); }
-        .section-title { font-size: 0.85rem; font-weight: 700; color: var(--text); margin: 24px 0 12px 0; padding-bottom: 8px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+        
+        /* ESTILOS DE TÍTULOS Y ENCABEZADOS CONSISTENTES */
+        .header-section { margin: 24px 0 20px 0; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+        .section-title { font-size: 0.95rem; font-weight: 700; color: var(--text); margin: 0; display: flex; align-items: center; gap: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .title-icon-wrapper { background: rgba(255, 138, 31, 0.12); padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--primary2); }
+        .title-icon-wrapper.small { padding: 6px; }
+        
+        /* FIX: Descripción de sección para móviles */
+        .section-desc { 
+            color: var(--muted); 
+            font-size: 0.85rem; 
+            margin: 10px 0 0 0; 
+            display: flex; 
+            align-items: flex-start; /* Alinea arriba en caso de múltiples líneas */
+            gap: 8px; 
+            text-align: left;
+            line-height: 1.4;
+        }
+        .section-desc svg {
+            flex-shrink: 0; /* Evita que el ícono se reduzca */
+            margin-top: 2px; /* Alineación visual con el texto */
+        }
+        .section-desc span {
+            display: block; /* Mantiene el texto como un bloque */
+        }
+
         .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
         .info-card { background: var(--card); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.02); display: flex; align-items: flex-start; gap: 12px; transition: transform 0.2s ease, box-shadow 0.2s ease; }
-        .info-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.04); }
-        .icon-box { width: 36px; height: 36px; background: rgba(255, 138, 31, 0.08); color: var(--primary2); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.3s ease; }
-        .info-content { display: flex; flex-direction: column; gap: 3px; overflow: hidden; padding-top: 2px; }
-        .info-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 700; margin: 0; }
-        .info-value { font-size: 0.85rem; font-weight: 600; color: var(--text); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .badge-rol { display: inline-block; background: rgba(255, 138, 31, 0.12); color: var(--primary2); padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
+        .info-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.04); border-color: #cbd5e1; }
+        .icon-box { width: 38px; height: 38px; background: rgba(255, 138, 31, 0.08); color: var(--primary2); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.3s ease; }
+        .info-content { display: flex; flex-direction: column; gap: 4px; overflow: hidden; padding-top: 2px; }
+        .info-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 700; margin: 0; }
+        .info-value { font-size: 0.9rem; font-weight: 600; color: var(--text); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .badge-rol { display: inline-block; background: rgba(255, 138, 31, 0.12); color: var(--primary2); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
 
         @media (max-width: 768px) {
             .main-wrapper { margin-left: 0; width: 100%; }
@@ -160,7 +188,15 @@ function mostrarDato($dato)
 
             <div class="header-actions">
                 <div>
-                    <h1 class="welcome-title">Mi Perfil</h1>
+                    <!-- TÍTULO PRINCIPAL SOBRIO -->
+                    <div class="welcome-title-wrapper">
+                        <div class="title-icon-wrapper small">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <h1 class="welcome-title">Mi Perfil</h1>
+                    </div>
                     <p class="welcome-text">Resumen de tu información personal y roles dentro de la plataforma.</p>
                 </div>
                 <?php if ($usuario_rol === 'sst' || $usuario_rol === 'representante'): ?>
@@ -175,12 +211,22 @@ function mostrarDato($dato)
 
             <?php if (!empty($usuario_info)): ?>
 
-                <h2 class="section-title">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    Información Personal
-                </h2>
+                <!-- SECCIÓN INFORMACIÓN PERSONAL -->
+                <div class="header-section">
+                    <h2 class="section-title">
+                        <div class="title-icon-wrapper">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                        </div>
+                        Información Personal
+                    </h2>
+                    <!-- NOTA DE ACTUALIZACIÓN CORREGIDA PARA MÓVIL -->
+                    <p class="section-desc">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="color: #64748b;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span><strong>Nota:</strong> Recuerda que esta información debe mantenerse siempre actualizada para el correcto funcionamiento del sistema.</span>
+                    </p>
+                </div>
 
                 <div class="info-grid">
                     <div class="info-card">
@@ -245,10 +291,17 @@ function mostrarDato($dato)
                 </div>
 
                 <?php if ($usuario_info['licencia_sst'] === 'si' || !empty($usuario_info['numero_licencia']) || $usuario_rol === 'sst'): ?>
-                    <h2 class="section-title" style="margin-top: 30px;">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                        Certificación SG-SST
-                    </h2>
+                    
+                    <!-- SECCIÓN CERTIFICACIÓN -->
+                    <div class="header-section" style="margin-top: 30px;">
+                        <h2 class="section-title">
+                            <div class="title-icon-wrapper" style="background: rgba(74, 127, 191, 0.12); color: #4a7fbf;">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                            </div>
+                            Certificación SG-SST
+                        </h2>
+                    </div>
+
                     <div class="info-grid">
                         <div class="info-card">
                             <div class="icon-box" style="background: rgba(74, 127, 191, 0.08); color: #4a7fbf;"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
