@@ -77,8 +77,9 @@ if (isset($_SESSION['cpanel_admin_id'])) {
 ?>
 <style>
     .top-header {
-        background: rgba(255, 255, 255, 0.55); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 20px; height: 55px; 
+        background: #ffffff; /* FONDO TOTALMENTE SÓLIDO */
+        border: 1px solid #e2e8f0; /* Borde más definido para combinar con el blanco */
+        border-radius: 20px; height: 55px; 
         padding: 0 24px; margin: 16px 30px; display: flex; justify-content: space-between;
         align-items: center; position: sticky; top: 16px; z-index: 100;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
@@ -102,7 +103,8 @@ if (isset($_SESSION['cpanel_admin_id'])) {
     .plan-badge-pro { background: rgba(255, 138, 31, 0.12); color: var(--primary2); border: 1px solid rgba(255, 138, 31, 0.2); }
     .plan-badge-enterprise { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.2); }
 
-    .icon-btn { background: rgba(255, 255, 255, 0.7); border: 1px solid rgba(0,0,0,0.05); width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted); cursor: pointer; transition: all 0.3s ease; text-decoration: none; position: relative; }
+    /* Ajusté el botón para que combine mejor con el fondo sólido */
+    .icon-btn { background: #f8fafc; border: 1px solid #e2e8f0; width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted); cursor: pointer; transition: all 0.3s ease; text-decoration: none; position: relative; }
     .icon-btn:hover { background: #ffffff; color: var(--primary); border-color: #cbd5e1; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); }
 
     /* ESTILO DEL PUNTICO EN EL HEADER */

@@ -8,6 +8,7 @@ if ($es_super_admin) {
     $rol_display = 'Super Administrador';
     $usuario_rol = 'super_admin';
     $nivel_plan = 3; // Super admin tiene todo activo
+    $foto_perfil_sidebar = '';
 } else {
     $usuario_nombre = $_SESSION['usuario_nombre'] ?? $_SESSION['nombre'] ?? 'Usuario';
     $usuario_rol = $_SESSION['usuario_rol'] ?? $_SESSION['rol'] ?? '';
@@ -26,6 +27,7 @@ if ($es_super_admin) {
 $current_page = basename($_SERVER['PHP_SELF']);
 $unread_count = 0;
 $nivel_plan = 0; // 1 = Básico, 2 = Pro, 3 = Enterprise
+$foto_perfil_sidebar = ''; // Variable para guardar la foto
 
 // LÓGICA INTELIGENTE DE NOTIFICACIONES SEGÚN EL ROL Y PLANES
 if ($es_super_admin) {
@@ -37,28 +39,32 @@ if ($es_super_admin) {
     $stmt_notif->execute([$_SESSION['usuario_id']]);
     $unread_count = $stmt_notif->fetchColumn();
 
-    // Consultar el plan
+    // Consultar el plan y la foto de perfil
     $stmt_plan = $conn->prepare("
-        SELECT p.nombre 
+        SELECT p.nombre, u.foto_perfil 
         FROM usuarios u
-        JOIN solicitudes_empresas se ON u.empresa_id = se.id
+        LEFT JOIN solicitudes_empresas se ON u.empresa_id = se.id
         LEFT JOIN planes p ON se.plan_id = p.id
         WHERE u.id = ?
     ");
     $stmt_plan->execute([$_SESSION['usuario_id']]);
     $plan_data = $stmt_plan->fetch(PDO::FETCH_ASSOC);
 
-    if ($plan_data && !empty($plan_data['nombre'])) {
-        $nombre_plan = strtolower($plan_data['nombre']);
-        if (strpos($nombre_plan, 'enterprise') !== false) {
-            $nivel_plan = 3;
-        } elseif (strpos($nombre_plan, 'pro') !== false) {
-            $nivel_plan = 2;
+    if ($plan_data) {
+        $foto_perfil_sidebar = $plan_data['foto_perfil'] ?? ''; 
+
+        if (!empty($plan_data['nombre'])) {
+            $nombre_plan = strtolower($plan_data['nombre']);
+            if (strpos($nombre_plan, 'enterprise') !== false) {
+                $nivel_plan = 3;
+            } elseif (strpos($nombre_plan, 'pro') !== false) {
+                $nivel_plan = 2;
+            } else {
+                $nivel_plan = 1; 
+            }
         } else {
-            $nivel_plan = 1; 
+            $nivel_plan = 0; 
         }
-    } else {
-        $nivel_plan = 0; 
     }
 }
 
@@ -137,16 +143,17 @@ $nombres_estandares = [
     .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); z-index: 1040; backdrop-filter: blur(3px); opacity: 0; transition: opacity 0.3s ease; }
     .sidebar-overlay.active { display: block; opacity: 1; }
 
-    .sidebar { width: 260px; background: #ffffff; border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100vh; position: fixed; left: 0; top: 0; font-family: 'Inter', sans-serif; z-index: 1050; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 4px 0 15px rgba(0, 0, 0, 0.02); }
+    .sidebar { width: 260px; background: #ffffff; border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100dvh; position: fixed; left: 0; top: 0; font-family: 'Inter', sans-serif; z-index: 1050; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 4px 0 15px rgba(0, 0, 0, 0.02); }
     
     .sidebar-header { height: 68px; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); box-sizing: border-box; }
     .brand { display: flex; align-items: center; flex: 1; min-width: 0; margin-right: 12px; }
     .brand img { max-height: 28px; max-width: 100%; width: auto; object-fit: contain; object-position: left center; display: block; }
     
-    .btn-close-sidebar { display: none; background: #f1f5f9; border: 1px solid #cbd5e1; color: var(--muted); cursor: pointer; padding: 6px; border-radius: 8px; transition: all 0.2s ease; flex-shrink: 0; }
-    .btn-close-sidebar:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+    .btn-close-sidebar { display: none; background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 6px; border-radius: 50%; transition: all 0.3s ease; flex-shrink: 0; }
+    .btn-close-sidebar:hover { background: #fee2e2; color: #dc2626; transform: rotate(90deg); }
+    .btn-close-sidebar svg { width: 24px; height: 24px; }
 
-    .sidebar-nav { padding: 12px 16px; flex: 1; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; overflow-x: hidden; }
+    .sidebar-nav { padding: 12px 16px; flex: 1; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; overflow-x: hidden; padding-bottom: 20px;}
     .sidebar-nav::-webkit-scrollbar { width: 4px; }
     .sidebar-nav::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
@@ -159,37 +166,18 @@ $nombres_estandares = [
     .nav-item > svg { opacity: 0.6; transition: opacity 0.2s, color 0.2s; flex-shrink: 0;}
     .nav-item:hover > svg, .nav-item.active > svg { opacity: 1; color: var(--primary); }
 
-    .nav-item-locked { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; color: #94a3b8; text-decoration: none; font-size: 0.85rem; font-weight: 500; border-radius: 8px; cursor: not-allowed; background: #f8fafc; opacity: 0.7; }
+    .nav-item-locked { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; color: #94a3b8; text-decoration: none; font-size: 0.85rem; font-weight: 500; border-radius: 8px; cursor: not-allowed; background: #f8fafc; opacity: 0.7; margin-bottom: 2px;}
     .nav-item-locked .lock-left { display: flex; align-items: center; gap: 12px; }
+    .nav-item-locked .lock-left svg { width: 18px; height: 18px; opacity: 0.6; }
     .nav-item-locked > svg { opacity: 0.5; }
 
-    /* ==============================================
-       BUSCADOR EN SIDEBAR
-       ============================================== */
-    .sidebar-search-box {
-        position: relative; margin: 4px 0 12px 0;
-    }
-    .sidebar-search-box input {
-        width: 100%; padding: 10px 14px 10px 36px; border: 1px solid #cbd5e1;
-        border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.8rem;
-        background: #f8fafc; color: var(--text); box-sizing: border-box; transition: all 0.2s;
-    }
-    .sidebar-search-box input:focus {
-        outline: none; border-color: var(--primary); background: #ffffff; box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.15);
-    }
-    .sidebar-search-box svg {
-        position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; width: 16px; height: 16px;
-    }
+    .sidebar-search-box { position: relative; margin: 4px 0 12px 0; }
+    .sidebar-search-box input { width: 100%; padding: 10px 14px 10px 36px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.8rem; background: #f8fafc; color: var(--text); box-sizing: border-box; transition: all 0.2s; }
+    .sidebar-search-box input:focus { outline: none; border-color: var(--primary); background: #ffffff; box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.15); }
+    .sidebar-search-box svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; width: 16px; height: 16px; }
 
-    /* ==============================================
-       MENÚ DESPLEGABLE (ACORDEÓN DE ESTÁNDARES)
-       ============================================== */
     .nav-dropdown { display: flex; flex-direction: column; }
-    .nav-dropdown-toggle {
-        display: flex; align-items: center; justify-content: space-between; padding: 10px 14px;
-        color: var(--text); text-decoration: none; font-size: 0.85rem; font-weight: 500; 
-        border-radius: 8px; cursor: pointer; transition: all 0.2s ease; user-select: none;
-    }
+    .nav-dropdown-toggle { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; color: var(--text); text-decoration: none; font-size: 0.85rem; font-weight: 500; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; user-select: none; }
     .nav-dropdown-toggle:hover { background: #f8fafc; color: var(--blue-dark, #1e3a8a); }
     .nav-dropdown-toggle .dropdown-left { display: flex; align-items: center; gap: 12px; }
     .nav-dropdown-toggle .dropdown-left svg { opacity: 0.6; width: 18px; height: 18px; transition: 0.2s; }
@@ -203,15 +191,8 @@ $nombres_estandares = [
     .nav-dropdown-menu { display: none; padding-left: 36px; padding-top: 4px; padding-bottom: 4px; flex-direction: column; gap: 2px; border-left: 2px solid #e2e8f0; margin-left: 22px; margin-bottom: 4px;}
     .nav-dropdown.active .nav-dropdown-menu { display: flex; }
 
-    /* ESTILOS REDISEÑADOS PARA LOS SUB-ITEMS (ESTÁNDARES) */
-    .sub-item {
-        display: flex; align-items: flex-start; /* Cambio para alinear arriba si hay salto de línea */
-        justify-content: space-between; padding: 8px 12px;
-        color: var(--muted); text-decoration: none; font-size: 0.75rem; /* Letra un poco más pequeña */
-        font-weight: 500; border-radius: 6px; transition: all 0.2s; position: relative;
-        line-height: 1.35; gap: 8px;
-    }
-    .sub-item span { flex: 1; } /* Permite que el texto se expanda y rompa línea si es necesario */
+    .sub-item { display: flex; align-items: flex-start; justify-content: space-between; padding: 8px 12px; color: var(--muted); text-decoration: none; font-size: 0.75rem; font-weight: 500; border-radius: 6px; transition: all 0.2s; position: relative; line-height: 1.35; gap: 8px; }
+    .sub-item span { flex: 1; } 
     .sub-item::before { content: ''; position: absolute; left: -14px; top: 12px; width: 10px; height: 2px; background: #e2e8f0; }
     .sub-item:hover { color: var(--primary2); background: #fff8f3; }
     .sub-item.active { color: var(--primary2); background: #fff8f3; font-weight: 700; }
@@ -228,11 +209,11 @@ $nombres_estandares = [
     .dot-indicator { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; margin-left: auto; animation: pulse-dot 2s infinite; }
 
     /* FOOTER Y CUENTA */
-    .sidebar-footer { padding: 16px; border-top: 1px solid rgba(0, 0, 0, 0.04); background: #ffffff; }
+    .sidebar-footer { padding: 16px; padding-bottom: max(16px, env(safe-area-inset-bottom, 20px)); border-top: 1px solid rgba(0, 0, 0, 0.04); background: #ffffff; }
     .user-box { display: flex; flex-direction: column; background: #f8fafc; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; transition: box-shadow 0.2s; gap: 12px; }
     .user-box:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04); }
     .user-mini { display: flex; align-items: center; gap: 10px; overflow: hidden; }
-    .avatar-mini { width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; flex-shrink: 0; box-shadow: 0 2px 6px rgba(255, 138, 31, 0.3); }
+    .avatar-mini { padding: 0; overflow: hidden; width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; flex-shrink: 0; box-shadow: 0 2px 6px rgba(255, 138, 31, 0.3); }
     .avatar-admin { background: linear-gradient(135deg, #1e293b, #0f172a); box-shadow: 0 2px 6px rgba(30, 41, 59, 0.3); }
     .user-details { display: flex; flex-direction: column; }
     .user-details .name { font-size: 0.8rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
@@ -253,7 +234,6 @@ $nombres_estandares = [
     .action-btn.exit-btn:hover { background: #fee2e2; color: #dc2626; }
     .action-btn.exit-btn:hover svg { color: #dc2626; }
 
-    /* MÓVIL RESPONSIVE */
     @media (max-width: 768px) {
         .sidebar { transform: translateX(-100%); }
         .sidebar.active { transform: translateX(0); }
@@ -267,10 +247,10 @@ $nombres_estandares = [
 <aside class="sidebar" id="mainSidebar">
     <div class="sidebar-header">
         <div class="brand">
-            <img src="assets/logo_prevenwork.jpeg" alt="PrevenWork">
+            <img src="assets/logo_preventwork.jpeg" alt="PrevenWork">
         </div>
         <button class="btn-close-sidebar" id="btnCloseSidebar" title="Cerrar Menú">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
         </button>
@@ -279,7 +259,6 @@ $nombres_estandares = [
     <nav class="sidebar-nav">
 
         <?php if ($es_super_admin): ?>
-            <!-- VISTA SUPER ADMIN -->
             <div class="nav-section">Super Administrador</div>
             <a href="index.php" class="nav-item <?php echo $current_page == 'index.php' ? 'active' : ''; ?>">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg> Dashboard
@@ -295,7 +274,6 @@ $nombres_estandares = [
             </a>
 
         <?php else: ?>
-            <!-- VISTA EMPRESAS (REPRESENTANTE / SST) -->
             <div class="nav-section">Principal</div>
             <a href="dashboard.php" class="nav-item <?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg> Dashboard
@@ -308,18 +286,13 @@ $nombres_estandares = [
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg> Personal
                 </a>
 
-                <!-- ==========================================
-                     NUEVO: ACORDEONES DE ESTÁNDARES INTELIGENTES
-                     ========================================== -->
                 <div class="nav-section" style="margin-top: 20px;">Estándares SG-SST</div>
                 
-                <!-- Buscador Híbrido (Busca por número o por nombre) -->
                 <div class="sidebar-search-box">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                     <input type="text" id="searchInputSidebar" placeholder="Buscar estándar (Ej. 15)">
                 </div>
 
-                <!-- 1. ESTÁNDARES PEM (1 al 7) -->
                 <div class="nav-dropdown" id="dropdownPEM">
                     <div class="nav-dropdown-toggle">
                         <div class="dropdown-left">
@@ -330,7 +303,6 @@ $nombres_estandares = [
                     </div>
                     <div class="nav-dropdown-menu">
                         <?php for($i = 1; $i <= 7; $i++): ?>
-                            <!-- Data-search permite buscar por número (ej. "3") o nombre (ej. "capacitacion") -->
                             <a href="estandar<?php echo $i; ?>.php" class="sub-item std-item <?php echo $current_page == 'estandar'.$i.'.php' ? 'active' : ''; ?>" data-search="<?php echo $i . ' ' . strtolower(htmlspecialchars($nombres_estandares[$i])); ?>">
                                 <span><?php echo htmlspecialchars($nombres_estandares[$i]); ?></span>
                             </a>
@@ -338,56 +310,59 @@ $nombres_estandares = [
                     </div>
                 </div>
 
-                <!-- 2. ESTÁNDARES MEM (8 al 21) -->
-                <div class="nav-dropdown" id="dropdownMEM">
-                    <div class="nav-dropdown-toggle">
-                        <div class="dropdown-left">
+                <?php if ($nivel_plan >= 2): ?>
+                    <div class="nav-dropdown" id="dropdownMEM">
+                        <div class="nav-dropdown-toggle">
+                            <div class="dropdown-left">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                                Estándares MEM
+                            </div>
+                            <svg class="chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                        <div class="nav-dropdown-menu">
+                            <?php for($i = 8; $i <= 21; $i++): ?>
+                                <a href="estandar<?php echo $i; ?>.php" class="sub-item std-item <?php echo $current_page == 'estandar'.$i.'.php' ? 'active' : ''; ?>" data-search="<?php echo $i . ' ' . strtolower(htmlspecialchars($nombres_estandares[$i])); ?>">
+                                    <span><?php echo htmlspecialchars($nombres_estandares[$i]); ?></span>
+                                </a>
+                            <?php endfor; ?>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <a href="javascript:void(0)" onclick="alert('La categoría de Estándares MEM requiere el Plan Pro o Enterprise.')" class="nav-item-locked">
+                        <div class="lock-left">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                             Estándares MEM
                         </div>
-                        <svg class="chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                    <div class="nav-dropdown-menu">
-                        <?php for($i = 8; $i <= 21; $i++): ?>
-                            <?php if ($nivel_plan >= 2): // Requiere Pro (2) o Superior ?>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    </a>
+                <?php endif; ?>
+
+                <?php if ($nivel_plan >= 3): ?>
+                    <div class="nav-dropdown" id="dropdownGEM">
+                        <div class="nav-dropdown-toggle">
+                            <div class="dropdown-left">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                                Estándares GEM
+                            </div>
+                            <svg class="chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                        <div class="nav-dropdown-menu">
+                            <?php for($i = 22; $i <= 60; $i++): ?>
                                 <a href="estandar<?php echo $i; ?>.php" class="sub-item std-item <?php echo $current_page == 'estandar'.$i.'.php' ? 'active' : ''; ?>" data-search="<?php echo $i . ' ' . strtolower(htmlspecialchars($nombres_estandares[$i])); ?>">
                                     <span><?php echo htmlspecialchars($nombres_estandares[$i]); ?></span>
                                 </a>
-                            <?php else: ?>
-                                <a href="javascript:void(0)" onclick="alert('El Estándar <?php echo $i; ?> requiere Plan Pro o Enterprise.')" class="sub-item std-item locked" data-search="<?php echo $i . ' ' . strtolower(htmlspecialchars($nombres_estandares[$i])); ?>">
-                                    <span><?php echo htmlspecialchars($nombres_estandares[$i]); ?></span>
-                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                                </a>
-                            <?php endif; ?>
-                        <?php endfor; ?>
+                            <?php endfor; ?>
+                        </div>
                     </div>
-                </div>
-
-                <!-- 3. ESTÁNDARES GEM (22 al 60) -->
-                <div class="nav-dropdown" id="dropdownGEM">
-                    <div class="nav-dropdown-toggle">
-                        <div class="dropdown-left">
+                <?php else: ?>
+                    <a href="javascript:void(0)" onclick="alert('La categoría de Estándares GEM requiere el Plan Enterprise.')" class="nav-item-locked">
+                        <div class="lock-left">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                             Estándares GEM
                         </div>
-                        <svg class="chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                    <div class="nav-dropdown-menu">
-                        <?php for($i = 22; $i <= 60; $i++): ?>
-                            <?php if ($nivel_plan >= 3): // Requiere Enterprise (3) ?>
-                                <a href="estandar<?php echo $i; ?>.php" class="sub-item std-item <?php echo $current_page == 'estandar'.$i.'.php' ? 'active' : ''; ?>" data-search="<?php echo $i . ' ' . strtolower(htmlspecialchars($nombres_estandares[$i])); ?>">
-                                    <span><?php echo htmlspecialchars($nombres_estandares[$i]); ?></span>
-                                </a>
-                            <?php else: ?>
-                                <a href="javascript:void(0)" onclick="alert('El Estándar <?php echo $i; ?> requiere Plan Enterprise.')" class="sub-item std-item locked" data-search="<?php echo $i . ' ' . strtolower(htmlspecialchars($nombres_estandares[$i])); ?>">
-                                    <span><?php echo htmlspecialchars($nombres_estandares[$i]); ?></span>
-                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                                </a>
-                            <?php endif; ?>
-                        <?php endfor; ?>
-                    </div>
-                </div>
-                <!-- ========================================== -->
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    </a>
+                <?php endif; ?>
 
                 <div class="nav-section" style="margin-top: 20px;">Herramientas</div>
                 <?php if ($nivel_plan >= 2): ?>
@@ -396,38 +371,33 @@ $nombres_estandares = [
                     </a>
                 <?php else: ?>
                     <a href="javascript:void(0)" onclick="alert('Requiere Plan Pro o Enterprise.')" class="nav-item-locked">
-                        <div class="lock-left"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> Generar Reportes</div>
+                        <div class="lock-left">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> Generar Reportes
+                        </div>
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                     </a>
                 <?php endif; ?>
             <?php endif; ?>
 
             <?php if ($usuario_rol === 'trabajador'): ?>
-                <!-- VISTA TRABAJADOR -->
-                <div class="nav-section">Mis Tareas</div>
+                <div class="nav-section" style="margin-top: 20px;">Mis Tareas</div>
                 <a href="mis_encuestas.php" class="nav-item <?php echo $current_page == 'mis_encuestas.php' ? 'active' : ''; ?>">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Mis Encuestas
                 </a>
             <?php endif; ?>
         <?php endif; ?>
 
-        <div style="margin-top: auto;"></div>
-
-        <div class="nav-section">Cuenta</div>
-        <a href="notificaciones.php" class="nav-item <?php echo ($current_page == 'notificaciones.php') ? 'active' : ''; ?>">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
-            Notificaciones
-            <?php if ($unread_count > 0): ?>
-                <span class="dot-indicator"></span>
-            <?php endif; ?>
-        </a>
     </nav>
 
     <div class="sidebar-footer">
         <div class="user-box">
             <div class="user-mini">
                 <div class="avatar-mini <?php echo $es_super_admin ? 'avatar-admin' : ''; ?>">
-                    <?php echo strtoupper(substr($usuario_nombre, 0, 1)); ?>
+                    <?php if (!$es_super_admin && !empty($foto_perfil_sidebar) && file_exists($foto_perfil_sidebar)): ?>
+                        <img src="<?php echo htmlspecialchars($foto_perfil_sidebar); ?>?v=<?php echo time(); ?>" alt="Foto" style="width: 100%; height: 100%; object-fit: cover;">
+                    <?php else: ?>
+                        <?php echo strtoupper(substr($usuario_nombre, 0, 1)); ?>
+                    <?php endif; ?>
                 </div>
                 <div class="user-details">
                     <span class="name"><?php echo htmlspecialchars($usuario_nombre); ?></span>
@@ -437,6 +407,16 @@ $nombres_estandares = [
             <div class="user-box-divider"></div>
             <div class="user-actions">
                 
+                <a href="notificaciones.php" class="action-btn <?php echo ($current_page == 'notificaciones.php') ? 'active' : ''; ?>">
+                    <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                        Notificaciones
+                    </div>
+                    <?php if ($unread_count > 0): ?>
+                        <span class="dot-indicator" style="margin-left: auto;"></span>
+                    <?php endif; ?>
+                </a>
+
                 <a href="configuracion.php" class="action-btn <?php echo ($current_page == 'configuracion.php') ? 'active' : ''; ?>">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     Configuración
@@ -475,7 +455,6 @@ $nombres_estandares = [
                 let hasVisibleItem = false;
 
                 items.forEach(item => {
-                    // Busca utilizando el data-search oculto que incluye el número y el nombre
                     let searchData = item.getAttribute('data-search') || '';
                     if (searchData.includes(filter)) {
                         item.style.display = 'flex';
@@ -485,7 +464,6 @@ $nombres_estandares = [
                     }
                 });
 
-                // Si hay texto escrito y encontró algo, abre el menú. Si no hay nada, lo esconde.
                 if (filter !== '') {
                     if (hasVisibleItem) {
                         dropdown.style.display = 'flex';
@@ -495,10 +473,8 @@ $nombres_estandares = [
                         dropdown.classList.remove('active');
                     }
                 } else {
-                    // Si el buscador se limpia, restaurar el estado original de la barra
                     dropdown.style.display = 'flex';
                     item.style.display = 'flex';
-                    // Mantener abierto solo si hay un item activo (el que el usuario está visitando)
                     if (!dropdown.querySelector('.std-item.active')) {
                         dropdown.classList.remove('active');
                     }
@@ -514,7 +490,6 @@ $nombres_estandares = [
             const parentDropdown = activeSubItem.closest('.nav-dropdown');
             if (parentDropdown) {
                 parentDropdown.classList.add('active');
-                // Pequeño timeout para asegurar que el navegador renderizó la UI antes del scroll
                 setTimeout(() => {
                     activeSubItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 150);
@@ -533,7 +508,6 @@ $nombres_estandares = [
                 'Sí, salir'
             );
         } else {
-            // Backup por si falla la carga del modal
             if (confirm('¿Estás seguro de que deseas salir de tu cuenta?')) {
                 window.location.href = 'logout.php';
             }
