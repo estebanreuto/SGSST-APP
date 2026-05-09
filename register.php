@@ -4,7 +4,28 @@ require_once "config/db.php";
 $registro_pendiente = false; 
 $error_msg = ""; 
 
-// No necesitamos cargar todas las empresas aquí porque ahora lo haremos en tiempo real con AJAX.
+// ================================================================
+// TRAER LOS PLANES Y SUS CARACTERÍSTICAS PARA LA VISTA PREVIA
+// ================================================================
+$stmt_planes = $conn->query("SELECT * FROM planes ORDER BY precio_normal ASC");
+$planes_db = $stmt_planes->fetchAll(PDO::FETCH_ASSOC);
+
+$planes_info = [];
+foreach ($planes_db as $plan) {
+    $stmt_feat = $conn->prepare("SELECT * FROM plan_caracteristicas WHERE plan_id = ? ORDER BY id ASC");
+    $stmt_feat->execute([$plan['id']]);
+    $features_db = $stmt_feat->fetchAll(PDO::FETCH_ASSOC);
+    
+    $features = [];
+    foreach ($features_db as $f) {
+        $features[] = [
+            'texto' => $f['texto'],
+            'incluido' => (bool)$f['incluido']
+        ];
+    }
+    $plan['features'] = $features;
+    $planes_info[] = $plan;
+}
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
@@ -13,24 +34,34 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     } else {
         $rol = $_POST["rol"] ?? '';
         $empresa_nit = trim($_POST["empresa_nit"] ?? '');
+        $plan_id = $_POST["plan_id"] ?? null;
 
         // =========================
         // LÓGICA PARA REPRESENTANTE
         // =========================
         if ($rol === 'representante') {
-            $sql = "INSERT INTO solicitudes_empresas (
-                nombre, apellido, cedula, email, telefono,
-                direccion, ciudad, barrio, localidad, firma
-            ) VALUES (?,?,?,?,?,?,?,?,?,?)";
+            if (empty($plan_id)) {
+                $error_msg = "Debe seleccionar un plan de suscripción para registrar su empresa.";
+            } else {
+                $sql = "INSERT INTO solicitudes_empresas (
+                    nombre, apellido, cedula, email, telefono,
+                    direccion, ciudad, barrio, localidad, firma, plan_id, estado
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,'pendiente')";
 
-            $stmt = $conn->prepare($sql);
-            $stmt->execute([
-                $_POST["nombre"], $_POST["apellido"], $_POST["cedula"], $_POST["email"],
-                $_POST["telefono"], $_POST["direccion"] ?? null, $_POST["ciudad"] ?? null,
-                $_POST["barrio"] ?? null, $_POST["localidad"] ?? null, $_POST["firmaDigital"]
-            ]);
+                $stmt = $conn->prepare($sql);
+                $stmt->execute([
+                    $_POST["nombre"], $_POST["apellido"], $_POST["cedula"], $_POST["email"],
+                    $_POST["telefono"], $_POST["direccion"] ?? null, $_POST["ciudad"] ?? null,
+                    $_POST["barrio"] ?? null, $_POST["localidad"] ?? null, $_POST["firmaDigital"], $plan_id
+                ]);
 
-            $registro_pendiente = true;
+                // Capturamos el ID de la solicitud recién creada
+                $solicitud_id = $conn->lastInsertId();
+
+                // MAGIA: Enviar directamente a la pasarela de pagos
+                header("Location: checkout_wompi.php?id=" . $solicitud_id);
+                exit;
+            }
         } 
         // =========================
         // LÓGICA PARA SST Y TRABAJADOR
@@ -39,7 +70,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             if (empty($empresa_nit)) {
                 $error_msg = "Debes ingresar el NIT de la empresa a la que perteneces.";
             } else {
-                // 1. BUSCAR LA EMPRESA POR SU NIT (cedula)
                 $stmt_buscar = $conn->prepare("SELECT id FROM solicitudes_empresas WHERE cedula = ? AND estado = 'aprobada'");
                 $stmt_buscar->execute([$empresa_nit]);
                 $empresa_data = $stmt_buscar->fetch(PDO::FETCH_ASSOC);
@@ -49,7 +79,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 } else {
                     $empresa_id = $empresa_data['id'];
 
-                    // 2. TRAER DATOS DEL PLAN DE LA EMPRESA
                     $stmt_plan = $conn->prepare("
                         SELECT se.estado, se.trabajadores_extra, p.trabajadores as limite_base 
                         FROM solicitudes_empresas se 
@@ -63,7 +92,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         $error_msg = "La empresa vinculada a este NIT no tiene una suscripción activa.";
                     } else {
                         
-                        // REGLA 1: Solo 1 Responsable SST
                         if ($rol === 'sst') {
                             $stmt_check_sst = $conn->prepare("SELECT COUNT(*) FROM usuarios WHERE empresa_id = ? AND rol = 'sst'");
                             $stmt_check_sst->execute([$empresa_id]);
@@ -72,7 +100,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             }
                         }
 
-                        // REGLA 2: Límite de Trabajadores
                         if ($rol === 'trabajador' && empty($error_msg)) {
                             $limite_base = $plan_empresa['limite_base'] ?? 0;
                             $extras = $plan_empresa['trabajadores_extra'] ?? 0;
@@ -89,7 +116,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             }
                         }
 
-                        // SI PASÓ TODAS LAS VALIDACIONES, SE GUARDA EL USUARIO
                         if (empty($error_msg)) {
                             $sql = "INSERT INTO usuarios (
                                 empresa_id, nombre, apellido, cedula, email, telefono, rol,
@@ -108,7 +134,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                             $usuario_id = $conn->lastInsertId();
 
-                            // INSERT ENCUESTA
                             if ($rol === "trabajador") {
                                 $sql2 = "INSERT INTO encuesta_sociodemografica (
                                     usuario_id, edad, estado_civil, genero, personas_cargo,
@@ -147,6 +172,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro | SG-SST Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
     <style>
         :root {
@@ -217,6 +243,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         input:focus ~ .icon, select:focus ~ .icon { opacity: .75; color: var(--primary); }
 
         .input-nit { border-color: var(--primary); background: #fffaf5; font-weight: 600; }
+        .input-plan { border-color: var(--blue-main); background: #f8fafc; font-weight: 600; color: var(--blue-dark); cursor: pointer;}
 
         .section { margin-top: 24px; border: 1px solid var(--card-border); background: rgba(255, 255, 255, 0.6); border-radius: 16px; padding: 24px; }
         .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;}
@@ -255,8 +282,51 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(255, 138, 31, .35); }
 
         /* =========================================
-           MEDIA QUERIES - MAGIA RESPONSIVE (MÓVILES)
+           VISTA PREVIA DEL PLAN - DISEÑO PREMIUM
            ========================================= */
+        .plan-preview-box {
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            border: 2px solid var(--primary);
+            border-radius: 14px;
+            padding: 20px;
+            margin-top: 16px;
+            box-shadow: 0 10px 25px rgba(255, 138, 31, 0.12);
+            position: relative;
+            overflow: hidden;
+            animation: popInPlan 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        /* Línea decorativa superior */
+        .plan-preview-box::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--primary2));
+        }
+
+        @keyframes popInPlan {
+            from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .preview-header {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            border-bottom: 1px dashed #cbd5e1; padding-bottom: 14px; margin-bottom: 14px;
+        }
+
+        .preview-title-wrapper { display: flex; flex-direction: column; gap: 4px; }
+        .preview-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary); font-weight: 800; }
+        .preview-title { margin: 0; font-size: 1.2rem; color: var(--blue-dark); font-weight: 800; }
+
+        .preview-price-wrapper { display: flex; flex-direction: column; align-items: flex-end; }
+        .preview-price-old { font-size: 0.8rem; color: #94a3b8; text-decoration: line-through; line-height: 1; margin-bottom: 2px;}
+        .preview-price { font-size: 1.6rem; font-weight: 800; color: var(--text-main); margin: 0; line-height: 1; }
+        .preview-price span { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+
+        .preview-features { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; color: #334155; font-weight: 500;}
+        .preview-features li { display: flex; align-items: flex-start; gap: 8px; }
+        .preview-features li i.fa-check { color: #10b981; margin-top: 3px; font-size: 0.9rem;}
+        .preview-features li.disabled { color: #94a3b8; text-decoration: line-through; }
+        .preview-features li.disabled i.fa-xmark { color: #cbd5e1; margin-top: 3px; font-size: 0.9rem;}
+
         @media(max-width: 992px) { 
             .wrapper { flex-direction: column; height: auto; overflow: visible; }
             .brand { flex: none; height: auto; padding: 40px 24px 20px; text-align: center; position: relative; }
@@ -265,7 +335,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             .form-area { padding: 16px; height: auto; overflow: visible; }
             .card { padding: 24px 16px; border-radius: 16px; }
             
-            /* Ajuste estrella: Reducir padding lateral en móviles para que los inputs se vean del mismo tamaño */
             .section { padding: 20px 10px; margin-top: 20px; border-radius: 12px; }
             .legal { padding: 16px 10px; margin-top: 20px; border-radius: 12px; }
             
@@ -301,7 +370,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     </div>
                     <h2 class="success-title">¡Solicitud en Revisión!</h2>
                     <p class="success-message">
-                        Hemos recibido tus datos correctamente. El equipo de <b>Vertix</b> se comunicará contigo muy pronto para validar la información de tu empresa y activar tu cuenta en la plataforma.
+                        Hemos recibido tus datos correctamente. El equipo de <b>Prevención</b> se comunicará contigo muy pronto para validar la información de tu empresa y activar tu cuenta y plan en la plataforma.
                     </p>
                     <a href="login.php" class="btn-return">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
@@ -348,6 +417,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 </div>
                             </div>
 
+                            <div class="field full-width hidden" id="seccion_planes">
+                                <label style="color: var(--blue-main);">Plan de Suscripción Seleccionado</label>
+                                <div class="control">
+                                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line>
+                                    </svg>
+                                    <select name="plan_id" id="plan_id" class="input-plan" onchange="actualizarVistaPlan()">
+                                        <option value="">Seleccione el plan que desea adquirir...</option>
+                                        <?php foreach($planes_info as $p): ?>
+                                            <option value="<?php echo $p['id']; ?>" 
+                                                <?php if(isset($_GET['plan']) && $_GET['plan'] == $p['id']) echo 'selected'; ?>>
+                                                <?php echo htmlspecialchars($p['nombre']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                
+                                <div id="plan_preview" class="hidden"></div>
+                            </div>
+
                             <div class="field full-width hidden" id="empresa_section">
                                 <label style="color: var(--primary);">NIT o Cédula de la Empresa a la que pertenece</label>
                                 <div class="control">
@@ -377,7 +466,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             </div>
 
                             <div class="field">
-                                <label>Cédula</label>
+                                <label>Cédula o NIT</label>
                                 <div class="control">
                                     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 8h10M7 12h10M7 16h6" /></svg>
                                     <input name="cedula" value="<?php echo htmlspecialchars($_POST['cedula'] ?? ''); ?>" required>
@@ -784,7 +873,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 </a>
                                 <div class="actions">
                                     <button type="button" class="btn-danger" onclick="limpiar()">Limpiar</button>
-                                    <button type="submit" class="btn-primary" onclick="guardarFirma()" id="btnSubmit">Registrar</button>
+                                    <button type="submit" class="btn-primary" onclick="guardarFirma()" id="btnSubmit">Continuar al Pago <i class="fa-solid fa-arrow-right"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -800,8 +889,138 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <?php if (!$registro_pendiente): ?>
     <script>
         // ========================================================
-        // MAGIA DE BÚSQUEDA AJAX (EN TIEMPO REAL)
+        // 1. SISTEMA DE AUTOGUARDADO (LOCAL STORAGE)
         // ========================================================
+        function saveFormData() {
+            const formData = {};
+            // Seleccionamos inputs de texto, email, number y selects. Omitimos archivos y ocultos.
+            const inputs = document.querySelectorAll('#mainForm input:not([type="hidden"]):not([type="file"]), #mainForm select');
+            
+            inputs.forEach(input => {
+                if (input.name) {
+                    formData[input.name] = input.value;
+                }
+            });
+            localStorage.setItem('sgst_registro_form', JSON.stringify(formData));
+        }
+
+        function loadFormData() {
+            const saved = localStorage.getItem('sgst_registro_form');
+            if (saved) {
+                const formData = JSON.parse(saved);
+                const inputs = document.querySelectorAll('#mainForm input:not([type="hidden"]):not([type="file"]), #mainForm select');
+                
+                // Saber si en la URL viene el plan, porque la URL manda sobre el localStorage
+                const urlParams = new URLSearchParams(window.location.search);
+                const isPlanInUrl = urlParams.has('plan');
+
+                inputs.forEach(input => {
+                    if (input.name) {
+                        // Si la URL trae un plan, no sobreescribimos 'rol' ni 'plan_id' con lo viejo de localStorage
+                        if (isPlanInUrl && (input.name === 'rol' || input.name === 'plan_id')) {
+                            return; 
+                        }
+                        
+                        if (formData[input.name] !== undefined) {
+                            input.value = formData[input.name];
+                        }
+                    }
+                });
+            }
+        }
+
+        // Detectar cualquier cambio en el formulario para autoguardar
+        document.getElementById('mainForm').addEventListener('input', saveFormData);
+        document.getElementById('mainForm').addEventListener('change', saveFormData);
+
+
+        // ========================================================
+        // 2. MAGIA DE LA URL Y VISTA PREVIA DEL PLAN
+        // ========================================================
+        const planesData = <?php echo json_encode($planes_info); ?>;
+        
+        function actualizarVistaPlan() {
+            const planSelect = document.getElementById('plan_id');
+            const previewBox = document.getElementById('plan_preview');
+            const planId = planSelect.value;
+            
+            // ACTUALIZAR LA URL DINÁMICAMENTE SIN RECARGAR LA PÁGINA
+            const url = new URL(window.location);
+            if (planId) {
+                url.searchParams.set('plan', planId);
+            } else {
+                url.searchParams.delete('plan');
+            }
+            window.history.replaceState({}, '', url);
+            // ----------------------------------------------------
+
+            if (!planId) {
+                previewBox.classList.add('hidden');
+                return;
+            }
+
+            const plan = planesData.find(p => p.id == planId);
+            if (!plan) return;
+
+            let hasDiscount = plan.precio_descuento > 0 && plan.precio_descuento < plan.precio_normal;
+            let finalPrice = hasDiscount ? plan.precio_descuento : plan.precio_normal;
+            
+            let formatPrice = new Intl.NumberFormat('es-CO').format(finalPrice);
+            let formatOldPrice = new Intl.NumberFormat('es-CO').format(plan.precio_normal);
+
+            let featuresHtml = '';
+            
+            let textoTrabajadores = plan.trabajadores == 999 ? 'Trabajadores Ilimitados' : 'Hasta ' + plan.trabajadores + ' Trabajadores';
+            featuresHtml += `<li><i class="fa-solid fa-check"></i> <span>${textoTrabajadores}</span></li>`;
+            
+            plan.features.forEach(f => {
+                if(f.incluido) {
+                    featuresHtml += `<li><i class="fa-solid fa-check"></i> <span>${f.texto}</span></li>`;
+                } else {
+                    featuresHtml += `<li class="disabled"><i class="fa-solid fa-xmark"></i> <span>${f.texto}</span></li>`;
+                }
+            });
+
+            // NUEVO DISEÑO PREMIUM PARA EL RECIBO DE PLAN
+            previewBox.innerHTML = `
+                <div class="plan-preview-box">
+                    <div class="preview-header">
+                        <div class="preview-title-wrapper">
+                            <span class="preview-label">Plan Seleccionado</span>
+                            <h4 class="preview-title">${plan.nombre}</h4>
+                        </div>
+                        <div class="preview-price-wrapper">
+                            ${hasDiscount ? `<span class="preview-price-old">$${formatOldPrice}</span>` : ''}
+                            <h2 class="preview-price">$${formatPrice}<span>/mes</span></h2>
+                        </div>
+                    </div>
+                    <ul class="preview-features">
+                        ${featuresHtml}
+                    </ul>
+                </div>
+            `;
+            
+            previewBox.classList.remove('hidden');
+        }
+
+        // ========================================================
+        // 3. INICIALIZACIÓN (ON LOAD)
+        // ========================================================
+        window.onload = function() {
+            // 1. Restaurar datos del autoguardado (Local Storage)
+            loadFormData();
+
+            // 2. Revisar si la URL trajo un plan pre-seleccionado
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('plan')) {
+                document.getElementById('rol').value = 'representante';
+                document.getElementById('plan_id').value = urlParams.get('plan');
+            }
+            
+            // 3. Mostrar y adaptar el formulario a lo que se eligió
+            mostrar(); 
+        };
+
         let debounceTimer;
         const nitInput = document.getElementById('empresa_nit');
         const feedback = document.getElementById('nit_feedback');
@@ -844,27 +1063,39 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             });
         }
 
-        // ========================================================
-
-        window.onload = function() {
-            mostrar();
-        };
-
         function mostrar() {
             const rol = document.getElementById("rol").value;
 
             document.getElementById("sst").classList.add("hidden");
             document.getElementById("trabajador").classList.add("hidden");
             document.getElementById("empresa_section").classList.add("hidden");
+            document.getElementById("seccion_planes").classList.add("hidden");
             
             const selectsTrabajador = document.querySelectorAll('#trabajador select');
             const inputEmpresa = document.getElementById('empresa_nit');
+            const inputPlan = document.getElementById('plan_id');
             
             if (rol === "sst" || rol === "trabajador") {
                 document.getElementById("empresa_section").classList.remove("hidden");
                 inputEmpresa.setAttribute('required', 'required');
+                inputPlan.removeAttribute('required');
+                btnSubmit.innerHTML = 'Registrar Cuenta <i class="fa-solid fa-arrow-right"></i>';
+            } else if (rol === "representante") {
+                document.getElementById("seccion_planes").classList.remove("hidden");
+                inputPlan.setAttribute('required', 'required');
+                inputEmpresa.removeAttribute('required');
+                
+                // Actualizar la vista previa y la URL
+                actualizarVistaPlan();
+                
+                btnSubmit.innerHTML = 'Continuar al Pago <i class="fa-solid fa-arrow-right"></i>';
+                
+                if(feedback) feedback.innerHTML = ''; 
+                if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.style.opacity = '1'; }
             } else {
                 inputEmpresa.removeAttribute('required');
+                inputPlan.removeAttribute('required');
+                btnSubmit.innerHTML = 'Registrar';
                 if(feedback) feedback.innerHTML = ''; 
                 if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.style.opacity = '1'; }
             }
@@ -879,7 +1110,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 selectsTrabajador.forEach(s => s.removeAttribute('required'));
             }
             
-            // Reajustar el canvas al cambiar de secciones por si cambia el ancho
             setTimeout(resizeCanvas, 100);
         }
 
@@ -891,16 +1121,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         function resizeCanvas() {
             if(!canvas || !canvasContainer) return;
-            // Toma el ancho real del contenedor para evitar que se aplaste o estire
             const rect = canvasContainer.getBoundingClientRect();
             canvas.width = rect.width;
-            canvas.height = 150; // Altura fija
+            canvas.height = 150;
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
         
         window.addEventListener("resize", resizeCanvas);
-        setTimeout(resizeCanvas, 100);
 
         function getPos(e) {
             const rect = canvas.getBoundingClientRect();
@@ -910,54 +1138,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             return { x: e.clientX - rect.left, y: e.clientY - rect.top };
         }
 
-        function start(e) {
-            e.preventDefault();
-            draw = true;
-            const p = getPos(e);
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-        }
-        function move(e) {
-            if (!draw) return;
-            e.preventDefault();
-            const p = getPos(e);
-            ctx.lineWidth = 2;
-            ctx.lineCap = "round";
-            ctx.strokeStyle = "#111";
-            ctx.lineTo(p.x, p.y);
-            ctx.stroke();
-        }
-        function end(e) {
-            if (e) e.preventDefault();
-            draw = false;
-        }
+        function start(e) { e.preventDefault(); draw = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
+        function move(e) { if (!draw) return; e.preventDefault(); const p = getPos(e); ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.strokeStyle = "#111"; ctx.lineTo(p.x, p.y); ctx.stroke(); }
+        function end(e) { if (e) e.preventDefault(); draw = false; }
 
         if(canvas) {
-            canvas.addEventListener("mousedown", start);
-            canvas.addEventListener("mousemove", move);
-            canvas.addEventListener("mouseup", end);
-            canvas.addEventListener("mouseleave", end);
-            canvas.addEventListener("touchstart", start, { passive: false });
-            canvas.addEventListener("touchmove", move, { passive: false });
-            canvas.addEventListener("touchend", end, { passive: false });
-            canvas.addEventListener("touchcancel", end, { passive: false });
+            canvas.addEventListener("mousedown", start); canvas.addEventListener("mousemove", move); canvas.addEventListener("mouseup", end); canvas.addEventListener("mouseleave", end);
+            canvas.addEventListener("touchstart", start, { passive: false }); canvas.addEventListener("touchmove", move, { passive: false }); canvas.addEventListener("touchend", end, { passive: false }); canvas.addEventListener("touchcancel", end, { passive: false });
         }
 
-        function limpiar() { 
-            if(!ctx) return;
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(0, 0, canvas.width, canvas.height); 
-        }
+        function limpiar() { if(!ctx) return; ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); }
 
         function guardarFirma() {
-            if(canvas) {
-                document.getElementById("firmaDigital").value = canvas.toDataURL("image/png");
-            }
+            if(canvas) { document.getElementById("firmaDigital").value = canvas.toDataURL("image/png"); }
         }
 
-        function beforeSubmit() {
-            guardarFirma();
-            return true;
+        function beforeSubmit() { 
+            guardarFirma(); 
+            // Limpiamos el localStorage al enviar para que el próximo registro esté limpio
+            localStorage.removeItem('sgst_registro_form');
+            return true; 
         }
     </script>
     <?php endif; ?>

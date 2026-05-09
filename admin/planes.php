@@ -73,85 +73,164 @@ foreach ($suscripciones_db as $s) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Planes y Suscripciones | SG-SST Pro</title>
+    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        :root { --primary: #ff8a1f; --primary2: #ff7a00; --bg1: #edf4fb; --bg2: #f7f9fc; --card: #ffffff; --text: #1f2d3d; --muted: #5f6f82; --border: #dbe3ec; --radius: 12px; }
-        body { font-family: 'Inter', sans-serif; background: linear-gradient(180deg, var(--bg1), var(--bg2)); margin: 0; padding: 0; min-height: 100vh; color: var(--text); display: flex; font-size: 0.85rem; }
+        :root { 
+            --primary: #ff8a1f; --primary2: #ff7a00; 
+            --bg1: #edf4fb; --bg2: #f7f9fc; 
+            --card: #ffffff; --text: #1f2d3d; 
+            --muted: #5f6f82; --border: #dbe3ec; 
+            --radius: 12px; --blue-dark: #1e3a8a;
+        }
+        
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(180deg, var(--bg1), var(--bg2)); margin: 0; padding: 0; min-height: 100vh; color: var(--text); display: flex; font-size: 0.85rem; overflow-x: hidden; }
         .main-wrapper { margin-left: 260px; width: calc(100% - 260px); display: flex; flex-direction: column; min-height: 100vh; transition: all 0.3s ease; }
-        .content-area { padding: 32px 40px; flex: 1; max-width: 1400px; margin: 0 auto; width: 100%; box-sizing: border-box; }
-        .header-actions { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-        .welcome-title { margin: 0 0 6px 0; font-size: 1.25rem; color: var(--text); letter-spacing: -0.01em; font-weight: 800; }
-        .welcome-text { color: var(--muted); margin: 0; font-size: 0.85rem; }
+        .content-area { padding: 24px 32px; flex: 1; max-width: 1400px; margin: 0 auto; width: 100%; box-sizing: border-box; }
         
-        .plans-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 40px; align-items: center; }
-        .plan-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 32px 24px; display: flex; flex-direction: column; box-shadow: 0 4px 15px rgba(0,0,0,0.02); transition: transform 0.3s ease, box-shadow 0.3s ease; position: relative; }
-        .plan-card:hover { transform: translateY(-5px); box-shadow: 0 12px 25px rgba(0,0,0,0.06); }
-        .plan-card.popular { border: 2px solid var(--primary); box-shadow: 0 12px 30px rgba(255, 138, 31, 0.12); transform: scale(1.03); z-index: 1; }
-        .plan-card.popular:hover { transform: scale(1.03) translateY(-5px); }
-        .popular-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; padding: 4px 16px; border-radius: 20px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; box-shadow: 0 4px 10px rgba(255, 138, 31, 0.3); }
-        .plan-header { text-align: center; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
-        .plan-title { font-size: 1.1rem; color: var(--text); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 12px 0; }
+        /* ENCABEZADO PREMIUM ESTANDARIZADO */
+        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .estandar-header-group { display: flex; align-items: center; gap: 16px; }
+        
+        .icon-box-std { 
+            width: 48px; height: 48px; 
+            background: rgba(59, 130, 246, 0.1); color: #3b82f6; 
+            border-radius: 12px; display: flex; align-items: center; justify-content: center; 
+            flex-shrink: 0; border: 1px solid rgba(59, 130, 246, 0.2); 
+        }
+        
+        .estandar-header-text { display: flex; flex-direction: column; }
+        .estandar-title { margin: 0; font-size: 1.25rem; color: var(--blue-dark); font-weight: 800; letter-spacing: -0.01em; line-height: 1.3; }
+        .estandar-subtitle { margin: 4px 0 0 0; color: var(--muted); font-size: 0.85rem; font-weight: 500; line-height: 1.4; }
+        
+        /* =========================================
+           TARJETAS DE PLANES (CON MARCA DE AGUA)
+           ========================================= */
+        .plans-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 40px; align-items: stretch; }
+        
+        .plan-card { 
+            background: var(--card); border: 1px solid var(--border); border-radius: 16px; 
+            padding: 32px 24px 24px 24px; display: flex; flex-direction: column; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02); transition: transform 0.3s ease, box-shadow 0.3s ease; 
+            position: relative; overflow: hidden; z-index: 1;
+        }
+        .plan-card:hover { transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); border-color: #cbd5e1;}
+        
+        /* Estilos específicos para el plan Popular */
+        .plan-card.popular { 
+            border: 1px solid var(--primary); 
+            box-shadow: 0 8px 25px rgba(255, 138, 31, 0.08); 
+            transform: translateY(-2px); z-index: 2; 
+        }
+        .plan-card.popular:hover { transform: translateY(-6px); box-shadow: 0 12px 30px rgba(255, 138, 31, 0.12); }
+        
+        .popular-badge { 
+            position: absolute; top: -1px; left: 50%; transform: translateX(-50%); 
+            background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; 
+            padding: 4px 16px; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; 
+            font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; 
+            box-shadow: 0 4px 10px rgba(255, 138, 31, 0.2); z-index: 3;
+        }
+
+        /* Marca de agua FontAwesome */
+        .plan-watermark { 
+            position: absolute; right: -20px; bottom: -30px; font-size: 160px; 
+            line-height: 1; opacity: 0.03; transform: rotate(-15deg); 
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; z-index: 0;
+        }
+        .plan-card:hover .plan-watermark { transform: rotate(0deg) scale(1.1); opacity: 0.06; }
+        
+        /* Colores de marca de agua por tipo de plan (Asignados dinámicamente) */
+        .watermark-blue { color: #3b82f6; }
+        .watermark-orange { color: var(--primary); }
+        .watermark-purple { color: #8b5cf6; }
+
+        /* Contenido de la tarjeta */
+        .plan-content-wrapper { position: relative; z-index: 2; display: flex; flex-direction: column; height: 100%;}
+        
+        .plan-header { text-align: center; margin-bottom: 24px; border-bottom: 1px solid #f1f5f9; padding-bottom: 20px; }
+        .plan-title { font-size: 1.15rem; color: var(--blue-dark); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 12px 0; }
         .popular .plan-title { color: var(--primary); }
-        .price-container { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-        .plan-price-old { font-size: 0.95rem; color: #94a3b8; text-decoration: line-through; font-weight: 600; margin: 0; height: 18px; }
-        .plan-price { font-size: 2.5rem; font-weight: 800; color: var(--text); margin: 0; line-height: 1; display: flex; justify-content: center; align-items: baseline; gap: 4px;}
-        .plan-price span { font-size: 0.9rem; color: var(--muted); font-weight: 600; }
-        .plan-features { list-style: none; padding: 0; margin: 0 0 32px 0; flex: 1; display: flex; flex-direction: column; gap: 14px; }
-        .plan-features li { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--text); font-weight: 500; }
-        .plan-features li svg.check { color: #10b981; flex-shrink: 0; }
-        .plan-features li.disabled { color: #94a3b8; text-decoration: line-through; }
-        .plan-features li.disabled svg.cross { color: #cbd5e1; }
         
-        .btn-plan { width: 100%; padding: 12px; border-radius: 10px; font-size: 0.85rem; font-weight: 700; text-align: center; cursor: pointer; transition: all 0.2s; border: none; display: flex; justify-content: center; align-items: center; gap: 8px; }
+        .price-container { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .plan-price-old { font-size: 0.85rem; color: #94a3b8; text-decoration: line-through; font-weight: 600; margin: 0; height: 16px; }
+        .plan-price { font-size: 2.2rem; font-weight: 800; color: var(--text); margin: 0; line-height: 1; display: flex; justify-content: center; align-items: baseline; gap: 4px;}
+        .plan-price span { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+        
+        .plan-features { list-style: none; padding: 0; margin: 0 0 24px 0; flex: 1; display: flex; flex-direction: column; gap: 12px; }
+        .plan-features li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.8rem; color: #334155; font-weight: 500; line-height: 1.4;}
+        .plan-features li i.fa-check { color: #10b981; flex-shrink: 0; margin-top: 2px; font-size: 0.9rem;}
+        .plan-features li.disabled { color: #94a3b8; text-decoration: line-through; }
+        .plan-features li.disabled i.fa-xmark { color: #cbd5e1; flex-shrink: 0; margin-top: 2px; font-size: 0.9rem;}
+        
+        .btn-plan { 
+            width: 100%; padding: 10px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; 
+            text-align: center; cursor: pointer; transition: all 0.2s; border: none; 
+            display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: auto;
+        }
         .btn-outline { background: #f8fafc; color: var(--text); border: 1px solid #cbd5e1; }
         .btn-outline:hover { background: #f1f5f9; border-color: #94a3b8; }
-        .btn-solid { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; box-shadow: 0 4px 12px rgba(255, 138, 31, 0.25); }
-        .btn-solid:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(255, 138, 31, 0.35); }
+        .btn-solid { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; box-shadow: 0 4px 10px rgba(255, 138, 31, 0.2); }
+        .btn-solid:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(255, 138, 31, 0.3); }
         
+        /* =========================================
+           BARRA DE HERRAMIENTAS Y TABLA
+           ========================================= */
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 16px; }
-        .section-header h2 { font-size: 1.1rem; color: var(--text); font-weight: 800; margin: 0; }
+        .section-header h2 { font-size: 1rem; color: var(--blue-dark); font-weight: 800; margin: 0; display: flex; align-items: center; gap: 8px;}
         
-        /* ESTILOS DEL BUSCADOR Y FILTROS */
         .table-tools { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
         .search-box { position: relative; width: 300px; }
         .search-box input { width: 100%; padding: 10px 14px 10px 36px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box; background: #f8fafc; }
         .search-box input:focus { outline: none; border-color: var(--primary); background: #ffffff; box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.15); }
-        .search-box svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
+        .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
         
-        .filter-select { padding: 10px 32px 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 600; color: var(--text); cursor: pointer; background-color: #f8fafc; appearance: none; background-image: url('data:image/svg+xml,%3Csvg fill=\'none\' stroke=\'%2394a3b8\' viewBox=\'0 0 24 24\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E'); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; transition: all 0.2s; }
+        .filter-select { 
+            padding: 10px 32px 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; 
+            font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 600; color: var(--text); 
+            cursor: pointer; background-color: #f8fafc; appearance: none; 
+            background-image: url('data:image/svg+xml,%3Csvg fill=\'none\' stroke=\'%2394a3b8\' viewBox=\'0 0 24 24\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E'); 
+            background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; transition: all 0.2s; 
+        }
         .filter-select:focus { outline: none; border-color: var(--primary); }
 
-        .table-wrapper { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
-        table { width: 100%; border-collapse: collapse; text-align: left; }
-        th { background: #f8fafc; padding: 14px 20px; font-size: 0.65rem; text-transform: uppercase; color: var(--muted); font-weight: 800; border-bottom: 1px solid var(--border); letter-spacing: 0.05em; }
-        td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; color: var(--text); vertical-align: middle; font-weight: 500; }
-        tr:last-child td { border-bottom: none; }
-        tr:hover td { background: #f8fafc; }
+        .table-wrapper { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.01); }
         
-        .badge-status { padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; text-transform: uppercase; }
-        .badge-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
-        .status-activo { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-        .status-activo::before { background: #16a34a; }
-        .status-inactivo { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
-        .status-inactivo::before { background: #94a3b8; }
+        .modern-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .modern-table th { background: #f8fafc; padding: 12px 16px; font-size: 0.7rem; text-transform: uppercase; color: #64748b; font-weight: 700; border-bottom: 1px solid #e2e8f0; letter-spacing: 0.05em; }
+        .modern-table td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 0.8rem; color: #334155; vertical-align: middle;}
+        .modern-table tr:last-child td { border-bottom: none; }
+        .modern-table tr:hover td { background: #f8fafc; }
         
-        .plan-tag { padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; border: 1px solid #e2e8f0;}
+        .badge-status { padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; text-transform: uppercase; letter-spacing: 0.03em;}
+        .status-activo { background: #dcfce7; color: #166534; }
+        .status-inactivo { background: #f1f5f9; color: #64748b; }
+        
+        .plan-tag { padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; border: 1px solid #e2e8f0; display: inline-block; text-transform: uppercase; letter-spacing: 0.03em;}
         .plan-tag.basic { background: #e0f2fe; color: #2563eb; border-color: #bfdbfe; }
         .plan-tag.pro { background: rgba(255, 138, 31, 0.1); color: var(--primary2); border-color: rgba(255, 138, 31, 0.2);}
         .plan-tag.enterprise { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border-color: rgba(139, 92, 246, 0.2);}
         .plan-tag.none { background: #f8fafc; color: #94a3b8; border-style: dashed; }
 
+        .client-avatar { 
+            width: 28px; height: 28px; border-radius: 6px; 
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.05)); 
+            color: #2563eb; border: 1px solid rgba(59, 130, 246, 0.15);
+            display: inline-flex; align-items: center; justify-content: center; 
+            font-weight: 800; font-size: 0.8rem; margin-right: 10px; vertical-align: middle; 
+        }
+
         .no-results { text-align: center; padding: 40px; color: var(--muted); font-style: italic; display: none; }
 
-        @media (max-width: 1024px) { .plans-grid { grid-template-columns: repeat(2, 1fr); } .plan-card.popular { transform: none; } .plan-card.popular:hover { transform: translateY(-5px); } }
+        @media (max-width: 1024px) { .plans-grid { grid-template-columns: repeat(2, 1fr); } .plan-card.popular { transform: none; } .plan-card.popular:hover { transform: translateY(-4px); } }
         @media (max-width: 768px) {
-            .main-wrapper { margin-left: 0; width: 100%; } .content-area { padding: 20px 16px; }
+            .main-wrapper { margin-left: 0; width: 100%; } .content-area { padding: 16px; }
+            .estandar-header-group { flex-direction: column; align-items: flex-start; gap: 12px; }
             .plans-grid { grid-template-columns: 1fr; }
-            .table-wrapper { overflow-x: auto; } table { min-width: 800px; }
-            .table-tools { width: 100%; }
-            .search-box { width: 100%; }
-            .filter-select { width: 100%; }
+            .table-wrapper { overflow-x: auto; } .modern-table { min-width: 700px; }
+            .table-tools { width: 100%; } .search-box { width: 100%; } .filter-select { width: 100%; }
         }
     </style>
 </head>
@@ -166,9 +245,14 @@ foreach ($suscripciones_db as $s) {
         <div class="content-area">
 
             <div class="header-actions">
-                <div>
-                    <h1 class="welcome-title">Gestión de Planes</h1>
-                    <p class="welcome-text">Administra los paquetes de suscripción y revisa el estado de las empresas.</p>
+                <div class="estandar-header-group">
+                    <div class="icon-box-std">
+                        <i class="fa-solid fa-tags" style="font-size: 1.5rem;"></i>
+                    </div>
+                    <div class="estandar-header-text">
+                        <h1 class="estandar-title">Gestión de Planes</h1>
+                        <p class="estandar-subtitle">Administra los paquetes de suscripción y revisa el estado de las empresas.</p>
+                    </div>
                 </div>
             </div>
 
@@ -177,56 +261,72 @@ foreach ($suscripciones_db as $s) {
                 <?php foreach ($planes_info as $plan): 
                     $tiene_descuento = ($plan['precio_descuento'] > 0 && $plan['precio_descuento'] < $plan['precio_normal']);
                     $precio_final = $tiene_descuento ? $plan['precio_descuento'] : $plan['precio_normal'];
+                    
+                    // Asignación de icono y color dinámico según nombre del plan
+                    $watermark_icon = 'fa-paper-plane';
+                    $watermark_color = 'watermark-blue';
+                    if (stripos(strtolower($plan['nombre']), 'pro') !== false) {
+                        $watermark_icon = 'fa-rocket';
+                        $watermark_color = 'watermark-orange';
+                    } elseif (stripos(strtolower($plan['nombre']), 'enterprise') !== false) {
+                        $watermark_icon = 'fa-crown';
+                        $watermark_color = 'watermark-purple';
+                    }
                 ?>
                     <div class="plan-card <?php echo $plan['popular'] ? 'popular' : ''; ?>">
+                        
+                        <i class="fa-solid <?php echo $watermark_icon; ?> plan-watermark <?php echo $watermark_color; ?>"></i>
+
                         <?php if ($plan['popular']): ?>
                             <div class="popular-badge">Más Popular</div>
                         <?php endif; ?>
                         
-                        <div class="plan-header">
-                            <h3 class="plan-title"><?php echo htmlspecialchars($plan['nombre']); ?></h3>
-                            <div class="price-container">
-                                <?php if ($tiene_descuento): ?>
-                                    <p class="plan-price-old">$<?php echo number_format($plan['precio_normal'], 0, ',', '.'); ?></p>
-                                <?php else: ?>
-                                    <p class="plan-price-old" style="visibility:hidden;">$0</p>
-                                <?php endif; ?>
-                                
-                                <p class="plan-price">$<?php echo number_format($precio_final, 0, ',', '.'); ?><span>/mes</span></p>
+                        <div class="plan-content-wrapper">
+                            <div class="plan-header">
+                                <h3 class="plan-title"><?php echo htmlspecialchars($plan['nombre']); ?></h3>
+                                <div class="price-container">
+                                    <?php if ($tiene_descuento): ?>
+                                        <p class="plan-price-old">$<?php echo number_format($plan['precio_normal'], 0, ',', '.'); ?></p>
+                                    <?php else: ?>
+                                        <p class="plan-price-old" style="visibility:hidden;">$0</p>
+                                    <?php endif; ?>
+                                    
+                                    <p class="plan-price">$<?php echo number_format($precio_final, 0, ',', '.'); ?><span>/mes</span></p>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <ul class="plan-features">
-                            <li>
-                                <svg class="check" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg> 
-                                <?php echo $plan['trabajadores'] == 999 ? 'Trabajadores Ilimitados' : 'Hasta ' . $plan['trabajadores'] . ' Trabajadores'; ?>
-                            </li>
+                            
+                            <ul class="plan-features">
+                                <li>
+                                    <i class="fa-solid fa-check"></i>
+                                    <?php echo $plan['trabajadores'] == 999 ? 'Trabajadores Ilimitados' : 'Hasta ' . $plan['trabajadores'] . ' Trabajadores'; ?>
+                                </li>
 
-                            <?php foreach ($plan['features'] as $f): ?>
-                                <?php if ($f['incluido']): ?>
-                                    <li><svg class="check" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg> <?php echo htmlspecialchars($f['texto']); ?></li>
-                                <?php else: ?>
-                                    <li class="disabled"><svg class="cross" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg> <?php echo htmlspecialchars($f['texto']); ?></li>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
-                        </ul>
-                        
-                        <button class="btn-plan <?php echo $plan['clase_btn']; ?>" 
-                                onclick="abrirModalPlan(<?php echo $plan['id']; ?>, '<?php echo htmlspecialchars($plan['nombre'], ENT_QUOTES); ?>', <?php echo $plan['trabajadores']; ?>, <?php echo $plan['precio_normal']; ?>, <?php echo $plan['precio_descuento']; ?>, '<?php echo htmlspecialchars(json_encode($plan['features']), ENT_QUOTES, 'UTF-8'); ?>')">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                            Editar Plan
-                        </button>
+                                <?php foreach ($plan['features'] as $f): ?>
+                                    <?php if ($f['incluido']): ?>
+                                        <li><i class="fa-solid fa-check"></i> <?php echo htmlspecialchars($f['texto']); ?></li>
+                                    <?php else: ?>
+                                        <li class="disabled"><i class="fa-solid fa-xmark"></i> <?php echo htmlspecialchars($f['texto']); ?></li>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </ul>
+                            
+                            <button class="btn-plan <?php echo $plan['clase_btn'] === 'btn-solid' ? 'btn-solid' : 'btn-outline'; ?>" 
+                                    onclick="abrirModalPlan(<?php echo $plan['id']; ?>, '<?php echo htmlspecialchars($plan['nombre'], ENT_QUOTES); ?>', <?php echo $plan['trabajadores']; ?>, <?php echo $plan['precio_normal']; ?>, <?php echo $plan['precio_descuento']; ?>, '<?php echo htmlspecialchars(json_encode($plan['features']), ENT_QUOTES, 'UTF-8'); ?>')">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                                Editar Plan
+                            </button>
+                        </div>
                     </div>
                 <?php endforeach; ?>
 
             </div>
 
             <div class="section-header">
-                <h2>Suscripciones de Empresas</h2>
+                <h2><i class="fa-solid fa-building-user" style="color: var(--primary); margin-right: 8px;"></i> Suscripciones de Empresas</h2>
                 
                 <div class="table-tools">
                     <div class="search-box">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        <i class="fa-solid fa-magnifying-glass"></i>
                         <input type="text" id="searchTable" placeholder="Buscar por nombre de empresa...">
                     </div>
                     
@@ -241,7 +341,7 @@ foreach ($suscripciones_db as $s) {
             </div>
             
             <div class="table-wrapper">
-                <table>
+                <table class="modern-table">
                     <thead>
                         <tr>
                             <th>Empresa</th>
@@ -252,7 +352,7 @@ foreach ($suscripciones_db as $s) {
                     </thead>
                     <tbody id="suscripcionesBody">
                         <?php if (empty($suscripciones)): ?>
-                            <tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--muted); font-style: italic;">No hay empresas aprobadas aún.</td></tr>
+                            <tr><td colspan="4" style="text-align: center; padding: 40px; color: #94a3b8; font-style: italic;">No hay empresas aprobadas aún.</td></tr>
                         <?php else: ?>
                             <?php foreach ($suscripciones as $sus): 
                                 $clase_plan = 'basic';
@@ -265,16 +365,21 @@ foreach ($suscripciones_db as $s) {
                                 }
                             ?>
                             <tr class="sus-row" data-empresa="<?php echo strtolower($sus['empresa']); ?>" data-plan="<?php echo strtolower($sus['plan']); ?>">
-                                <td style="font-weight: 600; color: var(--blue-dark);"><?php echo $sus['empresa']; ?></td>
+                                <td style="font-weight: 600;">
+                                    <div class="client-avatar">
+                                        <?php echo strtoupper(substr($sus['empresa'], 0, 1)); ?>
+                                    </div>
+                                    <?php echo $sus['empresa']; ?>
+                                </td>
                                 <td><span class="plan-tag <?php echo $clase_plan; ?>"><?php echo $sus['plan']; ?></span></td>
                                 <td>
                                     <?php if($sus['estado'] === 'activo'): ?>
-                                        <span class="badge-status status-activo">Activo</span>
+                                        <span class="badge-status status-activo"><i class="fa-solid fa-circle-check" style="margin-right:2px;"></i> Activo</span>
                                     <?php else: ?>
-                                        <span class="badge-status status-inactivo">Incompleto</span>
+                                        <span class="badge-status status-inactivo"><i class="fa-solid fa-circle-exclamation" style="margin-right:2px;"></i> Incompleto</span>
                                     <?php endif; ?>
                                 </td>
-                                <td style="color: var(--muted); font-size: 0.8rem; font-family: monospace;">
+                                <td style="color: #64748b; font-size: 0.8rem; font-family: monospace; font-weight: 600;">
                                     <?php echo $sus['vencimiento'] !== 'N/A' ? date('d/m/Y', strtotime($sus['vencimiento'])) : 'N/A'; ?>
                                 </td>
                             </tr>
