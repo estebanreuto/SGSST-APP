@@ -3,7 +3,7 @@ session_start();
 require_once "config/db.php";
 
 // ========================================================
-// CARGAR AUTOLOAD Y ENV PARA PHPMAILER (Igual que en login.php)
+// CARGAR AUTOLOAD Y ENV PARA PHPMAILER 
 // ========================================================
 if (file_exists(__DIR__ . '/vendor/autoload.php')) {
     require_once __DIR__ . '/vendor/autoload.php';
@@ -29,9 +29,6 @@ function loadEnvSimple(string $path): void {
 }
 loadEnvSimple(__DIR__ . '/.env');
 
-// ========================================================
-// FUNCIÓN PARA ENVIAR CORREO DE BIENVENIDA PREMIUM
-// ========================================================
 function sendWelcomeEmail(string $toEmail, string $toName, string $cedula, string $planNombre): array {
     if (!class_exists(\PHPMailer\PHPMailer\PHPMailer::class)) {
         return [false, 'PHPMailer no está instalado.'];
@@ -70,48 +67,64 @@ function sendWelcomeEmail(string $toEmail, string $toName, string $cedula, strin
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="color-scheme" content="light dark">
+            <meta name="supported-color-schemes" content="light dark">
+            <style>
+                body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f1f5f9; color: #0f172a; }
+                .email-wrapper { background-color: #f1f5f9; padding: 40px 20px; }
+                .email-card { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+                .content-box { padding: 40px 32px; text-align: center; }
+                .text-body { color: #475569; font-size: 16px; line-height: 1.6; text-align: left; margin: 0 0 24px 0; }
+                .info-panel { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; text-align: left; margin-bottom: 32px; }
+                .text-title { color: #1e3a8a; font-size: 22px; font-weight: 800; margin: 0 0 20px 0; }
+                .footer-box { background-color: #f8fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0; }
+
+                @media (prefers-color-scheme: dark) {
+                    body, .email-wrapper { background-color: #0f172a !important; color: #f8fafc !important; }
+                    .email-card { background-color: #1e293b !important; box-shadow: 0 10px 25px rgba(0,0,0,0.4) !important; }
+                    .content-box { background-color: #1e293b !important; }
+                    .text-title { color: #ffffff !important; }
+                    .text-body { color: #cbd5e1 !important; }
+                    .info-panel { background-color: #0f172a !important; border-color: #334155 !important; }
+                    .info-panel p, .info-panel strong { color: #f8fafc !important; }
+                    .footer-box { background-color: #0f172a !important; border-top-color: #334155 !important; }
+                    .footer-box p { color: #94a3b8 !important; }
+                }
+            </style>
         </head>
-        <body style="font-family: \'Helvetica Neue\', Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 0; -webkit-font-smoothing: antialiased;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f1f5f9; padding: 40px 20px;">
-                <tr>
-                    <td align="center">
-                        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05);">
-                            <tr>
-                                <td style="background: linear-gradient(135deg, #ff8a1f, #ff7a00); padding: 35px 20px; text-align: center;">
-                                    <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">PREVENT<span style="opacity: 0.8; font-weight: 400;">WORK</span></h1>
-                                    <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 15px;">Sistema de Gestión de Seguridad y Salud</p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 40px 32px; text-align: center;">
-                                    <h2 style="margin: 0 0 20px 0; color: #1e3a8a; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">¡Tu cuenta está lista!</h2>
-                                    <p style="margin: 0 0 24px 0; color: #475569; font-size: 16px; line-height: 1.6; text-align: left;">Hola <b>' . htmlspecialchars($toName) . '</b>,</p>
-                                    <p style="margin: 0 0 24px 0; color: #475569; font-size: 16px; line-height: 1.6; text-align: left;">Hemos recibido tu pago con éxito y tu suscripción al plan <strong style="color: #ff8a1f;">' . htmlspecialchars($planNombre) . '</strong> ya está activa.</p>
-                                    
-                                    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; text-align: left; margin-bottom: 32px;">
-                                        <p style="margin: 0 0 8px 0; font-size: 14px; color: #64748b; text-transform: uppercase; font-weight: 700;">Credenciales de Acceso:</p>
-                                        <p style="margin: 0 0 8px 0; font-size: 16px; color: #0f172a;"><strong>Usuario (NIT/CC):</strong> ' . htmlspecialchars($cedula) . '</p>
-                                        <p style="margin: 0; font-size: 16px; color: #0f172a;"><strong>Contraseña:</strong> ' . htmlspecialchars($cedula) . '</p>
-                                        <p style="margin: 8px 0 0 0; font-size: 12px; color: #94a3b8; font-style: italic;">* Te recomendamos cambiar tu contraseña al ingresar al sistema.</p>
-                                    </div>
-                                    
-                                    <a href="' . $loginUrl . '" style="background: linear-gradient(135deg, #2b5a9e, #1e3a8a); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 700; font-size: 16px; display: inline-block;">Iniciar Sesión Ahora</a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td style="background-color: #f8fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
-                                    <p style="margin: 0 0 8px 0; color: #64748b; font-size: 13px;">&copy; ' . date('Y') . ' PREVENTWORK. Todos los derechos reservados.</p>
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
+        <body>
+            <div class="email-wrapper">
+                <div class="email-card">
+                    <div style="background: linear-gradient(135deg, #ff8a1f, #ff7a00); padding: 35px 20px; text-align: center;">
+                        <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">PREVENT<span style="opacity: 0.8; font-weight: 400;">WORK</span></h1>
+                        <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 15px;">Sistema de Gestión de Seguridad y Salud</p>
+                    </div>
+
+                    <div class="content-box">
+                        <h2 class="text-title">¡Tu cuenta está lista!</h2>
+                        <p class="text-body">Hola <b>' . htmlspecialchars($toName) . '</b>,</p>
+                        <p class="text-body">Hemos recibido tu pago con éxito y tu suscripción al plan <strong style="color: #ff8a1f;">' . htmlspecialchars($planNombre) . '</strong> ya está activa.</p>
+                        
+                        <div class="info-panel">
+                            <p style="margin: 0 0 12px 0; font-size: 14px; color: #ff8a1f; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">¿Cómo ingresar al sistema?</p>
+                            <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>Tu Usuario:</strong> ' . htmlspecialchars($cedula) . ' <span style="font-size:14px; color: #64748b;">(o tu correo electrónico)</span></p>
+                            <p style="margin: 0 0 14px 0; font-size: 16px;"><strong>Tu Contraseña:</strong> ¡No necesitas! 🔒</p>
+                            <p style="margin: 0; font-size: 14px; line-height: 1.5;">Nuestra plataforma utiliza autenticación segura sin contraseña (2FA). Solo debes ingresar tu usuario y te enviaremos un <strong>código de 6 dígitos a este correo</strong> para acceder al instante.</p>
+                        </div>
+                        
+                        <a href="' . $loginUrl . '" style="background: linear-gradient(135deg, #2b5a9e, #1e3a8a); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 700; font-size: 16px; display: inline-block;">Iniciar Sesión Ahora</a>
+                    </div>
+
+                    <div class="footer-box">
+                        <p style="margin: 0 0 8px 0; font-size: 13px;">&copy; ' . date('Y') . ' PREVENTWORK. Todos los derechos reservados.</p>
+                    </div>
+                </div>
+            </div>
         </body>
         </html>
         ';
         
-        $mail->AltBody = "Hola $toName, tu cuenta ha sido activada en el plan $planNombre. Usuario: $cedula | Contraseña: $cedula. Ingresa en: $loginUrl";
+        $mail->AltBody = "Hola $toName, tu cuenta ha sido activada en el plan $planNombre. Usuario: $cedula. No necesitas contraseña, al ingresar te enviaremos un código de seguridad a este correo. Ingresa en: $loginUrl";
         $mail->send();
         return [true, 'OK'];
     } catch (\Throwable $e) {
@@ -140,7 +153,7 @@ if (!$solicitud) {
     die("La solicitud no existe.");
 }
 
-// 3. Traer las llaves de Wompi desde la configuración del Super Admin
+// 3. Traer las llaves de Wompi 
 $stmt_keys = $conn->query("SELECT wompi_public, wompi_private, wompi_integrity FROM cpanel_admins LIMIT 1");
 $keys = $stmt_keys->fetch(PDO::FETCH_ASSOC);
 
@@ -168,7 +181,6 @@ $estado_pago = 'PENDING';
 $correo_enviado = false; 
 
 if ($transaccion_id) {
-    // Consultamos la API de Wompi en vivo
     if (!empty($wompi_prv)) {
         $url_wompi = "https://sandbox.wompi.co/v1/transactions/" . $transaccion_id; // Cambiar a production para entorno real
         
@@ -187,21 +199,17 @@ if ($transaccion_id) {
             if (isset($datos_wompi['data']['status'])) {
                 $estado_pago = $datos_wompi['data']['status'];
                 
-                // ========================================================
-                // MAGIA: PAGO APROBADO -> APROBACIÓN Y CORREO AUTOMÁTICO
-                // ========================================================
                 if ($estado_pago === 'APPROVED' && $solicitud['estado'] === 'pendiente') {
                     
                     try {
                         $conn->beginTransaction();
 
-                        // A. Pasamos la solicitud a aprobada (desaparece de pendientes en Admin)
+                        // A. Pasamos la solicitud a aprobada 
                         $stmt_upd = $conn->prepare("UPDATE solicitudes_empresas SET estado = 'aprobada' WHERE id = ?");
                         $stmt_upd->execute([$solicitud_id]);
 
-                        // B. Creamos el usuario Representante
+                        // B. Creamos el usuario Representante 
                         $hash_pass = password_hash($solicitud['cedula'], PASSWORD_DEFAULT);
-                        
                         $stmt_ins = $conn->prepare("INSERT INTO usuarios (empresa_id, nombre, apellido, cedula, email, telefono, rol, direccion, ciudad, barrio, localidad, firma, activo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?, 1)");
                         $stmt_ins->execute([
                             $solicitud_id, $solicitud['nombre'], $solicitud['apellido'], $solicitud['cedula'], 
@@ -210,9 +218,22 @@ if ($transaccion_id) {
                             $solicitud['localidad'], $solicitud['firma']
                         ]);
 
+                        // ================================================================
+                        // NUEVO: INSERTAR VENTA EN LA TABLA DE CONTABILIDAD
+                        // ================================================================
+                        $stmt_pago_contable = $conn->prepare("INSERT INTO pagos_suscripciones (empresa_id, transaccion_wompi, monto, plan_nombre, estado) VALUES (?, ?, ?, ?, ?)");
+                        $stmt_pago_contable->execute([
+                            $solicitud_id, 
+                            $transaccion_id, 
+                            $total_pagar, 
+                            $solicitud['plan_nombre'], 
+                            'APPROVED'
+                        ]);
+                        // ================================================================
+
                         $conn->commit();
 
-                        // C. Enviamos el correo con PHPMailer
+                        // C. Enviamos el correo con PHPMailer 
                         $fullName = trim($solicitud['nombre'] . ' ' . $solicitud['apellido']);
                         [$ok, $msg] = sendWelcomeEmail($solicitud['email'], $fullName, $solicitud['cedula'], $solicitud['plan_nombre']);
                         
@@ -340,7 +361,7 @@ if ($transaccion_id) {
         .spinner { animation: spin 2s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* --- CAJA DE PASOS (STEPS) --- */
+        /* --- CAJA DE PASOS --- */
         .steps-box { width: 100%; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; margin-bottom: 28px; text-align: left; display: flex; flex-direction: column; gap: 16px;}
         .steps-title { font-size: 12px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; text-align: center;}
         
@@ -350,7 +371,7 @@ if ($transaccion_id) {
         .step-text strong { display: block; font-size: 14px; color: #0f172a; margin-bottom: 2px; }
         .step-text p { font-size: 13px; color: #64748b; line-height: 1.4; margin: 0; }
         
-        .step-mail-error { color: #d97706 !important; font-weight: 600; background: #fffbeb; padding: 6px 10px; border-radius: 6px; display: inline-block; margin-top: 4px; border: 1px solid #fde68a;}
+        .step-mail-error { color: #d97706 !important; font-weight: 600; background: #fffbeb; padding: 8px 12px; border-radius: 8px; display: inline-block; margin-top: 6px; border: 1px solid #fde68a;}
 
         .tx-box { width: 100%; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; margin-bottom: 32px; text-align: left; display: flex; justify-content: space-between; align-items: center; }
         .tx-box .tx-left .tx-title { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;}
@@ -487,21 +508,22 @@ if ($transaccion_id) {
                             <div class="step-num">1</div>
                             <div class="step-text">
                                 <strong>Cuenta Activada</strong>
-                                <p>Tu suscripción al plan <?php echo htmlspecialchars($solicitud['plan_nombre']); ?> ya está lista.</p>
+                                <p>Tu suscripción al plan <?php echo htmlspecialchars($solicitud['plan_nombre']); ?> ya está lista y configurada.</p>
                             </div>
                         </div>
                         
                         <div class="step-item">
                             <div class="step-num">2</div>
                             <div class="step-text">
-                                <strong>Credenciales de Acceso</strong>
+                                <strong>Instrucciones de Acceso</strong>
                                 <?php if ($correo_enviado): ?>
-                                    <p>Enviamos tu usuario y contraseña a <b><?php echo htmlspecialchars($solicitud['email']); ?></b> (Revisa la bandeja de spam por si acaso).</p>
+                                    <p>Te enviamos un mensaje a <b><?php echo htmlspecialchars($solicitud['email']); ?></b>. Recuerda que no usamos contraseñas, tu acceso será siempre validado con un código de seguridad a tu correo.</p>
                                 <?php else: ?>
-                                    <p class="step-mail-error">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="14" height="14" style="margin-bottom:-2px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                                        No se pudo enviar el correo, pero tu <b>Usuario</b> y <b>Contraseña</b> temporal es tu documento: <?php echo htmlspecialchars($solicitud['cedula']); ?>
-                                    </p>
+                                    <div class="step-mail-error">
+                                        <p style="margin: 0; color: #b45309;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="14" height="14" style="margin-bottom:-2px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg> 
+                                        <b>No se pudo enviar el correo de bienvenida</b>, pero no te preocupes, tu cuenta sí está activa.</p>
+                                        <p style="margin: 8px 0 0 0; color: #b45309;">Para ingresar, usa tu documento: <b><?php echo htmlspecialchars($solicitud['cedula']); ?></b> y el sistema te pedirá el código de seguridad.</p>
+                                    </div>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -510,7 +532,7 @@ if ($transaccion_id) {
                             <div class="step-num">3</div>
                             <div class="step-text">
                                 <strong>Inicia Sesión</strong>
-                                <p>Ingresa al panel para empezar a gestionar tu SG-SST.</p>
+                                <p>Ingresa al panel para empezar a gestionar tu empresa en el sistema.</p>
                             </div>
                         </div>
                     </div>
@@ -686,8 +708,8 @@ if ($transaccion_id) {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                 </div>
                 <div class="text">
-                    <h4>Activación automática y Credenciales</h4>
-                    <p>El sistema validará el pago directamente con el banco y te enviará las credenciales a tu correo.</p>
+                    <h4>Activación automática y Seguridad</h4>
+                    <p>Validaremos tu pago con el banco al instante y recibirás las instrucciones de acceso 2FA en tu correo.</p>
                 </div>
             </div>
 

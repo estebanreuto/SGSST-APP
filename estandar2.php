@@ -161,40 +161,52 @@ $current_page = 'estandar2.php';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Estándar 2 | SG-SST Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
     <style>
-        :root { --primary: #ff8a1f; --primary2: #ff7a00; --bg1: #edf4fb; --bg2: #f7f9fc; --card: #ffffff; --text: #1f2d3d; --muted: #5f6f82; --border: #dbe3ec; --radius: 12px; --blue-dark: #1e3a8a; }
-        body { font-family: 'Inter', sans-serif; background: linear-gradient(180deg, var(--bg1), var(--bg2)); margin: 0; padding: 0; min-height: 100vh; color: var(--text); display: flex; font-size: 0.85rem; }
+        :root { --primary: #ff8a1f; --primary2: #ff7a00; --bg1: #edf4fb; --bg2: #f7f9fc; --card: #ffffff; --text: #1f2d3d; --muted: #5f6f82; --border: #dbe3ec; --radius: 16px; --blue-dark: #1e3a8a; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(180deg, var(--bg1), var(--bg2)); margin: 0; padding: 0; min-height: 100vh; color: var(--text); display: flex; font-size: 0.85rem; overflow-x: hidden;}
         .main-wrapper { margin-left: 260px; width: calc(100% - 260px); display: flex; flex-direction: column; min-height: 100vh; transition: all 0.3s ease; }
-        .content-area { padding: 32px 40px; flex: 1; max-width: 1200px; margin: 0 auto; width: 100%; box-sizing: border-box; }
-        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
-        .estandar-header-group { display: flex; align-items: center; gap: 14px; }
+        .content-area { padding: 32px 40px; flex: 1; max-width: 1300px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+        
+        /* ENCABEZADO Y ALERTAS */
+        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .estandar-header-group { display: flex; align-items: center; gap: 14px; width: 100%; }
         .icon-box-std { width: 44px; height: 44px; background: rgba(255, 138, 31, 0.08); color: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid rgba(255, 138, 31, 0.2); box-shadow: 0 4px 10px rgba(255, 138, 31, 0.05); }
-        .icon-box-std svg { width: 22px; height: 22px; }
         .estandar-header-text { display: flex; flex-direction: column; }
-        .estandar-title { margin: 0; font-size: 1.15rem; color: var(--blue-dark); font-weight: 800; letter-spacing: -0.01em; line-height: 1.3; display: block; }
+        .estandar-title { margin: 0; font-size: 1.15rem; color: var(--blue-dark); font-weight: 800; letter-spacing: -0.01em; display: block; }
         .std-num-marker { color: var(--primary); font-weight: 800; margin-right: 4px; }
-        .estandar-subtitle { margin: 4px 0 0 0; color: var(--muted); font-size: 0.8rem; font-weight: 500; line-height: 1.4; }
-        .btn-back { background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 8px 14px; border-radius: 8px; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease; font-size: 0.8rem; }
-        .btn-back:hover { background: #f1f5f9; color: #0f172a; }
-        .panel-container { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; }
+        .estandar-subtitle { margin: 4px 0 0 0; color: var(--muted); font-size: 0.8rem; font-weight: 500; }
+
+        .alert-status { padding: 16px 20px; border-radius: 12px; margin-bottom: 24px; font-weight: 600; display: flex; align-items: center; gap: 12px; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
+        .alert-status.success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; border-left: 4px solid #22c55e;}
+        .alert-status.danger { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-left: 4px solid #ef4444;}
+
+        /* ESTRUCTURA PRINCIPAL */
+        .panel-container { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; align-items: start;}
         .card-box { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 24px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02); }
-        .card-title { margin: 0 0 20px 0; font-size: 1rem; color: var(--text); font-weight: 800; display: flex; align-items: center; gap: 8px; border-bottom: 1px dashed var(--border); padding-bottom: 12px; }
+        
+        .card-title { margin: 0 0 20px 0; font-size: 1.1rem; color: var(--blue-dark); font-weight: 800; display: flex; align-items: center; gap: 10px; border-bottom: 1px dashed var(--border); padding-bottom: 16px; }
+        .title-icon-wrapper { background: rgba(255, 138, 31, 0.12); padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--primary2); width: 32px; height: 32px; box-sizing: border-box;}
+
+        /* FORMULARIOS */
         .form-group { margin-bottom: 16px; }
         .form-group label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--text); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
-        .custom-select { width: 100%; padding: 12px 16px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 0.85rem; font-weight: 600; color: var(--text); box-sizing: border-box; background-color: #f8fafc; cursor: pointer; appearance: none; transition: all 0.2s; background-image: url("data:image/svg+xml,%3Csvg fill='none' stroke='%2364748b' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; background-size: 16px; }
+        .custom-select, .custom-input { width: 100%; padding: 12px 16px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 0.85rem; font-weight: 600; color: var(--text); box-sizing: border-box; background-color: #f8fafc; transition: all 0.2s; }
+        .custom-select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg fill='none' stroke='%2364748b' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; background-size: 16px; }
         .custom-select:focus, .custom-input:focus { outline: none; border-color: var(--primary); background: #ffffff; box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.15); }
-        .custom-input { width: 100%; padding: 12px 16px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 0.85rem; font-weight: 600; box-sizing: border-box; background: #f8fafc; transition: all 0.2s; }
-        .info-pila-box { background: rgba(255, 138, 31, 0.05); border: 1px solid rgba(255, 138, 31, 0.2); border-radius: 12px; padding: 18px; margin-bottom: 24px; }
+        
+        .info-pila-box { background: var(--bg2); border: 1px dashed #cbd5e1; border-radius: 12px; padding: 18px; margin-bottom: 24px; }
         .info-pila-box p { margin: 0 0 8px 0; font-size: 0.85rem; color: #334155; }
         .info-pila-box .highlight { color: var(--primary2); font-weight: 800; font-size: 0.9rem; margin-left: 4px; }
         .info-pila-box .fecha-roja { color: #dc2626; font-weight: 800; font-size: 0.85rem; display: block; margin-top: 4px; }
+        
         .dropzone { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 30px 20px; text-align: center; background: #f8fafc; cursor: pointer; transition: all 0.2s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
         .dropzone:hover, .dropzone.dragover { border-color: var(--primary); background: rgba(255, 138, 31, 0.05); }
-        .dropzone svg { color: var(--primary); margin-bottom: 4px; }
         .dropzone p { margin: 0; font-size: 0.85rem; font-weight: 700; color: var(--text); }
         .dropzone span { font-size: 0.7rem; color: var(--muted); font-weight: 500; }
+        
         .preview-container { display: none; margin-top: 10px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); }
         .preview-header { background: #f8fafc; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; }
         .preview-header span { font-size: 0.75rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 6px; }
@@ -211,57 +223,53 @@ $current_page = 'estandar2.php';
         .status-ok { color: #10b981; }
         .status-warn { color: #f59e0b; }
         .status-err { color: #ef4444; }
+        
         .pdf-viewer { width: 100%; height: 280px; border: none; display: block; }
+        
         .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; width: 100%; cursor: pointer; transition: transform 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; font-family: inherit; margin-top: 24px; box-shadow: 0 4px 12px rgba(255, 138, 31, 0.2); }
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(255, 138, 31, 0.3); }
+        
+        /* SELECTOR DE AÑO Y TARJETAS MESES */
         .year-selector { display: flex; align-items: center; gap: 12px; }
-        .year-btn { background: #f1f5f9; color: #475569; border: none; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; text-decoration: none; }
+        .year-btn { background: #f1f5f9; color: #475569; border: none; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; text-decoration: none; font-size: 0.85rem;}
         .year-btn:hover { background: #e2e8f0; color: #1e293b; }
         .year-display { font-size: 1.05rem; font-weight: 800; color: var(--blue-dark); }
+        
         .months-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
         .month-card { border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: #ffffff; display: flex; flex-direction: column; gap: 12px; transition: all 0.2s; position: relative; }
-        .month-card:hover { box-shadow: 0 6px 15px rgba(0, 0, 0, 0.04); border-color: #cbd5e1; }
+        .month-card:hover { box-shadow: 0 6px 15px rgba(0, 0, 0, 0.04); border-color: #cbd5e1; transform: translateY(-2px);}
         .month-card.loaded { border-top: 4px solid #10b981; }
         .month-card.missing { border-top: 4px solid #cbd5e1; }
+        
         .month-header { display: flex; justify-content: space-between; align-items: flex-start; }
         .month-name { font-weight: 800; color: var(--blue-dark); font-size: 1rem; display: block; }
         .status-badge { font-size: 0.6rem; font-weight: 800; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em; height: fit-content; }
         .status-loaded { background: #dcfce7; color: #166534; }
         .status-missing { background: #f1f5f9; color: #64748b; }
         .month-info { font-size: 0.75rem; color: var(--muted); line-height: 1.5; flex: 1; }
+        
         .month-actions { display: flex; gap: 8px; margin-top: auto; }
-        .btn-view { background: #e0f2fe; color: #0284c7; padding: 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 4px; transition: 0.2s; flex: 1; }
+        .btn-view { background: #e0f2fe; color: #0284c7; padding: 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s; flex: 1; }
         .btn-view:hover { background: #bae6fd; }
-        .btn-delete { background: #fee2e2; color: #dc2626; padding: 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 4px; transition: 0.2s; flex: 1; }
+        .btn-delete { background: #fee2e2; color: #dc2626; padding: 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s; flex: 1; }
         .btn-delete:hover { background: #ef4444; color: white; }
         .btn-outline-upload { background: #fff8f3; border: 1px dashed var(--primary); color: var(--primary2); padding: 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; width: 100%; font-family: inherit; }
         .btn-outline-upload:hover { background: var(--primary); color: white; border-style: solid; }
-        .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
-        .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-        .alert-danger { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+        
         #loader-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.9); z-index: 999999; display: none; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
         #loader-overlay.active { display: flex; }
-        .spinner { animation: spin 1s linear infinite; color: var(--primary); }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
 
+        @media (max-width: 900px) {
+            .panel-container { grid-template-columns: 1fr; }
+        }
         @media (max-width: 768px) {
             .main-wrapper { margin-left: 0; width: 100%; }
             .content-area { padding: 16px 14px; }
-            .panel-container { grid-template-columns: 1fr; gap: 16px; }
             .header-actions { flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 20px; border-bottom: none; padding-bottom: 0; }
-            .btn-back { order: -1; width: max-content; align-self: flex-start; padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; margin: 0 0 4px 0; }
-            .estandar-header-group { display: flex; flex-direction: row; align-items: flex-start; text-align: left; gap: 12px; width: 100%; }
-            .icon-box-std { width: 40px; height: 40px; flex-shrink: 0; border-radius: 10px; margin-top: 2px; }
-            .icon-box-std svg { width: 20px; height: 20px; }
-            .estandar-header-text { display: flex; flex-direction: column; }
-            .estandar-title { font-size: 1.05rem; line-height: 1.3; margin: 0; display: block; }
-            .estandar-subtitle { font-size: 0.75rem; line-height: 1.4; margin-top: 4px; }
+            .estandar-header-group { flex-direction: row; align-items: flex-start; width: 100%; }
+            
             .card-box { padding: 20px 16px; }
-            .info-pila-box { padding: 14px; }
-            .info-pila-box p { font-size: 0.8rem; }
-            .dropzone { padding: 20px 12px; }
-            .dropzone p { font-size: 0.8rem; }
-            .months-grid { grid-template-columns: 1fr; gap: 12px; }
+            .months-grid { grid-template-columns: 1fr; }
             .analysis-grid { grid-template-columns: 1fr; }
         }
     </style>
@@ -270,9 +278,7 @@ $current_page = 'estandar2.php';
 <body>
 
     <div id="loader-overlay">
-        <svg class="spinner" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="60" height="60">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-        </svg>
+        <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 3rem; color: var(--primary);"></i>
         <h3 style="margin-top:20px; font-weight: 800; color: var(--blue-dark);">Guardando documento...</h3>
         <p style="color: var(--muted); margin: 5px 0 0 0;">Por favor no cierres la ventana.</p>
     </div>
@@ -285,17 +291,13 @@ $current_page = 'estandar2.php';
         <div class="content-area">
 
             <?php if (isset($_GET['msg']) && $_GET['msg'] === 'subido'): ?>
-                <div class="alert alert-success">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
+                <div class="alert-status success" id="alertBox">
+                    <i class="fa-solid fa-circle-check" style="font-size: 1.2rem;"></i>
                     Planilla guardada y asignada correctamente.
                 </div>
             <?php elseif (isset($_GET['msg']) && $_GET['msg'] === 'eliminado'): ?>
-                <div class="alert alert-danger">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                    </svg>
+                <div class="alert-status danger" id="alertBox">
+                    <i class="fa-solid fa-trash-can" style="font-size: 1.2rem;"></i>
                     La planilla ha sido eliminada del historial.
                 </div>
             <?php endif; ?>
@@ -303,52 +305,44 @@ $current_page = 'estandar2.php';
             <div class="header-actions">
                 <div class="estandar-header-group">
                     <div class="icon-box-std">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="22" height="22">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                        </svg>
+                        <i class="fa-solid fa-file-invoice-dollar" style="font-size: 1.2rem;"></i>
                     </div>
                     <div class="estandar-header-text">
                         <h1 class="estandar-title"><span class="std-num-marker">2.</span> Afiliación al Sistema de Seguridad Social</h1>
                         <p class="estandar-subtitle">Control y carga mensual de la planilla de pago de Seguridad Social (PILA).</p>
                     </div>
                 </div>
-                <a href="dashboard.php?std=2" class="btn-back">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                    </svg>
-                    Volver al Dashboard
-                </a>
             </div>
 
             <div class="panel-container">
+                
                 <?php if ($usuario_rol === 'sst' || $usuario_rol === 'representante'): ?>
                     <div class="card-box" style="align-self: start;">
-                        <h3 class="card-title">Subir Nueva Planilla</h3>
+                        <h3 class="card-title">
+                            <div class="title-icon-wrapper"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                            Subir Nueva Planilla
+                        </h3>
 
                         <?php if ($bloquear_subida): ?>
-                            <div class="alert alert-danger" style="flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 0;">
+                            <div class="alert-status danger" style="flex-direction: column; align-items: flex-start; gap: 8px;">
                                 <div style="display:flex; gap: 8px; align-items:center;">
-                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                                    </svg>
+                                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.1rem;"></i>
                                     <strong style="font-size: 0.9rem;">¡Falta el NIT de la Empresa!</strong>
                                 </div>
-                                <p style="margin:0; font-size: 0.8rem; font-weight: 500; line-height: 1.5; color: #7f1d1d;">
+                                <p style="margin:0; font-size: 0.8rem; font-weight: 500; line-height: 1.5;">
                                     No podemos calcular tu fecha límite de pago (Decreto 1990 de 2016) porque no tienes el <strong>NIT</strong> configurado.
                                 </p>
                                 <?php if ($usuario_rol === 'representante'): ?>
-                                    <a href="configuracion.php" class="btn-primary" style="margin-top: 4px; width: auto; font-size: 0.8rem; padding: 10px 16px; background: #dc2626; color: white; text-decoration: none;">Completar Perfil de Empresa</a>
+                                    <a href="configuracion.php" class="btn-primary" style="margin-top: 8px; width: 100%; font-size: 0.8rem; padding: 10px; background: #dc2626;">Completar Perfil de Empresa</a>
                                 <?php else: ?>
-                                    <p style="margin:0; font-size: 0.8rem; font-weight: 700; color: #991b1b; padding: 8px; background: rgba(220,38,38,0.1); border-radius: 6px;">El Representante Legal debe actualizar el "Perfil Corporativo" en Configuración.</p>
+                                    <p style="margin:8px 0 0 0; font-size: 0.8rem; font-weight: 700; color: #991b1b; padding: 8px; background: rgba(220,38,38,0.1); border-radius: 6px; width: 100%;">El Representante Legal debe actualizar el "Perfil Corporativo" en Configuración.</p>
                                 <?php endif; ?>
                             </div>
                         <?php else: ?>
 
                             <div class="info-pila-box">
                                 <p style="margin-bottom: 12px; font-weight: 800; font-size: 0.75rem; color: var(--primary2); display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.05em;">
-                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
+                                    <i class="fa-solid fa-calculator"></i>
                                     Cálculo Automático PILA
                                 </p>
                                 <p>Empresa: <strong style="color: var(--blue-dark);"><?php echo htmlspecialchars($nombre_empresa); ?></strong></p>
@@ -383,9 +377,7 @@ $current_page = 'estandar2.php';
 
                                     <div class="dropzone" id="dropzone">
                                         <input type="file" name="archivo" id="archivoPdf" accept="application/pdf" required hidden>
-                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="32" height="32" stroke-width="1.5">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                                        </svg>
+                                        <i class="fa-solid fa-file-pdf" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 8px;"></i>
                                         <p>Haz clic o arrastra tu PDF</p>
                                         <span>Solo se aceptan archivos .pdf</span>
                                     </div>
@@ -394,10 +386,7 @@ $current_page = 'estandar2.php';
 
                                         <div class="analysis-panel" id="analysisPanel">
                                             <div class="analysis-title">
-                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                                                </svg>
-                                                Análisis Rápido del Documento
+                                                <i class="fa-solid fa-robot"></i> Análisis Rápido del Documento
                                             </div>
                                             <div class="analysis-grid">
                                                 <div class="analysis-item">
@@ -420,9 +409,7 @@ $current_page = 'estandar2.php';
 
                                         <div class="preview-header">
                                             <span>
-                                                <svg fill="none" stroke="#ef4444" viewBox="0 0 24 24" width="16" height="16" stroke-width="2">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                                                </svg>
+                                                <i class="fa-solid fa-eye" style="color: #ef4444;"></i>
                                                 Vista previa
                                             </span>
                                             <button type="button" class="btn-change-file" id="btnRemovePdf">Cambiar</button>
@@ -432,10 +419,7 @@ $current_page = 'estandar2.php';
                                 </div>
 
                                 <button type="submit" class="btn-primary" id="btnSubmitForm" style="display: none;">
-                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
-                                    </svg>
-                                    Guardar Planilla
+                                    <i class="fa-solid fa-floppy-disk"></i> Guardar Planilla
                                 </button>
                             </form>
                         <?php endif; ?>
@@ -446,23 +430,17 @@ $current_page = 'estandar2.php';
 
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; border-bottom: 1px dashed var(--border); padding-bottom: 12px;">
                         <h3 class="card-title" style="border: none; padding: 0; margin: 0;">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" style="color: var(--primary);">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                            </svg>
+                            <div class="title-icon-wrapper"><i class="fa-solid fa-calendar-check"></i></div>
                             Planillas del Año
                         </h3>
 
                         <div class="year-selector">
                             <a href="?anio=<?php echo $anio_seleccionado - 1; ?>" class="year-btn" title="Año Anterior">
-                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path>
-                                </svg>
+                                <i class="fa-solid fa-chevron-left"></i>
                             </a>
                             <span class="year-display"><?php echo $anio_seleccionado; ?></span>
                             <a href="?anio=<?php echo $anio_seleccionado + 1; ?>" class="year-btn" title="Año Siguiente">
-                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path>
-                                </svg>
+                                <i class="fa-solid fa-chevron-right"></i>
                             </a>
                         </div>
                     </div>
@@ -492,32 +470,21 @@ $current_page = 'estandar2.php';
                                     <?php $p = $planillas_mes[$m]; ?>
                                     <div class="month-info" style="margin-top: 6px;">
                                         <div style="display:flex; align-items:center; gap: 6px; margin-bottom: 6px;">
-                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                            </svg>
+                                            <i class="fa-solid fa-user-check" style="width: 14px; text-align: center; color: #94a3b8;"></i>
                                             <span style="font-weight: 600; color: #334155;"><?php echo htmlspecialchars($p['nombre'] . ' ' . $p['apellido']); ?></span>
                                         </div>
                                         <div style="display:flex; align-items:center; gap: 6px;">
-                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                            </svg>
+                                            <i class="fa-solid fa-clock-rotate-left" style="width: 14px; text-align: center; color: #94a3b8;"></i>
                                             Subido el <?php echo date('d/m/Y', strtotime($p['fecha_subida'])); ?>
                                         </div>
                                     </div>
                                     <div class="month-actions">
                                         <a href="<?php echo htmlspecialchars($p['archivo_url']); ?>" target="_blank" class="btn-view" title="Ver Documento">
-                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                            </svg>
-                                            Ver
+                                            <i class="fa-regular fa-eye"></i> Ver
                                         </a>
                                         <?php if ($usuario_rol === 'sst' || $usuario_rol === 'representante'): ?>
-                                            <a href="#" onclick="showConfirmModal('Eliminar Planilla', '¿Estás seguro de eliminar la planilla de <?php echo $mes_nombre; ?>?', 'procesar_estandar2.php?accion=eliminar_planilla&id=<?php echo $p['id']; ?>', 'danger', 'Sí, eliminar'); return false;" class="btn-delete" title="Eliminar">
-                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                </svg>
-                                                Borrar
+                                            <a href="#" onclick="showConfirmModal('Eliminar Planilla', '¿Estás seguro de eliminar la planilla de <?php echo $mes_nombre; ?>? Esta acción no se puede deshacer.', 'procesar_estandar2.php?accion=eliminar_planilla&id=<?php echo $p['id']; ?>', 'danger', 'Sí, eliminar'); return false;" class="btn-delete" title="Eliminar">
+                                                <i class="fa-regular fa-trash-can"></i> Borrar
                                             </a>
                                         <?php endif; ?>
                                     </div>
@@ -528,10 +495,7 @@ $current_page = 'estandar2.php';
                                     <?php if (!$bloquear_subida && ($usuario_rol === 'sst' || $usuario_rol === 'representante')): ?>
                                         <div class="month-actions">
                                             <button type="button" class="btn-outline-upload" onclick="prepararSubida(<?php echo $m; ?>, <?php echo $anio_seleccionado; ?>)">
-                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-                                                </svg>
-                                                Cargar Planilla
+                                                <i class="fa-solid fa-cloud-arrow-up"></i> Cargar Planilla
                                             </button>
                                         </div>
                                     <?php endif; ?>
@@ -600,7 +564,7 @@ $current_page = 'estandar2.php';
             const resNovedades = document.getElementById('resNovedades');
 
             panel.style.display = 'flex';
-            resNit.innerHTML = '<svg class="spinner" viewBox="0 0 24 24" width="14" height="14"><path fill="none" stroke="currentColor" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Analizando...';
+            resNit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analizando...';
             resTrabajadores.innerHTML = '...';
             resNovedades.innerHTML = '...';
 
@@ -641,9 +605,9 @@ $current_page = 'estandar2.php';
                 }
 
                 if (nitCoincide) {
-                    resNit.innerHTML = `<span class="status-ok"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="vertical-align:text-bottom"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Coincide (${nitBase})</span>`;
+                    resNit.innerHTML = `<span class="status-ok"><i class="fa-solid fa-circle-check"></i> Coincide (${nitBase})</span>`;
                 } else {
-                    resNit.innerHTML = `<span class="status-err" title="No se detectó el NIT de la empresa en el documento"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="vertical-align:text-bottom"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> No Coincide / No legible</span>`;
+                    resNit.innerHTML = `<span class="status-err" title="No se detectó el NIT de la empresa en el documento"><i class="fa-solid fa-circle-xmark"></i> No Coincide / No legible</span>`;
                 }
 
                 // 3. VALIDACIÓN EXACTA DE TRABAJADORES (CERO FALSOS POSITIVOS)
@@ -751,7 +715,7 @@ $current_page = 'estandar2.php';
 
             } catch (error) {
                 console.error("Error analizando PDF: ", error);
-                resNit.innerHTML = '<span class="status-err">Error al leer PDF</span>';
+                resNit.innerHTML = '<span class="status-err"><i class="fa-solid fa-circle-xmark"></i> Error al leer PDF</span>';
                 resTrabajadores.innerHTML = '-';
                 resNovedades.innerHTML = '-';
             }
@@ -822,7 +786,7 @@ $current_page = 'estandar2.php';
                 }
             }
 
-            const alerts = document.querySelectorAll('.alert');
+            const alerts = document.querySelectorAll('.alert-status');
             if (alerts.length > 0) {
                 setTimeout(() => {
                     alerts.forEach(a => {

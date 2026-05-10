@@ -133,6 +133,11 @@ $nombres_estandares = [
     59 => "Acciones de mejora con base en investigaciones de accidentes de trabajo y enfermedades laborales",
     60 => "Plan de mejoramiento"
 ];
+
+// LÓGICA DE RUTA DINÁMICA PARA EL LOGO
+// Dependiendo de si estamos en la raíz o en admin/, la ruta cambia.
+$ruta_logo = file_exists('assets/logo_preventwork.jpeg') ? 'assets/logo_preventwork.jpeg' : '../assets/logo_preventwork.jpeg';
+
 ?>
 <style>
     :root {
@@ -247,7 +252,7 @@ $nombres_estandares = [
 <aside class="sidebar" id="mainSidebar">
     <div class="sidebar-header">
         <div class="brand">
-            <img src="assets/logo_preventwork.jpeg" alt="PrevenWork">
+            <img src="<?php echo $ruta_logo; ?>" alt="PrevenWork">
         </div>
         <button class="btn-close-sidebar" id="btnCloseSidebar" title="Cerrar Menú">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -271,6 +276,9 @@ $nombres_estandares = [
             </a>
             <a href="planes.php" class="nav-item <?php echo $current_page == 'planes.php' ? 'active' : ''; ?>">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg> Planes
+            </a>
+            <a href="contabilidad.php" class="nav-item <?php echo $current_page == 'contabilidad.php' ? 'active' : ''; ?>">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Contabilidad
             </a>
 
         <?php else: ?>

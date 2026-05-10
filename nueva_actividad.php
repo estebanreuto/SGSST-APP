@@ -8,7 +8,7 @@ $u = require_auth($conn);
 $usuario_id = $_SESSION['usuario_id'] ?? 0;
 $usuario_rol = $_SESSION['usuario_rol'] ?? '';
 
-// Validar permisos (Trabajador no debería estar aquí directamente administrando)
+// Validar permisos
 if ($usuario_rol === 'trabajador' || $usuario_rol !== 'sst') {
     header('Location: dashboard.php');
     exit;
@@ -21,6 +21,38 @@ $empresa_id = $stmt_emp->fetchColumn();
 
 // Verificar si ya estamos conectados con Google Calendar
 $google_connected = isset($_SESSION['google_access_token']) && !empty($_SESSION['google_access_token']);
+
+// ==========================================
+// MODO EDICIÓN / REPROGRAMACIÓN (MAGIA)
+// ==========================================
+$edit_id = isset($_GET['edit_id']) ? intval($_GET['edit_id']) : 0;
+$act_edit = null;
+$trabajadores_edit = [];
+
+if ($edit_id > 0) {
+    try {
+        $stmt_edit = $conn->prepare("SELECT * FROM actividades_capacitacion WHERE id = ? AND empresa_id = ?");
+        $stmt_edit->execute([$edit_id, $empresa_id]);
+        $act_edit = $stmt_edit->fetch(PDO::FETCH_ASSOC);
+        
+        if ($act_edit && $act_edit['dirigido_a'] === 'Trabajador Específico') {
+            $stmt_te = $conn->prepare("SELECT usuario_id FROM actividades_trabajadores WHERE actividad_id = ?");
+            $stmt_te->execute([$edit_id]);
+            $trabajadores_edit = $stmt_te->fetchAll(PDO::FETCH_COLUMN);
+        }
+    } catch (PDOException $e) {}
+}
+
+// Extraer fechas para prellenar
+$fecha_inicio_val = ''; $hora_inicio_val = '';
+$fecha_fin_val = ''; $hora_fin_val = '';
+
+if ($act_edit) {
+    $fecha_inicio_val = date('Y-m-d', strtotime($act_edit['fecha_inicio']));
+    $hora_inicio_val = date('H:i', strtotime($act_edit['fecha_inicio']));
+    $fecha_fin_val = date('Y-m-d', strtotime($act_edit['fecha_fin']));
+    $hora_fin_val = date('H:i', strtotime($act_edit['fecha_fin']));
+}
 
 // 1. Obtener los grupos de la empresa para el formulario
 $grupos = [];
@@ -36,24 +68,20 @@ if ($empresa_id) {
         ");
         $stmt_g->execute([$empresa_id]);
         $grupos = $stmt_g->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        $grupos = [];
-    }
+    } catch (PDOException $e) { }
 }
 
-// 2. Obtener los trabajadores activos para el buscador múltiple
+// 2. Obtener los trabajadores activos
 $trabajadores_activos = [];
 if ($empresa_id) {
     try {
         $stmt_ta = $conn->prepare("SELECT id, nombre, apellido, cedula, foto_perfil FROM usuarios WHERE empresa_id = ? AND rol = 'trabajador' AND activo = 1 ORDER BY nombre ASC, apellido ASC");
         $stmt_ta->execute([$empresa_id]);
         $trabajadores_activos = $stmt_ta->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        $trabajadores_activos = [];
-    }
+    } catch (PDOException $e) { }
 }
 
-$current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
+$current_page = 'estandar3.php'; 
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -61,13 +89,11 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nueva Actividad | SG-SST Pro</title>
+    <title><?php echo $act_edit ? 'Reprogramar' : 'Nueva'; ?> Actividad | SG-SST Pro</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
     <style>
@@ -90,104 +116,51 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
         .icon-box-std svg { width: 22px; height: 22px; }
         
         .estandar-header-text { display: flex; flex-direction: column; }
-        .estandar-title { margin: 0; font-size: 1.15rem; color: var(--blue-dark); font-weight: 800; letter-spacing: -0.01em; line-height: 1.3; display: block; }
+        .estandar-title { margin: 0; font-size: 1.15rem; color: var(--blue-dark); font-weight: 800; letter-spacing: -0.01em; }
         .estandar-subtitle { margin: 4px 0 0 0; color: #64748b; font-size: 0.85rem; font-weight: 500; }
         
         .btn-back { background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 8px 14px; border-radius: 8px; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease; font-size: 0.8rem; }
         .btn-back:hover { background: #f1f5f9; color: #0f172a; }
 
-        /* =========================================
-           BANNER GOOGLE CALENDAR
-           ========================================= */
-        .google-sync-banner {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 16px 20px; border-radius: 12px; margin-bottom: 32px;
-            font-family: 'Inter', sans-serif; transition: all 0.3s ease;
-        }
+        /* GOOGLE BANNER */
+        .google-sync-banner { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-radius: 12px; margin-bottom: 32px; font-family: 'Inter', sans-serif; transition: all 0.3s ease;}
         .google-sync-banner.disconnected { background: #fffbeb; border: 1px solid #fde68a; }
         .google-sync-banner.connected { background: #f0fdf4; border: 1px solid #bbf7d0; }
-        
         .g-sync-info { display: flex; align-items: center; gap: 14px; }
-        .g-sync-icon { 
-            width: 40px; height: 40px; border-radius: 10px; display: flex; 
-            align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; 
-        }
+        .g-sync-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
         .disconnected .g-sync-icon { background: rgba(217, 119, 6, 0.1); color: #d97706; }
         .connected .g-sync-icon { background: rgba(22, 163, 74, 0.1); color: #16a34a; }
-        
         .g-sync-text h4 { margin: 0; font-size: 0.95rem; font-weight: 700; color: #1e293b; }
         .g-sync-text p { margin: 2px 0 0 0; font-size: 0.8rem; color: #475569; }
-        
-        .btn-google { 
-            background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; padding: 8px 16px; 
-            border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; 
-            font-size: 0.85rem; display: flex; align-items: center; gap: 8px; text-decoration: none; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
+        .btn-google { background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
         .btn-google:hover { background: #f8fafc; border-color: #94a3b8; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transform: translateY(-1px); }
         .btn-google svg { width: 16px; height: 16px; }
 
-        /* =========================================
-           LAYOUT 2 COLUMNAS
-           ========================================= */
-        .layout-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) 300px;
-            gap: 32px;
-            align-items: start;
-        }
-
+        /* LAYOUT 2 COLUMNAS */
+        .layout-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; align-items: start; }
         .left-column { display: flex; flex-direction: column; gap: 24px; }
-
         .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        
         .form-group { text-align: left; }
         .form-group label.title-label { display: block; margin-bottom: 6px; font-weight: 700; font-size: 0.75rem; color: #475569; text-transform: uppercase; letter-spacing: 0.03em; }
         
         .input-icon-wrapper { position: relative; width: 100%; }
-        .input-icon-wrapper > i.icon-form { 
-            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
-            color: #94a3b8; pointer-events: none; z-index: 10; font-size: 0.95rem;
-        }
-        
-        .input-icon-wrapper > input.actividad-input, 
-        .input-icon-wrapper > select.actividad-input { 
-            width: 100%; padding: 10px 14px 10px 40px; border: 1px solid #cbd5e1; 
-            border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 0.85rem; color: #1e293b;
-            transition: all 0.2s ease; box-sizing: border-box; background: #ffffff; height: 42px;
-        }
-        
-        .input-icon-wrapper > select.actividad-input {
-            appearance: none; cursor: pointer;
-            background-image: url("data:image/svg+xml,%3Csvg fill='none' stroke='%2364748b' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-            background-repeat: no-repeat; background-position: right 12px center; background-size: 14px;
-        }
-        
-        .input-icon-wrapper > input.actividad-input:focus, 
-        .input-icon-wrapper > select.actividad-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.15); }
+        .input-icon-wrapper > i.icon-form { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; z-index: 10; font-size: 0.95rem; }
+        .input-icon-wrapper > input.actividad-input, .input-icon-wrapper > select.actividad-input, .input-icon-wrapper > textarea.actividad-input { width: 100%; padding: 10px 14px 10px 40px; border: 1px solid #cbd5e1; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 0.85rem; color: #1e293b; transition: all 0.2s ease; box-sizing: border-box; background: #ffffff; }
+        .input-icon-wrapper > input.actividad-input, .input-icon-wrapper > select.actividad-input { height: 42px; }
+        .input-icon-wrapper > select.actividad-input { appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg fill='none' stroke='%2364748b' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 14px; }
+        .input-icon-wrapper > input.actividad-input:focus, .input-icon-wrapper > select.actividad-input:focus, .input-icon-wrapper > textarea.actividad-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.15); }
 
-        /* =========================================
-           TARJETAS FEATURE COMPACTAS
-           ========================================= */
+        /* TARJETAS FEATURE COMPACTAS */
         .cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-        
-        .feature-card {
-            background: #ffffff; border-radius: 14px; padding: 16px; border: 1px solid #cbd5e1;
-            position: relative; overflow: hidden; transition: all 0.2s ease; cursor: pointer;
-            display: flex; flex-direction: column; gap: 12px; z-index: 1; margin: 0 !important; font-weight: 400 !important;
-        }
-
+        .feature-card { background: #ffffff; border-radius: 14px; padding: 16px; border: 1px solid #cbd5e1; position: relative; overflow: hidden; transition: all 0.2s ease; cursor: pointer; display: flex; flex-direction: column; gap: 12px; z-index: 1; margin: 0 !important; font-weight: 400 !important; }
         .feature-card:hover { transform: translateY(-3px); box-shadow: 0 8px 16px rgba(0,0,0,0.04); border-color: #94a3b8; }
         .feature-card:has(input:checked) { background: #fff8f3; border-color: var(--primary); box-shadow: 0 4px 12px rgba(255, 138, 31, 0.08); }
-
-        .watermark-icon { 
-            position: absolute; right: -8px; bottom: -10px; font-size: 75px; color: var(--primary); 
-            opacity: 0.06; transform: rotate(-15deg); z-index: 0; transition: all 0.3s ease; pointer-events: none; 
-        }
+        .watermark-icon { position: absolute; right: -8px; bottom: -10px; font-size: 75px; color: var(--primary); opacity: 0.06; transform: rotate(-15deg); z-index: 0; transition: all 0.3s ease; pointer-events: none; }
         .feature-card:hover .watermark-icon { transform: rotate(0deg) scale(1.05); opacity: 0.12; }
         .feature-card:has(input:checked) .watermark-icon { opacity: 0.20; transform: rotate(0deg) scale(1.05); }
 
         .card-header { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; position: relative; z-index: 2; }
-        
         .feature-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
         .feature-icon.blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
         .feature-icon.orange { background: rgba(255, 138, 31, 0.1); color: var(--primary); }
@@ -204,9 +177,7 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
         .custom-chk:checked { background-color: var(--primary); border-color: var(--primary); }
         .custom-chk:checked::after { content: ''; position: absolute; left: 5px; top: 1.5px; width: 4px; height: 8px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
 
-        /* =========================================
-           LISTA DE TRABAJADORES
-           ========================================= */
+        /* LISTA DE TRABAJADORES */
         .search-trabajadores { margin-bottom: 12px; position: relative; }
         .search-trabajadores input { width: 100%; padding: 12px 14px 12px 42px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 0.85rem; outline: none; background: #ffffff; transition: 0.2s;}
         .search-trabajadores input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255,138,31,0.1); }
@@ -222,42 +193,21 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
         @keyframes slideInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in-card { opacity: 0; animation: slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
-        /* =========================================
-           COLUMNA DERECHA (PANEL LATERAL FIJO)
-           ========================================= */
-        .right-column {
-            position: sticky;
-            top: 32px; 
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-        }
-
+        /* COLUMNA DERECHA (FIJA) */
+        .right-column { position: sticky; top: 32px; display: flex; flex-direction: column; gap: 24px; }
         .schedule-group { display: flex; flex-direction: column; gap: 8px; }
-
         .datetime-row { display: grid; grid-template-columns: 3fr 2fr; gap: 12px; }
 
-        .btn-primary-act { 
-            width: 100%; background: linear-gradient(135deg, var(--primary), var(--primary2)); color: #fff; 
-            border: none; padding: 12px; border-radius: 10px; font-size: 0.9rem; font-weight: 700; 
-            cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; display: flex; 
-            justify-content: center; align-items: center; gap: 8px; box-sizing: border-box;
-        }
+        .btn-primary-act { width: 100%; background: linear-gradient(135deg, var(--primary), var(--primary2)); color: #fff; border: none; padding: 14px; border-radius: 10px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; box-sizing: border-box; }
         .btn-primary-act:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(255, 138, 31, 0.25); }
         
-        .btn-cancel { 
-            width: 100%; background: transparent; color: #64748b; border: 1px solid #cbd5e1; 
-            padding: 12px; border-radius: 10px; font-weight: 700; cursor: pointer; 
-            transition: all 0.2s; font-size: 0.9rem; display: flex; justify-content: center; 
-            align-items: center; gap: 8px; box-sizing: border-box;
-        }
+        .btn-cancel { width: 100%; background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 14px; border-radius: 10px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; display: flex; justify-content: center; align-items: center; gap: 8px; box-sizing: border-box; }
         .btn-cancel:hover { background: #f1f5f9; color: #0f172a; border-color: #94a3b8; }
 
         .flatpickr-calendar { font-family: 'Inter', sans-serif !important; border-radius: 12px !important; box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important; border: 1px solid #e2e8f0 !important;}
         .flatpickr-day.selected { background: var(--primary) !important; border-color: var(--primary) !important; }
         input.datepicker[readonly], input.timepicker[readonly] { background-color: #ffffff; cursor: pointer; }
 
-        /* RESPONSIVE */
         @media (max-width: 1024px) {
             .cards-grid { grid-template-columns: repeat(2, 1fr); }
             .layout-grid { grid-template-columns: 1fr; gap: 40px;}
@@ -294,61 +244,60 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
                         </svg>
                     </div>
                     <div class="estandar-header-text">
-                        <h1 class="estandar-title">Programar Nueva Capacitación</h1>
+                        <h1 class="estandar-title"><?php echo $act_edit ? 'Reprogramar Actividad' : 'Programar Nueva Capacitación'; ?></h1>
                         <p class="estandar-subtitle">
-                            Crea tus reuniones o capacitaciones conectadas con Google Calendar
+                            <?php echo $act_edit ? 'Actualiza los datos y fechas de la reunión.' : 'Crea tus reuniones o capacitaciones conectadas con Google Calendar.'; ?>
                         </p>
                     </div>
                 </div>
                 <a href="estandar3.php" class="btn-back">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                    </svg>
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                     Volver al Estándar 3
                 </a>
             </div>
 
-            <?php if ($google_connected): ?>
-                <div class="google-sync-banner connected">
-                    <div class="g-sync-info">
-                        <div class="g-sync-icon">
-                            <i class="fa-solid fa-calendar-check"></i>
+            <?php if (!$act_edit): ?>
+                <?php if ($google_connected): ?>
+                    <div class="google-sync-banner connected">
+                        <div class="g-sync-info">
+                            <div class="g-sync-icon"><i class="fa-solid fa-calendar-check"></i></div>
+                            <div class="g-sync-text">
+                                <h4>Conectado a Google Calendar</h4>
+                                <p>Tus reuniones crearán un enlace de Google Meet automáticamente.</p>
+                            </div>
                         </div>
-                        <div class="g-sync-text">
-                            <h4>Conectado a Google Calendar</h4>
-                            <p>Tus reuniones crearán un enlace de Google Meet automáticamente.</p>
-                        </div>
+                        <span style="color: #16a34a; font-weight: 700; display:flex; align-items:center; gap:6px;">
+                            <i class="fa-solid fa-check-circle"></i> Sincronizado
+                        </span>
                     </div>
-                    <span style="color: #16a34a; font-weight: 700; display:flex; align-items:center; gap:6px;">
-                        <i class="fa-solid fa-check-circle"></i> Sincronizado
-                    </span>
-                </div>
-            <?php else: ?>
-                <div class="google-sync-banner disconnected">
-                    <div class="g-sync-info">
-                        <div class="g-sync-icon">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
+                <?php else: ?>
+                    <div class="google-sync-banner disconnected">
+                        <div class="g-sync-info">
+                            <div class="g-sync-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                            <div class="g-sync-text">
+                                <h4>Google Calendar no conectado</h4>
+                                <p>Conecta tu cuenta para agendar y crear reuniones de Meet en automático.</p>
+                            </div>
                         </div>
-                        <div class="g-sync-text">
-                            <h4>Google Calendar no conectado</h4>
-                            <p>Conecta tu cuenta para agendar y crear reuniones de Meet en automático.</p>
-                        </div>
+                        <a href="google_auth.php" class="btn-google">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                                <path d="M1 1h22v22H1z" fill="none"/>
+                            </svg>
+                            Conectar con Google
+                        </a>
                     </div>
-                    <a href="google_auth.php" class="btn-google">
-                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                            <path d="M1 1h22v22H1z" fill="none"/>
-                        </svg>
-                        Conectar con Google
-                    </a>
-                </div>
+                <?php endif; ?>
             <?php endif; ?>
 
             <form id="formRegistroActividad" action="procesar_estandar3.php" method="POST">
-                <input type="hidden" name="accion" value="crear_actividad">
+                <input type="hidden" name="accion" value="<?php echo $edit_id ? 'editar_actividad' : 'crear_actividad'; ?>">
+                <?php if($edit_id): ?>
+                    <input type="hidden" name="edit_id" value="<?php echo $edit_id; ?>">
+                <?php endif; ?>
                 
                 <div class="layout-grid">
                     
@@ -358,7 +307,7 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
                             <label class="title-label" for="nombre_actividad">Nombre de la Actividad *</label>
                             <div class="input-icon-wrapper">
                                 <i class="fa-solid fa-pen-to-square icon-form"></i>
-                                <input type="text" name="nombre_actividad" id="nombre_actividad" class="actividad-input" required placeholder="Ej. Uso y manejo de extintores">
+                                <input type="text" name="nombre_actividad" id="nombre_actividad" class="actividad-input" value="<?php echo htmlspecialchars($act_edit['nombre_actividad'] ?? ''); ?>" required placeholder="Ej. Uso y manejo de extintores">
                             </div>
                         </div>
 
@@ -369,11 +318,13 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
                                     <i class="fa-solid fa-layer-group icon-form"></i>
                                     <select name="tipo_capacitacion" id="tipo_capacitacion" class="actividad-input" required>
                                         <option value="">Selecciona...</option>
-                                        <option value="Inducción">Inducción</option>
-                                        <option value="Re Inducción">Re Inducción</option>
-                                        <option value="Charla de Seguridad">Charla de Seguridad</option>
-                                        <option value="Capacitación">Capacitación</option>
-                                        <option value="Entrenamiento">Entrenamiento</option>
+                                        <?php 
+                                        $tipos = ['Inducción', 'Re Inducción', 'Charla de Seguridad', 'Capacitación', 'Entrenamiento'];
+                                        foreach($tipos as $t) {
+                                            $sel = ($act_edit['tipo_capacitacion'] ?? '') == $t ? 'selected' : '';
+                                            echo "<option value='$t' $sel>$t</option>";
+                                        }
+                                        ?>
                                     </select>
                                 </div>
                             </div>
@@ -384,20 +335,45 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
                                     <i class="fa-solid fa-tag icon-form"></i>
                                     <select name="categoria" id="categoria" class="actividad-input" required>
                                         <option value="">Selecciona...</option>
-                                        <option value="Biológico">Biológico</option>
-                                        <option value="Físico">Físico</option>
-                                        <option value="Químico">Químico</option>
-                                        <option value="Psicosocial">Psicosocial</option>
-                                        <option value="Biomecánicos">Biomecánicos</option>
-                                        <option value="Mecánico">Mecánico</option>
-                                        <option value="Eléctrico">Eléctrico</option>
-                                        <option value="Locativo">Locativo</option>
-                                        <option value="Seguridad Vial">Seguridad Vial</option>
-                                        <option value="Públicos">Públicos</option>
-                                        <option value="Trabajo en alturas">Trabajo en alturas</option>
-                                        <option value="Legal">Legal</option>
+                                        <?php 
+                                        $cats = ['Biológico', 'Físico', 'Químico', 'Psicosocial', 'Biomecánicos', 'Mecánico', 'Eléctrico', 'Locativo', 'Seguridad Vial', 'Públicos', 'Trabajo en alturas', 'Legal'];
+                                        foreach($cats as $c) {
+                                            $sel = ($act_edit['categoria'] ?? '') == $c ? 'selected' : '';
+                                            echo "<option value='$c' $sel>$c</option>";
+                                        }
+                                        ?>
                                     </select>
                                 </div>
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="title-label" for="modalidad">Modalidad *</label>
+                                <div class="input-icon-wrapper">
+                                    <i class="fa-solid fa-globe icon-form"></i>
+                                    <select name="modalidad" id="modalidad" class="actividad-input" required>
+                                        <option value="Virtual" <?php echo ($act_edit['modalidad']??'') == 'Virtual' ? 'selected' : ''; ?>>Virtual (Meet/Zoom/Teams)</option>
+                                        <option value="Físico" <?php echo ($act_edit['modalidad']??'') == 'Físico' ? 'selected' : ''; ?>>Presencial (Físico)</option>
+                                        <option value="Mixto" <?php echo ($act_edit['modalidad']??'') == 'Mixto' ? 'selected' : ''; ?>>Mixto (Ambas)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="title-label" for="lugar_exacto">Lugar / Enlace Alterno <span style="text-transform:none; font-weight:400; color:#94a3b8;">(Opcional)</span></label>
+                                <div class="input-icon-wrapper">
+                                    <i class="fa-solid fa-location-dot icon-form"></i>
+                                    <input type="text" name="lugar_exacto" id="lugar_exacto" class="actividad-input" placeholder="Sala 1, Oficina, o URL" value="<?php echo htmlspecialchars($act_edit['lugar_exacto']??''); ?>">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group full" style="margin-bottom: 0;">
+                            <label class="title-label" for="descripcion">Descripción de la Actividad <span style="text-transform:none; font-weight:400; color:#94a3b8;">(Opcional)</span></label>
+                            <div class="input-icon-wrapper">
+                                <i class="fa-solid fa-align-left icon-form" style="top: 20px;"></i>
+                                <textarea name="descripcion" id="descripcion" class="actividad-input" style="height: 80px; padding-top:12px; resize:none;" placeholder="Detalles, temas a tratar, o instrucciones especiales..."><?php echo htmlspecialchars($act_edit['descripcion']??''); ?></textarea>
                             </div>
                         </div>
 
@@ -409,7 +385,7 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
                                     <i class="fa-solid fa-building-user watermark-icon"></i>
                                     <div class="card-header">
                                         <div class="feature-icon blue"><i class="fa-solid fa-building-user"></i></div>
-                                        <input type="radio" name="dirigido_a" value="Toda la empresa" class="radio-custom-dir" required>
+                                        <input type="radio" name="dirigido_a" value="Toda la empresa" class="radio-custom-dir" required <?php echo ($act_edit['dirigido_a']??'') == 'Toda la empresa' ? 'checked' : ''; ?>>
                                     </div>
                                     <div class="card-body">
                                         <h3>Toda la Empresa</h3>
@@ -421,7 +397,7 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
                                     <i class="fa-solid fa-user-check watermark-icon"></i>
                                     <div class="card-header">
                                         <div class="feature-icon orange"><i class="fa-solid fa-user-check"></i></div>
-                                        <input type="radio" name="dirigido_a" value="Trabajador Específico" class="radio-custom-dir" required>
+                                        <input type="radio" name="dirigido_a" value="Trabajador Específico" class="radio-custom-dir" required <?php echo ($act_edit['dirigido_a']??'') == 'Trabajador Específico' ? 'checked' : ''; ?>>
                                     </div>
                                     <div class="card-body">
                                         <h3>Trabajador Específico</h3>
@@ -435,7 +411,7 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
                                             <i class="fa-solid fa-users-viewfinder watermark-icon"></i>
                                             <div class="card-header">
                                                 <div class="feature-icon purple"><i class="fa-solid fa-users-viewfinder"></i></div>
-                                                <input type="radio" name="dirigido_a" value="Grupo: <?php echo htmlspecialchars($g['nombre']); ?>" class="radio-custom-dir" required>
+                                                <input type="radio" name="dirigido_a" value="Grupo: <?php echo htmlspecialchars($g['nombre']); ?>" class="radio-custom-dir" required <?php echo ($act_edit['dirigido_a']??'') == 'Grupo: '.$g['nombre'] ? 'checked' : ''; ?>>
                                             </div>
                                             <div class="card-body">
                                                 <h3><?php echo htmlspecialchars($g['nombre']); ?></h3>
@@ -447,7 +423,7 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
                             </div>
                         </div>
 
-                        <div class="form-group full" id="contenedor_trabajadores_especificos" style="display: none; animation: slideInUp 0.2s ease; margin-bottom: 0;">
+                        <div class="form-group full" id="contenedor_trabajadores_especificos" style="display: <?php echo ($act_edit['dirigido_a']??'') == 'Trabajador Específico' ? 'block' : 'none'; ?>; animation: slideInUp 0.2s ease; margin-bottom: 0;">
                             <label class="title-label">Selecciona los Trabajadores *</label>
                             
                             <div class="search-trabajadores">
@@ -470,7 +446,7 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
                                                         <?php echo strtoupper(substr($ta['nombre'], 0, 1)); ?>
                                                     <?php endif; ?>
                                                 </div>
-                                                <input type="checkbox" name="trabajadores_seleccionados[]" value="<?php echo $ta['id']; ?>" class="chk-trabajador custom-chk">
+                                                <input type="checkbox" name="trabajadores_seleccionados[]" value="<?php echo $ta['id']; ?>" class="chk-trabajador custom-chk" <?php echo in_array($ta['id'], $trabajadores_edit) ? 'checked' : ''; ?>>
                                             </div>
                                             <div class="card-body">
                                                 <h3><?php echo htmlspecialchars($ta['nombre'] . ' ' . $ta['apellido']); ?></h3>
@@ -497,11 +473,11 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
                             <div class="datetime-row">
                                 <div class="input-icon-wrapper">
                                     <i class="fa-regular fa-calendar icon-form"></i>
-                                    <input type="text" name="fecha_inicio" id="fecha_inicio" class="actividad-input datepicker" required placeholder="Añadir fecha">
+                                    <input type="text" name="fecha_inicio" id="fecha_inicio" class="actividad-input datepicker" required placeholder="Añadir fecha" value="<?php echo $fecha_inicio_val; ?>">
                                 </div>
                                 <div class="input-icon-wrapper">
                                     <i class="fa-regular fa-clock icon-form"></i>
-                                    <input type="text" name="hora_inicio" id="hora_inicio" class="actividad-input timepicker" required placeholder="00:00">
+                                    <input type="text" name="hora_inicio" id="hora_inicio" class="actividad-input timepicker" required placeholder="00:00" value="<?php echo $hora_inicio_val; ?>">
                                 </div>
                             </div>
                         </div>
@@ -511,19 +487,19 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
                             <div class="datetime-row">
                                 <div class="input-icon-wrapper">
                                     <i class="fa-regular fa-calendar icon-form"></i>
-                                    <input type="text" name="fecha_fin" id="fecha_fin" class="actividad-input datepicker" required placeholder="Añadir fecha">
+                                    <input type="text" name="fecha_fin" id="fecha_fin" class="actividad-input datepicker" required placeholder="Añadir fecha" value="<?php echo $fecha_fin_val; ?>">
                                 </div>
                                 <div class="input-icon-wrapper">
                                     <i class="fa-regular fa-clock icon-form"></i>
-                                    <input type="text" name="hora_fin" id="hora_fin" class="actividad-input timepicker" required placeholder="00:00">
+                                    <input type="text" name="hora_fin" id="hora_fin" class="actividad-input timepicker" required placeholder="00:00" value="<?php echo $hora_fin_val; ?>">
                                 </div>
                             </div>
                         </div>
 
                         <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 12px;">
                             <button type="submit" class="btn-primary-act">
-                                <i class="fa-solid fa-check"></i>
-                                Guardar Actividad
+                                <i class="fa-solid <?php echo $act_edit ? 'fa-calendar-day' : 'fa-check'; ?>"></i>
+                                <?php echo $act_edit ? 'Guardar Cambios' : 'Guardar Actividad'; ?>
                             </button>
                             <button type="button" class="btn-cancel" onclick="window.location.href='estandar3.php'">
                                 <i class="fa-solid fa-xmark"></i>
@@ -563,7 +539,6 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
             });
 
             const formActividad = document.getElementById('formRegistroActividad');
-            
             const radiosDirigido = document.querySelectorAll('input[name="dirigido_a"]');
             const contenedorTrabajadores = document.getElementById('contenedor_trabajadores_especificos');
             const checkboxes = document.querySelectorAll('.chk-trabajador');
@@ -580,7 +555,7 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
                         });
                     } else {
                         contenedorTrabajadores.style.display = 'none';
-                        checkboxes.forEach(chk => chk.checked = false);
+                        // No desmarcamos checkboxes por si se arrepiente, a menos que guarde.
                     }
                 });
             });
@@ -607,7 +582,6 @@ $current_page = 'estandar3.php'; // Mantener para el resaltado del sidebar
             if (formActividad) {
                 formActividad.addEventListener('submit', function(e) {
                     const radioSeleccionado = document.querySelector('input[name="dirigido_a"]:checked');
-                    
                     if (radioSeleccionado && radioSeleccionado.value === 'Trabajador Específico') {
                         const seleccionados = document.querySelectorAll('.chk-trabajador:checked');
                         if (seleccionados.length === 0) {

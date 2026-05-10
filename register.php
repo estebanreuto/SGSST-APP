@@ -991,7 +991,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         </div>
                         <div class="preview-price-wrapper">
                             ${hasDiscount ? `<span class="preview-price-old">$${formatOldPrice}</span>` : ''}
-                            <h2 class="preview-price">$${formatPrice}<span>/mes</span></h2>
+                            <h2 class="preview-price">$${formatPrice}<span>/anual</span></h2>
                         </div>
                     </div>
                     <ul class="preview-features">

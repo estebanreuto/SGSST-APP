@@ -433,7 +433,7 @@ foreach ($planes_db as $plan) {
                                     <p class="plan-price-old" style="visibility:hidden;">$0</p>
                                 <?php endif; ?>
                                 
-                                <p class="plan-price">$<?php echo number_format($precio_final, 0, ',', '.'); ?><span>/mes</span></p>
+                                <p class="plan-price">$<?php echo number_format($precio_final, 0, ',', '.'); ?><span>/anual</span></p>
                             </div>
                         </div>
                         

@@ -14,13 +14,18 @@ try {
         username VARCHAR(50) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
         nombre VARCHAR(100) NOT NULL,
+        email VARCHAR(100) DEFAULT NULL,
+        foto_perfil VARCHAR(255) DEFAULT NULL,
+        wompi_public VARCHAR(255) DEFAULT NULL,
+        wompi_private VARCHAR(255) DEFAULT NULL,
+        wompi_integrity VARCHAR(255) DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )");
 
     $stmt = $conn->query("SELECT COUNT(*) FROM super_admins");
     if ($stmt->fetchColumn() == 0) {
         $hash = password_hash('sgsst2026', PASSWORD_DEFAULT);
-        $conn->exec("INSERT INTO super_admins (username, password_hash, nombre) VALUES ('admin', '$hash', 'Super Administrador')");
+        $conn->exec("INSERT INTO super_admins (username, password_hash, nombre, email) VALUES ('admin', '$hash', 'Super Administrador', 'admin@preventwork.com')");
     }
 } catch (PDOException $e) {
     die("Error configurando BD del Admin: " . $e->getMessage());
@@ -54,13 +59,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Master Login | SG-SST Pro</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         :root {
-            /* TEMA CORPORATIVO BASADO EN LA IMAGEN */
-            --primary: #ff8a1f;        /* Naranja del proyecto */
+            --primary: #ff8a1f;        
             --primary-hover: #ea580c;
-            --sidebar-bg: #1e293b;     /* Azul grisáceo muy oscuro para el panel izquierdo */
+            --blue-main: #2b5a9e;
+            --sidebar-bg: #0f172a;     
             
             --text-main: #0f172a;
             --text-muted: #64748b;
@@ -69,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             --input-bg: #f8fafc;
             --input-focus: #ffffff;
             
-            --radius-md: 8px;
+            --radius-md: 12px;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -83,6 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            -webkit-font-smoothing: antialiased;
         }
 
         /* CONTENEDOR PRINCIPAL - PANTALLA DIVIDIDA */
@@ -93,10 +100,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             max-width: 100vw;
         }
 
-        /* LADO IZQUIERDO - BRANDING */
+        /* ================= MITAD IZQUIERDA (OSCURA) ================= */
         .brand-side {
-            flex: 1; /* Ocupa la mitad del espacio */
-            background: linear-gradient(135deg, var(--sidebar-bg) 0%, #0f172a 100%);
+            flex: 1; 
+            background: var(--sidebar-bg);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -104,128 +111,182 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 40px;
             position: relative;
             overflow: hidden;
+            border-right: 1px solid #1e293b;
         }
 
-        /* Elementos decorativos en el lado oscuro */
+        /* Efectos de fondo */
         .brand-side::before {
             content: '';
             position: absolute;
-            top: -10%; left: -10%;
-            width: 50%; height: 50%;
-            background: radial-gradient(circle, rgba(255, 138, 31, 0.1) 0%, transparent 60%);
-            border-radius: 50%;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
+            background-size: 24px 24px;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .glow-bg {
+            position: absolute;
+            top: 40%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, rgba(255, 138, 31, 0.15) 0%, transparent 60%);
+            z-index: 0;
+            pointer-events: none;
+            animation: pulseLight 4s infinite alternate ease-in-out;
+        }
+        
+        @keyframes pulseLight {
+            0% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.9); }
+            100% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
         }
 
-        /* ====== NUEVO: CÍRCULO DE FONDO PARA EL LOGO ====== */
-        .logo-circle {
-            width: 220px;
-            height: 220px;
-            background: #ffffff; /* Fondo blanco sólido para que el logo resalte */
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 30px;
+        /* ÍCONOS FLOTANTES MARCA DE AGUA */
+        .watermark-icon {
+            position: absolute;
+            color: #ffffff;
+            opacity: 0.04;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .wm-1 { top: 10%; left: 15%; font-size: 100px; animation: floatAnim1 20s infinite alternate ease-in-out; }
+        .wm-2 { bottom: 15%; right: 10%; font-size: 140px; animation: floatAnim2 25s infinite alternate ease-in-out; color: #ff8a1f; opacity: 0.03;}
+        .wm-3 { top: 30%; right: 15%; font-size: 80px; animation: floatAnim3 18s infinite alternate ease-in-out; }
+        .wm-4 { bottom: 20%; left: 10%; font-size: 110px; animation: floatAnim4 22s infinite alternate ease-in-out; }
+        .wm-5 { top: 50%; left: 5%; font-size: 60px; animation: floatAnim1 15s infinite alternate ease-in-out; color: #ff8a1f; opacity: 0.03;}
+
+        @keyframes floatAnim1 { 0% { transform: translateY(0) rotate(0deg); } 100% { transform: translateY(-40px) rotate(15deg); } }
+        @keyframes floatAnim2 { 0% { transform: translateY(0) rotate(0deg); } 100% { transform: translateY(-60px) rotate(-15deg); } }
+        @keyframes floatAnim3 { 0% { transform: translateY(0) rotate(0deg) scale(1); } 100% { transform: translateY(30px) rotate(20deg) scale(1.1); } }
+        @keyframes floatAnim4 { 0% { transform: translateY(0) rotate(0deg); } 100% { transform: translateY(50px) rotate(-20deg); } }
+
+        .brand-content {
+            position: relative;
             z-index: 10;
-            padding: 20px;
-            /* Sombra profunda y un borde exterior translúcido (efecto anillo) */
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 10px rgba(255, 255, 255, 0.05);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-wrapper {
+            margin-bottom: 20px;
         }
 
         .brand-logo-large {
-            max-width: 100%;
-            max-height: 100%;
+            max-width: 220px;
+            height: auto;
             object-fit: contain;
+            display: block;
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
         }
-        /* ================================================= */
         
         .brand-side h1 {
             color: #ffffff;
-            font-size: 2rem;
+            font-size: 2.5rem;
             font-weight: 800;
-            letter-spacing: -0.02em;
-            z-index: 10;
+            letter-spacing: -0.03em;
+            line-height: 1.2;
+        }
+
+        .brand-side h1 span {
+            color: #ff8a1f;
         }
 
         .brand-side p {
             color: #94a3b8;
-            margin-top: 8px;
-            font-size: 1rem;
-            z-index: 10;
+            font-size: 1.05rem;
+            max-width: 350px;
+            line-height: 1.5;
         }
 
-        /* LADO DERECHO - FORMULARIO */
+        /* ================= MITAD DERECHA (BLANCA) ================= */
         .form-side {
-            flex: 1; /* Ocupa la otra mitad */
+            flex: 1; 
             background-color: #ffffff;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 40px;
+            position: relative;
         }
 
+        /* Contenedor sin bordes (Borderless) */
         .login-card {
             width: 100%;
-            max-width: 400px;
-            padding: 20px;
+            max-width: 380px;
+            background: transparent;
+            padding: 0;
+            border: none;
+            box-shadow: none;
+            animation: fadeUp 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .login-card h2 {
-            font-size: 1.8rem;
+            font-size: 2rem;
             margin-bottom: 8px;
             font-weight: 800;
             color: var(--text-main);
-            letter-spacing: -0.02em;
+            letter-spacing: -0.03em;
         }
         
         .login-card p.subtitle {
             color: var(--text-muted);
             margin-bottom: 32px;
-            font-size: 0.95rem;
+            font-size: 1rem;
             font-weight: 400;
         }
 
-        /* ALERTA DE ERROR ESTILO LIMPIO */
+        /* ALERTA DE ERROR */
         .alert-error {
             background: #fef2f2;
             border: 1px solid #fecaca;
             color: #dc2626;
-            padding: 12px;
+            padding: 14px 16px;
             border-radius: var(--radius-md);
             margin-bottom: 24px;
             font-size: 0.85rem;
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 8px;
+            gap: 12px;
             font-weight: 600;
         }
 
-        /* INPUTS LIMPIOS Y CLAROS (Estilo Corporativo) */
+        /* INPUTS */
         .field { margin-bottom: 20px; }
         .field label {
             display: block;
-            font-size: 0.8rem;
-            font-weight: 600;
-            margin-bottom: 6px;
-            color: var(--text-main);
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
         
         .control { position: relative; }
         .control svg {
             position: absolute;
-            left: 14px;
+            left: 16px;
             top: 50%;
             transform: translateY(-50%);
             width: 18px;
             height: 18px;
             color: #94a3b8;
             transition: all 0.3s ease;
+            pointer-events: none;
         }
         
         .control input {
             width: 100%;
-            padding: 12px 14px 12px 42px;
+            padding: 14px 16px 14px 44px;
             border-radius: var(--radius-md);
             border: 1px solid var(--border-light);
             background: var(--input-bg);
@@ -235,44 +296,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-family: inherit;
         }
         
-        .control input::placeholder { color: #cbd5e1; }
+        .control input::placeholder { color: #cbd5e1; font-weight: 400; }
 
         .control input:focus {
             outline: none;
-            border-color: var(--primary);
+            border-color: #ff8a1f;
             background: var(--input-focus);
-            box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.1);
+            box-shadow: 0 0 0 4px rgba(255, 138, 31, 0.15);
         }
         
-        .control input:focus ~ svg { color: var(--primary); }
+        .control input:focus ~ svg { color: #ff8a1f; }
         
-        /* BOTÓN PRINCIPAL */
+        /* BOTÓN PRINCIPAL REPARADO (Cores directos para evitar fallos de CSS) */
         .btn-submit {
             width: 100%;
-            padding: 14px;
-            background: var(--primary);
-            color: white;
+            padding: 16px;
+            background-color: #ff8a1f; /* Respaldo */
+            background-image: linear-gradient(135deg, #ff8a1f 0%, #ff7a00 100%);
+            color: #ffffff !important;
             border: none;
             border-radius: var(--radius-md);
-            font-weight: 600;
+            font-weight: 700;
             font-size: 1rem;
             cursor: pointer;
             transition: all 0.2s ease;
-            margin-top: 10px;
+            margin-top: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
+            box-shadow: 0 4px 12px rgba(255, 138, 31, 0.3);
         }
 
         .btn-submit:hover {
-            background: var(--primary-hover);
-            transform: translateY(-1px);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(255, 138, 31, 0.4);
+            background-image: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
         }
 
         .spin-icon {
             animation: spin 1s linear infinite;
-            width: 20px; height: 20px;
+            width: 18px; height: 18px;
+            color: #ffffff;
         }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
@@ -282,20 +347,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             align-items: center;
             gap: 6px;
             margin-top: 32px;
-            color: var(--text-muted);
+            color: #94a3b8;
             text-decoration: none;
             font-size: 0.85rem;
-            font-weight: 500;
+            font-weight: 600;
             transition: color 0.2s ease;
+            justify-content: center;
+            width: 100%;
         }
         
-        .footer-link:hover { color: var(--primary); }
+        .footer-link:hover { color: #ff8a1f; }
 
         /* RESPONSIVE */
-        @media (max-width: 768px) {
-            .brand-side { display: none; }
-            .form-side { padding: 20px; }
-            .login-card { padding: 0; }
+        @media (max-width: 900px) {
+            .split-container { flex-direction: column; }
+            .brand-side { display: none; } 
+            .form-side { padding: 40px 24px; align-items: flex-start; padding-top: 15vh;}
         }
     </style>
 </head>
@@ -304,23 +371,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="split-container">
         
         <div class="brand-side">
+            <div class="glow-bg"></div>
             
-            <div class="logo-circle">
-                <img src="../assets/vertixlogo.png" alt="Logo Empresa" class="brand-logo-large">
-            </div>
+            <i class="fa-solid fa-shield-halved watermark-icon wm-1"></i>
+            <i class="fa-solid fa-chart-line watermark-icon wm-2"></i>
+            <i class="fa-solid fa-users watermark-icon wm-3"></i>
+            <i class="fa-solid fa-file-signature watermark-icon wm-4"></i>
+            <i class="fa-solid fa-helmet-safety watermark-icon wm-5"></i>
 
-            <h1>Panel de Control</h1>
-            <p>Acceso administrativo maestro</p>
+            <div class="brand-content">
+                <div class="logo-wrapper">
+                    <img src="../assets/vertixlogo.png" alt="Logo Empresa" class="brand-logo-large" onerror="this.src='../assets/logo_preventwork.jpeg'">
+                </div>
+
+                <h1>Panel <span>Maestro</span></h1>
+                <p>Centro de control y gestión administrativa SG-SST.</p>
+            </div>
         </div>
 
         <div class="form-side">
             <div class="login-card">
                 <h2>Iniciar Sesión</h2>
-                <p class="subtitle">Ingresa tus credenciales para continuar.</p>
+                <p class="subtitle">Ingresa tus credenciales maestras.</p>
 
                 <?php if ($error): ?>
                     <div class="alert-error">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         <?php echo htmlspecialchars($error); ?>
                     </div>
                 <?php endif; ?>
@@ -329,7 +405,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="field">
                         <label>Usuario</label>
                         <div class="control">
-                            <input type="text" name="username" required autofocus autocomplete="off" placeholder="admin">
+                            <input type="text" name="username" required autofocus autocomplete="off" placeholder="ej. admin">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                         </div>
                     </div>
@@ -343,14 +419,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     
                     <button type="submit" class="btn-submit" id="btnSubmit">
-                        Acceder
+                        Acceder al Panel
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                     </button>
                 </form>
 
-                <a href="../index.php" class="footer-link">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                    Volver al sitio principal
-                </a>
+                <div style="text-align: center;">
+                    <a href="../index.php" class="footer-link">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                        Volver al sitio principal
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -359,6 +438,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script>
         document.getElementById('adminLoginForm').addEventListener('submit', function() {
             const btn = document.getElementById('btnSubmit');
+            // Reemplazar ícono por spinner manteniendo el color de fuente
             btn.innerHTML = '<svg class="spin-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Verificando...';
             btn.style.opacity = '0.8';
             btn.style.pointerEvents = 'none';
