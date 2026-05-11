@@ -118,7 +118,6 @@ $current_page = 'estandar1.php';
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     
     <style>
         :root { --primary: #ff8a1f; --primary2: #ff7a00; --bg1: #edf4fb; --bg2: #f7f9fc; --card: #ffffff; --text: #1f2d3d; --muted: #5f6f82; --border: #dbe3ec; --radius: 12px; --blue-dark: #1e3a8a; }
@@ -227,18 +226,6 @@ $current_page = 'estandar1.php';
         .btn-versiones { background: #ffffff; color: #475569; border: 1px solid #cbd5e1; padding: 10px 20px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; font-family: inherit; text-decoration: none; }
         .btn-versiones:hover { background: #f8fafc; color: var(--blue-dark); border-color: #94a3b8; }
         
-        /* Contenedor Oculto para Generar el PDF Lindo */
-        #pdf-export-container { display: none; } 
-        .pdf-template { background: #fff; padding: 40px 50px; color: #000; font-size: 14px; line-height: 1.6; text-align: justify; font-family: Arial, sans-serif; }
-        .pdf-template h4 { text-align: center; font-weight: bold; margin-bottom: 24px; font-size: 18px; }
-        .pdf-template p { margin-bottom: 16px; }
-        .pdf-signatures { display: flex; justify-content: space-between; margin-top: 60px; }
-        .pdf-sig-box { text-align: center; width: 45%; }
-        .pdf-sig-box img { max-width: 100%; height: 80px; object-fit: contain; margin-bottom: 10px;}
-        .pdf-sig-box .line { width: 100%; height: 1px; background: #000; margin-bottom: 8px; }
-        .pdf-sig-box p { margin: 0; font-weight: bold; font-size: 14px;}
-        .pdf-sig-box span { display: block; font-size: 12px; }
-
         @media (max-width: 768px) {
             .main-wrapper { margin-left: 0; width: 100%; }
             .content-area { padding: 16px 14px; }
@@ -499,42 +486,6 @@ $current_page = 'estandar1.php';
                 </div>
             <?php endif; ?>
 
-            <div id="pdf-export-container">
-                <div class="pdf-template" id="acta-imprimir">
-                    <h4>ACTA DE DESIGNACIÓN DEL RESPONSABLE DEL SG-SST</h4>
-                    <p>En cumplimiento de lo establecido en la normatividad vigente en Seguridad y Salud en el Trabajo, la empresa <strong><?php echo htmlspecialchars($doc_empresa); ?></strong> designa como <strong><?php echo htmlspecialchars($doc_rol); ?></strong> del Sistema de Gestión de Seguridad y Salud en el Trabajo – SG-SST a:</p>
-                    <p><strong><?php echo htmlspecialchars($doc_nombre); ?></strong>, identificado(a) con cédula No. <strong><?php echo htmlspecialchars($doc_cedula); ?></strong>, con licencia en Seguridad y Salud en el Trabajo de tipo <strong><?php echo htmlspecialchars($doc_tipo_lic); ?></strong>, No. <strong><?php echo htmlspecialchars($doc_num_lic); ?></strong>, expedida el <strong><?php echo htmlspecialchars($doc_fecha_lic); ?></strong>.</p>
-                    <p>El responsable del SG-SST se compromete a liderar, coordinar y hacer seguimiento a las actividades del Sistema de Gestión de acuerdo con el Decreto 1072 de 2015, la Resolución 0312 de 2019 y demás normas aplicables, garantizando la mejora continua y la protección de la seguridad y salud de todos los trabajadores.</p>
-                    <p>Para constancia se firma la presente en la ciudad de <strong><?php echo htmlspecialchars($doc_ciudad); ?></strong>, a los <strong><?php echo htmlspecialchars($doc_fecha_firma); ?></strong>.</p>
-
-                    <div class="pdf-signatures">
-                        <div class="pdf-sig-box">
-                            <?php if (!empty($doc_firma_rep)): ?>
-                                <img src="<?php echo $doc_firma_rep; ?>">
-                            <?php else: ?>
-                                <div style="height:80px; margin-bottom:10px;"></div>
-                            <?php endif; ?>
-                            <div class="line"></div>
-                            <p>Representante Legal</p>
-                            <span><?php echo htmlspecialchars($doc_rep_nombre); ?></span>
-                            <span>C.C. <?php echo htmlspecialchars($doc_rep_cedula); ?></span>
-                        </div>
-
-                        <div class="pdf-sig-box">
-                            <?php if (!empty($doc_firma_sst)): ?>
-                                <img src="<?php echo $doc_firma_sst; ?>">
-                            <?php else: ?>
-                                <div style="height:80px; margin-bottom:10px;"></div>
-                            <?php endif; ?>
-                            <div class="line"></div>
-                            <p>Responsable SG-SST</p>
-                            <span><?php echo htmlspecialchars($doc_nombre); ?></span>
-                            <span>C.C. <?php echo htmlspecialchars($doc_cedula); ?></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
         </div>
     </main>
 
@@ -557,42 +508,45 @@ $current_page = 'estandar1.php';
             document.body.appendChild(overlay);
         };
 
-        // GENERADOR DE PDF (Con html2pdf usando el div oculto puro)
+        // GENERADOR DE PDF (Conectado al Backend mPDF)
         async function generarYGuardarPDF() {
             const btn = document.getElementById('btnDescargarPDF');
             const originalText = btn.innerHTML;
             
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generando PDF...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generando y Guardando...';
             btn.disabled = true;
 
-            const element = document.getElementById('acta-imprimir');
-            
-            // Forzar temporalmente que sea visible para que html2pdf lo capture bien
-            const container = document.getElementById('pdf-export-container');
-            container.style.display = 'block';
-            container.style.position = 'absolute';
-            container.style.left = '-9999px';
+            try {
+                const formData = new FormData();
+                formData.append('accion', 'generar_pdf');
+                formData.append('doc_id', '<?php echo $doc_asignacion["id"] ?? 0; ?>');
 
-            const opt = {
-                margin:       10,
-                filename:     'Acta_Designacion_SST_v<?php echo $doc_asignacion['id'] ?? 0; ?>.pdf',
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
+                const response = await fetch('procesar_estandar1.php', {
+                    method: 'POST',
+                    body: formData
+                });
 
-            // Promesa para generar y luego volver a ocultar
-            html2pdf().set(opt).from(element).save().then(() => {
-                container.style.display = 'none';
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    const link = document.createElement('a');
+                    link.href = data.pdf;
+                    link.download = 'Acta_Designacion_SST_v<?php echo $doc_asignacion["id"] ?? 0; ?>.pdf';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    window.location.reload();
+                } else {
+                    alert("Error del servidor: " + data.message);
+                }
+            } catch (error) {
+                console.error("Error al conectar con el servidor:", error);
+                alert("Hubo un error de conexión al intentar generar el documento.");
+            } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
-            }).catch(err => {
-                console.error("Error al generar PDF:", err);
-                container.style.display = 'none';
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-                alert("Hubo un error generando el documento PDF.");
-            });
+            }
         }
 
         // LÓGICA DE INTERFAZ Y CANVASES

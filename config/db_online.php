@@ -1,8 +1,8 @@
 <?php
 $host = "localhost";
 $db   = "u261346399_preventwork";
-$user = "root";
-$pass = "";
+$user = "u261346399_reutorwe_";
+$pass = "Sol2026!Casa#";
 
 try {
     $conn = new PDO(

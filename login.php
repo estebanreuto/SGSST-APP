@@ -82,7 +82,7 @@ function send2FAEmail(string $toEmail, string $toName, string $code): array
         $mail->isHTML(true);
         $mail->Subject = 'Tu código de verificación (2FA) - SG-SST Pro';
         
-        // DISEÑO DE CORREO PREMIUM (Compatible con Gmail, Outlook, etc.)
+        // DISEÑO DE CORREO PREMIUM
         $mail->Body = '
         <!DOCTYPE html>
         <html lang="es">
@@ -176,10 +176,7 @@ if (isset($_COOKIE['loop_breaker'])) {
         $auto_user = $stmt_check->fetch(PDO::FETCH_ASSOC);
         
         if ($auto_user) {
-            // Ponemos la marca "rompe-bucles" que dura solo 5 segundos
             setcookie('loop_breaker', '1', time() + 5, '/');
-            
-            // Construimos la sesión completa oficial
             create_db_session($conn, $auto_user, 8);
             $conn->prepare("UPDATE usuarios SET ultimo_acceso = NOW() WHERE id = ?")->execute([$auto_user['id']]);
             
@@ -192,7 +189,7 @@ if (isset($_COOKIE['loop_breaker'])) {
 
     // 2. Si ya hay sesión PHP normal, ir al dashboard
     if (isset($_SESSION['usuario_id'])) {
-        setcookie('loop_breaker', '1', time() + 5, '/'); // Marca de seguridad
+        setcookie('loop_breaker', '1', time() + 5, '/');
         header('Location: dashboard.php');
         exit;
     }
@@ -298,7 +295,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
 
                         unset($_SESSION['codigo_2fa'], $_SESSION['usuario_temp'], $_SESSION['codigo_expira'], $_SESSION['correo_censurado'], $_SESSION['remember_me']);
-                        setcookie('loop_breaker', '', time() - 3600, '/'); // Limpiar trampa al entrar limpio
+                        setcookie('loop_breaker', '', time() - 3600, '/'); 
                         header('Location: dashboard.php');
                         exit;
                     } else {
@@ -324,6 +321,7 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
     <title>Iniciar Sesión | SG-SST Pro</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --primary: #ff8a1f; --primary2: #ff7a00; --bg-top: #e8f0f8; --bg-mid: #f3f7fb; --bg-bottom: #ffffff;
@@ -333,18 +331,90 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
         }
         * { box-sizing: border-box; }
         body { margin: 0; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--bg-top) 0%, var(--bg-mid) 50%, var(--bg-bottom) 100%); color: var(--text-main); overflow-x: hidden; position: relative; }
+        
+        /* MARCA DE AGUA (CASCO DE SEGURIDAD) */
+        .watermark-bg { position: fixed; top: 75%; left: 20%; transform: translate(-50%, -50%) rotate(-15deg); font-size: 45vh; color: var(--blue-main); opacity: 0.03; z-index: 0; pointer-events: none; }
+        
         .blob { position: fixed; border-radius: 50%; filter: blur(80px); z-index: -1; opacity: 0.35; animation: float 12s infinite ease-in-out alternate; }
-        .blob-1 { top: -5%; left: -5%; width: 500px; height: 500px; background: var(--blue-main); }
-        .blob-2 { bottom: -10%; right: -5%; width: 600px; height: 600px; background: var(--primary); animation-delay: -6s; }
+        .blob-1 { top: -5%; left: -5%; width: 50vw; height: 50vw; background: var(--blue-main); max-width: 500px; max-height: 500px; }
+        .blob-2 { bottom: -10%; right: -5%; width: 60vw; height: 60vw; background: var(--primary); animation-delay: -6s; max-width: 600px; max-height: 600px; }
         @keyframes float { 0% { transform: translateY(0px) scale(1); } 100% { transform: translateY(40px) scale(1.05); } }
+        
+        /* ANIMACIONES DE ENTRADA */
         .fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(20px); }
-        .delay-1 { animation-delay: 0.1s; } .delay-2 { animation-delay: 0.2s; }
+        .delay-1 { animation-delay: 0.1s; } 
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
         @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+        
         .wrapper { display: grid; grid-template-columns: 42% 58%; height: 100vh; overflow: hidden; }
-        .brand { padding: 64px; display: flex; flex-direction: column; justify-content: center; z-index: 2; }
-        .brand h1 { margin: 0; font-size: clamp(2rem, 3.5vw, 3rem); line-height: 1.15; font-weight: 800; color: var(--blue-dark); letter-spacing: -0.02em; }
+        .brand { padding: 64px; display: flex; flex-direction: column; justify-content: center; z-index: 2; position: relative; }
+        
+        /* LOGO EN LA ESQUINA SUPERIOR IZQUIERDA (ENLACE) */
+        .logo-login-link {
+            position: absolute;
+            top: 48px;
+            left: 64px;
+            z-index: 10;
+            display: inline-block;
+            transition: transform 0.2s ease;
+        }
+        .logo-login-link:hover {
+            transform: scale(1.03);
+        }
+        .logo-login-link img {
+            max-width: 250px;
+            height: auto;
+            display: block;
+        }
+
+        /* CONTENEDOR DEL TEXTO CENTRAL Y BENEFICIOS */
+        .brand-text-container {
+            margin-top: 40px;
+            max-width: 480px;
+        }
+        .brand h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.5rem); line-height: 1.15; color: var(--blue-dark); font-weight: 800; letter-spacing: -0.02em;}
         .brand h1 span { background: linear-gradient(135deg, var(--primary), #ff5e00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .brand p { margin: 16px 0 0; color: var(--text-muted); font-size: 1.05rem; max-width: 440px; line-height: 1.6; }
+        .brand p { margin: 16px 0 0; color: var(--text-muted); font-size: 1.05rem; line-height: 1.6; }
+
+        /* LISTA DE CARACTERÍSTICAS ANIMADA */
+        .brand-features {
+            margin-top: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 0.95rem;
+            color: var(--blue-dark);
+            font-weight: 600;
+        }
+        .feature-icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(255, 138, 31, 0.15);
+            color: var(--primary2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(255, 138, 31, 0.1);
+            animation: pulseIcon 2.5s infinite alternate;
+        }
+        .feature-item:nth-child(2) .feature-icon { animation-delay: 0.5s; }
+        .feature-item:nth-child(3) .feature-icon { animation-delay: 1s; }
+
+        @keyframes pulseIcon {
+            0% { transform: scale(1); box-shadow: 0 4px 10px rgba(255, 138, 31, 0.1); }
+            100% { transform: scale(1.1); box-shadow: 0 6px 15px rgba(255, 138, 31, 0.25); }
+        }
+        
         .form-area { display: flex; align-items: center; justify-content: center; padding: 48px 64px; overflow-y: auto; height: 100vh; z-index: 2; }
         .form-area::-webkit-scrollbar { width: 0; }
         .card { width: 100%; max-width: 480px; margin: auto; background: var(--card-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--card-border); border-radius: var(--radius); box-shadow: var(--shadow-soft); padding: 40px; }
@@ -380,21 +450,64 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
         .footer-links a:hover { color: var(--blue-dark); text-decoration: underline; }
         .btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #ffffff; border: 1px solid #cbd5e1; color: var(--text-muted) !important; padding: 10px 16px; border-radius: 8px; font-weight: 600; margin-top: 6px; transition: all 0.2s ease; }
         .btn-outline:hover { background: #f1f5f9; color: var(--text-main) !important; text-decoration: none !important; }
-        @media(max-width:1100px) { .wrapper { grid-template-columns: 1fr; height: auto; } .brand { padding: 40px 40px 20px; text-align: center; } .brand p { margin: 16px auto 0; } .form-area { padding: 20px 40px 60px; height: auto; overflow: visible; } }
-        @media(max-width:500px) { .form-area { padding: 20px; } .card { padding: 30px 24px; } }
+        
+        @media(max-width:1100px) { 
+            .watermark-bg { left: 50%; top: 30%; transform: translate(-50%, -50%) rotate(-10deg); font-size: 35vh; }
+            .wrapper { grid-template-columns: 1fr; height: auto; } 
+            
+            /* En móvil, empujamos el contenido hacia abajo para que el logo no estorbe */
+            .brand { padding: 120px 24px 30px; text-align: left; height: auto; } 
+            
+            /* Logo esquina superior izquierda en móvil */
+            .logo-login-link { top: 24px; left: 24px; margin: 0; }
+            .logo-login-link img { max-width: 180px; }
+            
+            .brand-text-container { margin-top: 0; }
+            .brand h1 { font-size: 2.2rem; }
+            .brand p { margin: 12px 0 0 0; } 
+            
+            .brand-features { margin-top: 24px; gap: 12px;}
+            .feature-item { font-size: 0.9rem; }
+            .feature-icon { width: 30px; height: 30px; font-size: 0.9rem; }
+            
+            .form-area { padding: 20px 24px 60px; height: auto; overflow: visible; } 
+            .card { padding: 30px 24px; }
+        }
     </style>
 </head>
 
 <body>
 
+    <i class="fa-solid fa-helmet-safety watermark-bg"></i>
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>
 
     <div class="wrapper">
 
-        <div class="brand fade-in-up delay-1">
-            <h1>Bienvenido a<br><span>SG-SST Pro</span></h1>
-            <p>Accede a tu panel de control para gestionar el Sistema de Seguridad y Salud en el Trabajo de tu empresa de manera rápida y segura.</p>
+        <div class="brand">
+            <a href="index.php" class="logo-login-link" title="Ir al Inicio">
+                <img src="assets/logo_preventwork.png" alt="PreventWork">
+            </a>
+
+            <div class="brand-text-container fade-in-up delay-1">
+                <h1>Bienvenido a<br><span>SG-SST Pro</span></h1>
+                <p>Accede a tu panel de control para gestionar el Sistema de Seguridad y Salud en el Trabajo de tu empresa de manera rápida y segura.</p>
+                
+                <div class="brand-features">
+                    <div class="feature-item fade-in-up delay-2">
+                        <div class="feature-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                        <span>Cumplimiento 100% normativo y legal</span>
+                    </div>
+                    <div class="feature-item fade-in-up delay-3">
+                        <div class="feature-icon"><i class="fa-solid fa-chart-pie"></i></div>
+                        <span>Reportes y métricas en tiempo real</span>
+                    </div>
+                    <div class="feature-item fade-in-up delay-4">
+                        <div class="feature-icon"><i class="fa-solid fa-file-signature"></i></div>
+                        <span>Firmas digitales y gestión documental segura</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="form-area">

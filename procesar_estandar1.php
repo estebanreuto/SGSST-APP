@@ -153,8 +153,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $doc = $stmt_doc->fetch(PDO::FETCH_ASSOC);
 
             if ($doc) {
-                // Variables de texto
-                $empresa = "Sistemas P";
+                // Variables de texto dinámicas
+                $stmt_empresa = $conn->prepare("SELECT nombre_empresa FROM usuarios WHERE id = ?");
+                $stmt_empresa->execute([$doc['sst_id']]);
+                $empresa_data = $stmt_empresa->fetch(PDO::FETCH_ASSOC);
+                
+                $empresa = !empty($empresa_data['nombre_empresa']) ? $empresa_data['nombre_empresa'] : "La Empresa";
                 $rol = "Responsable";
                 $nombreSST = trim($doc['sst_nombre'] . ' ' . $doc['sst_apellido']);
                 $cedulaSST = $doc['sst_cedula'];
@@ -176,7 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'margin_bottom' => 30,
                     ];
 
-                    // Evitar el error de permisos en Mac (is not writable)
+                    // Evitar el error de permisos en Mac/Linux (is not writable)
                     $sysTmp = sys_get_temp_dir();
                     if (is_writable($sysTmp)) {
                         $mpdf_config['tempDir'] = $sysTmp;
@@ -254,7 +258,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $pdf_content = $mpdf->Output('', 'S');
                     $pdf_base64 = 'data:application/pdf;base64,' . base64_encode($pdf_content);
 
-                    // Guardar en BD
+                    // Guardar en BD para que quede en el historial
                     $stmt_upd = $conn->prepare("UPDATE doc_asignacion_sst SET archivo_pdf = ? WHERE id = ?");
                     $stmt_upd->execute([$pdf_base64, $doc_id]);
 

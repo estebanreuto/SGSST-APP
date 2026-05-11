@@ -186,23 +186,95 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         * { box-sizing: border-box; }
 
-        body { margin: 0; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--bg-top) 0%, var(--bg-mid) 50%, var(--bg-bottom) 100%); color: var(--text-main); position: relative; min-height: 100vh; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--bg-top) 0%, var(--bg-mid) 50%, var(--bg-bottom) 100%); color: var(--text-main); position: relative; min-height: 100vh; overflow-x: hidden;}
+
+        /* MARCA DE AGUA (CASCO DE SEGURIDAD) */
+        .watermark-bg { position: fixed; top: 75%; left: 20%; transform: translate(-50%, -50%) rotate(-15deg); font-size: 45vh; color: var(--blue-main); opacity: 0.03; z-index: 0; pointer-events: none; }
 
         .blob { position: fixed; border-radius: 50%; filter: blur(80px); z-index: -1; opacity: 0.35; animation: float 12s infinite ease-in-out alternate; }
         .blob-1 { top: -5%; left: -5%; width: 50vw; height: 50vw; background: var(--blue-main); max-width: 500px; max-height: 500px; }
         .blob-2 { bottom: -10%; right: -5%; width: 60vw; height: 60vw; background: var(--primary); animation-delay: -6s; max-width: 600px; max-height: 600px; }
         @keyframes float { 0% { transform: translateY(0px) scale(1); } 100% { transform: translateY(40px) scale(1.05); } }
 
+        /* ANIMACIONES DE ENTRADA */
+        .fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(20px); }
+        .delay-1 { animation-delay: 0.1s; } 
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+
         .wrapper { display: flex; flex-direction: row; min-height: 100vh; width: 100%; }
 
-        .brand { flex: 0 0 40%; padding: 64px; display: flex; flex-direction: column; justify-content: center; z-index: 2; position: sticky; top: 0; height: 100vh; }
-        .brand h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.5rem); line-height: 1.15; color: var(--blue-dark); font-weight: 800; }
+        .brand { flex: 0 0 42%; padding: 64px; display: flex; flex-direction: column; justify-content: center; z-index: 2; position: sticky; top: 0; height: 100vh; }
+        
+        /* LOGO EN LA ESQUINA SUPERIOR IZQUIERDA (ENLACE) */
+        .logo-register-link {
+            position: absolute;
+            top: 48px;
+            left: 64px;
+            z-index: 10;
+            display: inline-block;
+            transition: transform 0.2s ease;
+        }
+        .logo-register-link:hover {
+            transform: scale(1.03);
+        }
+        .logo-register-link img {
+            max-width: 250px;
+            height: auto;
+            display: block;
+        }
+
+        /* CONTENEDOR DEL TEXTO CENTRAL Y BENEFICIOS */
+        .brand-text-container {
+            margin-top: 40px;
+            max-width: 480px;
+        }
+        .brand h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.5rem); line-height: 1.15; color: var(--blue-dark); font-weight: 800; letter-spacing: -0.02em;}
         .brand h1 span { background: linear-gradient(135deg, var(--primary), #ff5e00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .brand p { margin: 16px 0 0; color: var(--text-muted); font-size: 1rem; max-width: 440px; }
+        .brand p { margin: 16px 0 0; color: var(--text-muted); font-size: 1.05rem; line-height: 1.6; }
+
+        /* LISTA DE CARACTERÍSTICAS ANIMADA */
+        .brand-features {
+            margin-top: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 0.95rem;
+            color: var(--blue-dark);
+            font-weight: 600;
+        }
+        .feature-icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(255, 138, 31, 0.15);
+            color: var(--primary2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(255, 138, 31, 0.1);
+            animation: pulseIcon 2.5s infinite alternate;
+        }
+        .feature-item:nth-child(2) .feature-icon { animation-delay: 0.5s; }
+        .feature-item:nth-child(3) .feature-icon { animation-delay: 1s; }
+
+        @keyframes pulseIcon {
+            0% { transform: scale(1); box-shadow: 0 4px 10px rgba(255, 138, 31, 0.1); }
+            100% { transform: scale(1.1); box-shadow: 0 6px 15px rgba(255, 138, 31, 0.25); }
+        }
 
         .form-area { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 48px; z-index: 2; min-height: 100vh; overflow-y: auto; }
         
-        .card { width: 100%; max-width: 900px; background: var(--card-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--card-border); border-radius: var(--radius); box-shadow: var(--shadow-soft); padding: 32px; margin: auto; }
+        .card { width: 100%; max-width: 900px; background: var(--card-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--card-border); border-radius: var(--radius); box-shadow: var(--shadow-soft); padding: 40px; margin: auto; }
 
         .success-card { max-width: 500px; padding: 56px 48px; text-align: center; display: flex; flex-direction: column; align-items: center; animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; margin: auto;}
         .success-icon-wrapper { width: 90px; height: 90px; background: linear-gradient(135deg, rgba(255, 138, 31, 0.15), rgba(255, 122, 0, 0.05)); color: var(--primary2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 30px; position: relative; }
@@ -217,8 +289,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         @keyframes pulse-orange { 0% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 0 0 rgba(255, 138, 31, 0.4); } 70% { transform: scale(1.3); opacity: 0; box-shadow: 0 0 0 20px rgba(255, 138, 31, 0); } 100% { transform: scale(1.3); opacity: 0; box-shadow: 0 0 0 0 rgba(255, 138, 31, 0); } }
         @keyframes floatingIcon { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 
-        .header { margin-bottom: 20px; }
-        .header h2 { margin: 0; font-size: 1.35rem; color: var(--blue-dark); font-weight: 800; }
+        .header { margin-bottom: 24px; }
+        .header h2 { margin: 0; font-size: 1.4rem; color: var(--blue-dark); font-weight: 800; }
         .header .hint { margin: 4px 0 0; font-size: .85rem; color: var(--text-muted); }
 
         .alert-error {
@@ -233,12 +305,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         @media (min-width: 600px) { .grid { grid-template-columns: repeat(2, 1fr); } }
         @media (min-width: 992px) { .grid { grid-template-columns: repeat(3, 1fr); } }
 
-        .field label { display: block; font-size: .75rem; font-weight: 600; margin: 0 0 6px; color: var(--text-main); }
-        .label-opt { font-weight: 400; color: #94a3b8; font-size: 0.65rem; }
+        .field label { display: block; font-size: .75rem; font-weight: 600; margin: 0 0 8px; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.05em; }
+        .label-opt { font-weight: 400; color: #94a3b8; font-size: 0.65rem; text-transform: none; letter-spacing: normal;}
         .control { position: relative; }
-        .icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; opacity: .45; color: #94a3b8; pointer-events: none; transition: all .2s ease; }
+        .icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; opacity: .45; color: #94a3b8; pointer-events: none; transition: all .2s ease; }
         
-        input, select { width: 100%; padding: 12px 12px 12px 38px; font-size: .85rem; border: 1px solid var(--border); border-radius: 10px; background: #ffffff; color: var(--text-main); transition: all .2s ease; font-family: inherit; box-sizing: border-box; }
+        input, select { width: 100%; padding: 12px 14px 12px 40px; font-size: .9rem; border: 1px solid var(--border); border-radius: 10px; background: #ffffff; color: var(--text-main); transition: all .2s ease; font-family: inherit; box-sizing: border-box; font-weight: 500;}
         input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255, 138, 31, .14); }
         input:focus ~ .icon, select:focus ~ .icon { opacity: .75; color: var(--primary); }
 
@@ -247,17 +319,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         .section { margin-top: 24px; border: 1px solid var(--card-border); background: rgba(255, 255, 255, 0.6); border-radius: 16px; padding: 24px; }
         .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;}
-        .section-title h3 { margin: 0; font-size: 1rem; color: var(--blue-dark); font-weight: 700;}
-        .badge { font-size: .7rem; background: rgba(43, 90, 158, 0.1); color: var(--blue-main); padding: 4px 10px; border-radius: 999px; font-weight: 600; white-space: nowrap;}
+        .section-title h3 { margin: 0; font-size: 1rem; color: var(--blue-dark); font-weight: 800; text-transform: uppercase;}
+        .badge { font-size: .7rem; background: rgba(43, 90, 158, 0.1); color: var(--blue-main); padding: 4px 10px; border-radius: 999px; font-weight: 700; white-space: nowrap;}
         
         .legal { margin-top: 24px; background: rgba(241, 245, 249, 0.6); border: 1px dashed var(--border); border-radius: 16px; padding: 24px; }
         .legal p { margin: 0 0 14px; font-size: .8rem; color: var(--text-muted); line-height: 1.5; }
 
         .signature { margin-top: 24px; }
-        .signature h3 { margin: 0 0 12px; font-size: 1rem; color: var(--blue-dark); font-weight: 700; }
+        .signature h3 { margin: 0 0 12px; font-size: 1rem; color: var(--blue-dark); font-weight: 800; text-transform: uppercase;}
         
         .canvas-container { width: 100%; position: relative; }
-        canvas { width: 100%; height: 150px; border: 2px dashed #cbd5e1; border-radius: 14px; background: #ffffff; cursor: crosshair; touch-action: none; }
+        canvas { width: 100%; height: 150px; border: 2px dashed #cbd5e1; border-radius: 14px; background: #ffffff; cursor: crosshair; touch-action: none; transition: border-color 0.3s;}
+        canvas:hover { border-color: var(--primary); }
 
         #trabajador { padding-right: 8px; }
         @media (min-width: 992px) {
@@ -270,15 +343,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         .hidden { display: none !important; }
 
         .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 16px; }
-        .footer a { text-decoration: none; font-size: .85rem; color: var(--blue-main); font-weight: 600; padding: 10px 16px; border-radius: 8px; transition: all .25s ease; display: inline-flex; align-items: center; gap: 8px; }
+        .footer a { text-decoration: none; font-size: .85rem; color: var(--blue-main); font-weight: 700; padding: 10px 16px; border-radius: 8px; transition: all .25s ease; display: inline-flex; align-items: center; gap: 8px; }
         .footer a:hover { background: rgba(43, 90, 158, 0.1); color: var(--blue-dark); }
         
         .actions { display: flex; gap: 12px; flex-wrap: wrap; }
         
-        button { border: none; padding: 12px 24px; font-size: .85rem; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all .25s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; }
+        button { border: none; padding: 12px 24px; font-size: .9rem; font-weight: 700; border-radius: 8px; cursor: pointer; transition: all .25s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; }
         .btn-danger { background: #ffffff; border: 1px solid #cbd5e1; color: #475569; }
         .btn-danger:hover { background: #f1f5f9; color: var(--text-main); }
-        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: #ffffff; box-shadow: 0 4px 12px rgba(255, 138, 31, .25); }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: #ffffff; box-shadow: 0 4px 12px rgba(255, 138, 31, .25); text-transform: uppercase; letter-spacing: 0.05em; padding: 14px 28px;}
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(255, 138, 31, .35); }
 
         /* =========================================
@@ -288,7 +361,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
             border: 2px solid var(--primary);
             border-radius: 14px;
-            padding: 20px;
+            padding: 24px;
             margin-top: 16px;
             box-shadow: 0 10px 25px rgba(255, 138, 31, 0.12);
             position: relative;
@@ -296,9 +369,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             animation: popInPlan 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         
-        /* Línea decorativa superior */
         .plan-preview-box::before {
-            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px;
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px;
             background: linear-gradient(90deg, var(--primary), var(--primary2));
         }
 
@@ -309,28 +381,40 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         .preview-header {
             display: flex; justify-content: space-between; align-items: flex-start;
-            border-bottom: 1px dashed #cbd5e1; padding-bottom: 14px; margin-bottom: 14px;
+            border-bottom: 1px dashed #cbd5e1; padding-bottom: 16px; margin-bottom: 16px;
         }
 
         .preview-title-wrapper { display: flex; flex-direction: column; gap: 4px; }
         .preview-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary); font-weight: 800; }
-        .preview-title { margin: 0; font-size: 1.2rem; color: var(--blue-dark); font-weight: 800; }
+        .preview-title { margin: 0; font-size: 1.3rem; color: var(--blue-dark); font-weight: 800; }
 
         .preview-price-wrapper { display: flex; flex-direction: column; align-items: flex-end; }
-        .preview-price-old { font-size: 0.8rem; color: #94a3b8; text-decoration: line-through; line-height: 1; margin-bottom: 2px;}
-        .preview-price { font-size: 1.6rem; font-weight: 800; color: var(--text-main); margin: 0; line-height: 1; }
-        .preview-price span { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+        .preview-price-old { font-size: 0.85rem; color: #94a3b8; text-decoration: line-through; line-height: 1; margin-bottom: 2px;}
+        .preview-price { font-size: 1.8rem; font-weight: 800; color: var(--text-main); margin: 0; line-height: 1; }
+        .preview-price span { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
 
-        .preview-features { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; color: #334155; font-weight: 500;}
-        .preview-features li { display: flex; align-items: flex-start; gap: 8px; }
-        .preview-features li i.fa-check { color: #10b981; margin-top: 3px; font-size: 0.9rem;}
+        .preview-features { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem; color: #334155; font-weight: 500;}
+        .preview-features li { display: flex; align-items: flex-start; gap: 10px; }
+        .preview-features li i.fa-check { color: #10b981; margin-top: 3px; font-size: 1rem;}
         .preview-features li.disabled { color: #94a3b8; text-decoration: line-through; }
-        .preview-features li.disabled i.fa-xmark { color: #cbd5e1; margin-top: 3px; font-size: 0.9rem;}
+        .preview-features li.disabled i.fa-xmark { color: #cbd5e1; margin-top: 3px; font-size: 1rem;}
 
         @media(max-width: 992px) { 
+            .watermark-bg { left: 50%; top: 30%; transform: translate(-50%, -50%) rotate(-10deg); font-size: 35vh; }
             .wrapper { flex-direction: column; height: auto; overflow: visible; }
-            .brand { flex: none; height: auto; padding: 40px 24px 20px; text-align: center; position: relative; }
-            .brand p { margin: 16px auto 0; } 
+            
+            .brand { flex: none; height: auto; padding: 100px 24px 30px; text-align: left; position: relative; }
+            
+            .logo-register-link { top: 24px; left: 24px; margin: 0; }
+            .logo-register-link img { max-width: 180px; }
+            
+            .brand-text-container { margin-top: 0; }
+            .brand h1 { font-size: 2rem; }
+            .brand p { margin: 12px 0 0 0; } 
+
+            .brand-features { margin-top: 24px; gap: 12px;}
+            .feature-item { font-size: 0.9rem; }
+            .feature-icon { width: 30px; height: 30px; font-size: 0.9rem; }
             
             .form-area { padding: 16px; height: auto; overflow: visible; }
             .card { padding: 24px 16px; border-radius: 16px; }
@@ -348,20 +432,43 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <body>
 
+    <i class="fa-solid fa-helmet-safety watermark-bg"></i>
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>
 
     <div class="wrapper">
 
         <div class="brand">
-            <h1>Gestión <span>inteligente</span><br>de Seguridad y Salud</h1>
-            <p>Centraliza tu SG-SST, cumple la normatividad y toma decisiones basadas en datos reales desde una sola plataforma.</p>
+            <a href="index.php" class="logo-register-link" title="Ir al Inicio">
+                <img src="assets/logo_preventwork.png" alt="PreventWork">
+            </a>
+
+            <div class="brand-text-container fade-in-up delay-1">
+                <h1>Gestión <span>inteligente</span><br>de Seguridad y Salud</h1>
+                <p>Centraliza tu SG-SST, cumple la normatividad y toma decisiones basadas en datos reales desde una sola plataforma.</p>
+                
+                <div class="brand-features">
+                    <div class="feature-item fade-in-up delay-2">
+                        <div class="feature-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                        <span>Cumplimiento 100% normativo y legal</span>
+                    </div>
+                    <div class="feature-item fade-in-up delay-3">
+                        <div class="feature-icon"><i class="fa-solid fa-chart-pie"></i></div>
+                        <span>Reportes y métricas en tiempo real</span>
+                    </div>
+                    <div class="feature-item fade-in-up delay-4">
+                        <div class="feature-icon"><i class="fa-solid fa-file-signature"></i></div>
+                        <span>Firmas digitales y gestión documental segura</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="form-area">
             
+            <div class="card fade-in-up delay-2">
             <?php if ($registro_pendiente): ?>
-                <div class="card success-card">
+                <div class="success-card">
                     <div class="success-icon-wrapper">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
@@ -379,12 +486,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 </div>
 
             <?php else: ?>
-                <div class="card">
 
                     <div class="header">
                         <div>
                             <h2>Registro de Usuario</h2>
-                            <div class="hint">Completa los datos. Si eliges <b>Trabajador</b>, se habilita la encuesta sociodemográfica.</div>
+                            <div class="hint">Completa los datos para crear tu cuenta en la plataforma.</div>
                         </div>
                     </div>
 

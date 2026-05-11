@@ -99,7 +99,7 @@
 
 <div class="cookie-banner" id="cookieBanner">
     <div class="cookie-content">
-        <strong>🍪 Privacidad y Cookies</strong>
+        <strong>Privacidad y Cookies</strong>
         Utilizamos cookies esenciales para recordar tu sesión y mejorar tu experiencia en la plataforma.
     </div>
     <div class="cookie-buttons">
