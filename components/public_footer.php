@@ -115,7 +115,7 @@
 <footer class="public-footer">
   <div class="footer-container">
     <div class="footer-col footer-logo-col">
-      <img src="assets/logo_preventwork.png" alt="PREVENTWORK">
+      <img src="assets/logo_preventwork.png" alt="PREVENTWORK" onerror="this.outerHTML='<span style=\'font-weight:800; color:#1e3a8a; font-size:1.4rem;\'>SG-SST <span style=\'color:#ff8a1f\'>Pro</span></span>'">
       <p class="footer-about-text">
         Solución integral para la gestión de Seguridad y Salud en el Trabajo. Ayudamos a las empresas a cumplir la normatividad de forma digital, ágil y segura.
       </p>
@@ -140,10 +140,10 @@
     <div class="footer-col hide-mobile-footer">
       <h4>Legal</h4>
       <ul class="footer-links">
-        <li><a href="#">Términos y Condiciones</a></li>
-        <li><a href="#">Política de Privacidad</a></li>
-        <li><a href="#">Política de Cookies</a></li>
-        <li><a href="index.php#faq">Preguntas Frecuentes (FAQ)</a></li>
+        <li><a href="terminos.php">Términos y Condiciones</a></li>
+        <li><a href="privacidad.php">Política de Privacidad</a></li>
+        <li><a href="cookies.php">Política de Cookies</a></li>
+        <li><a href="faq.php">Preguntas Frecuentes (FAQ)</a></li>
       </ul>
     </div>
 
@@ -151,7 +151,7 @@
       <h4>Contacto</h4>
       <ul class="footer-links">
         <li><a href="mailto:soporte@preventwork.com"><i class="fa-solid fa-envelope" style="margin-right: 8px;"></i> soporte@preventwork.com</a></li>
-        <li><a href="https://wa.me/573000000000"><i class="fa-solid fa-phone" style="margin-right: 8px;"></i> +57 300 000 0000</a></li>
+        <li><a href="https://wa.me/573012994599" target="_blank"><i class="fa-solid fa-phone" style="margin-right: 8px;"></i> +57 301 299 4599</a></li>
         <li><a href="login.php"><i class="fa-solid fa-laptop-code" style="margin-right: 8px;"></i> Sucursal Virtual 24/7</a></li>
       </ul>
     </div>
