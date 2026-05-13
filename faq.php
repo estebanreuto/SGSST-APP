@@ -415,7 +415,7 @@ try {
             <a href="terminos.php">Términos y Condiciones</a>
             <a href="privacidad.php">Política de Privacidad</a>
             <a href="cookies.php">Política de Cookies</a>
-            <a href="faq.php" class="active">Comunidad y FAQ</a>
+            <a href="faq.php" class="active">Preguntas Frecuentes (FAQ)</a>
         </nav>
 
         <a href="register.php" class="btn-back">

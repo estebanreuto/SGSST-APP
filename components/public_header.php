@@ -27,7 +27,7 @@
     align-items: center;
     gap: 6px;
   }
-  .top-bar a:hover { color: var(--accent, #ff8a1f); }
+  .top-bar a:hover { color: var(--primary, #ff8a1f); }
   
   .top-bar-left, .top-bar-right { display: flex; align-items: center; }
   .top-bar-left { gap: 20px; }
@@ -57,9 +57,27 @@
   
   .public-header .header-nav { display: flex; gap: 24px; align-items: center; }
   .public-header .header-link { text-decoration: none; color: #334155; font-weight: 600; font-size: 0.95rem; transition: color 0.2s; white-space: nowrap;}
-  .public-header .header-link:hover { color: var(--blue-main); }
+  .public-header .header-link:hover { color: var(--blue-main, #2b5a9e); }
   
-  .public-header .header-btn { padding: 10px 20px !important; font-size: 0.9rem !important; white-space: nowrap;}
+  /* ESTILOS DEL BOTÓN INICIAR SESIÓN (Por si no están globales) */
+  .public-header .header-btn { 
+      padding: 10px 20px !important; 
+      font-size: 0.9rem !important; 
+      white-space: nowrap;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 700;
+      transition: all 0.2s ease;
+  }
+  .btn-primary {
+      background-color: var(--primary, #ff8a1f);
+      color: #ffffff !important;
+  }
+  .btn-primary:hover {
+      background-color: var(--primary-dark, #ff7a00);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(255, 138, 31, 0.25);
+  }
   
   /* RESPONSIVE TABLET */
   @media (max-width: 992px) {
@@ -93,10 +111,10 @@
 
 <div class="top-bar">
     <div class="top-bar-left">
-        <a href="login.php" style="color: var(--accent);">
+        <a href="login.php" style="color: var(--primary, #ff8a1f);">
             <i class="fa-solid fa-laptop-code"></i> Sucursal Virtual
         </a>
-        <a href="index.php#faq" class="hide-mobile-top">FAQ</a>
+        <a href="faq.php" class="hide-mobile-top">FAQ y Comunidad</a>
     </div>
     <div class="top-bar-right">
         <a href="#" target="_blank" title="YouTube"><i class="fa-brands fa-youtube"></i></a>
@@ -108,13 +126,13 @@
 
 <header class="public-header fade-in-up">
   <a href="index.php" class="logo">
-    <img src="assets/logo_preventwork.png" alt="PREVENTWORK">
+    <img src="assets/logo_preventwork.png" alt="PREVENTWORK" onerror="this.outerHTML='<span style=\'font-weight:800; color:#1e3a8a; font-size:1.2rem;\'>SG-SST <span style=\'color:#ff8a1f\'>Pro</span></span>'">
   </a>
   <div class="header-nav">
     <a href="index.php" class="header-link hide-mobile">Inicio</a>
     <a href="index.php#planes" class="header-link hide-mobile">Planes</a>
-    <a href="index.php#nosotros" class="header-link hide-mobile">Quiénes somos</a>
-    <a href="index.php#contacto" class="header-link hide-mobile">Contacto</a>
+    <a href="nosotros.php" class="header-link hide-mobile">Quiénes somos</a>
+    <a href="contacto.php" class="header-link hide-mobile">Contacto</a>
     
     <a href="register.php" class="header-link">Regístrate</a>
     <a href="login.php" class="btn-primary header-btn">Iniciar Sesión</a>
