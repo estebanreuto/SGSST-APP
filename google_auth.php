@@ -13,7 +13,7 @@ $client->setAuthConfig(__DIR__ . '/credentials.json');
 $client->addScope(Google\Service\Calendar::CALENDAR);
 
 // IMPORTANTE: Esta URL debe ser EXACTAMENTE la misma que pusiste en "URIs de redireccionamiento"
-$client->setRedirectUri('http://localhost/SGSST-APP/google_auth.php');
+$client->setRedirectUri('https://preventwork.vertixtecnosas.com.co/google_auth.php');
 
 $client->setAccessType('offline');
 $client->setPrompt('select_account consent');
