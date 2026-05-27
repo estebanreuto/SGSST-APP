@@ -161,18 +161,25 @@ $wompi_pub = trim($keys['wompi_public'] ?? '');
 $wompi_prv = trim($keys['wompi_private'] ?? '');
 $wompi_integrity = trim($keys['wompi_integrity'] ?? '');
 
-// 4. Cálculos Financieros
+// 4. Cálculos Financieros (Unificando Fee de Wompi + IVA del Plan total en una sola línea)
 $precio = ($solicitud['precio_descuento'] > 0 && $solicitud['precio_descuento'] < $solicitud['precio_normal']) 
           ? $solicitud['precio_descuento'] : $solicitud['precio_normal'];
 
-$fee_wompi = 0;
-$iva = 0;
+$cargos_wompi_total = 0;
 $total_pagar = $precio;
 
 if ($precio > 0) {
-    $fee_wompi = ($precio * 0.0265) + 700; // Tarifa Wompi
-    $iva = ($precio + $fee_wompi) * 0.19; // IVA 19%
-    $total_pagar = ceil($precio + $fee_wompi + $iva); 
+    // Calculamos el Fee base (2.65% + 700)
+    $fee_wompi = ($precio * 0.0265) + 700;
+    
+    // Calculamos el IVA sobre el total (Plan + Fee) tal como en tu imagen
+    $iva = ($precio + $fee_wompi) * 0.19; 
+    
+    // Sumamos todo el costo operativo en una sola variable para mostrarlo unificado
+    $cargos_wompi_total = ceil($fee_wompi + $iva); 
+    
+    // Total final
+    $total_pagar = ceil($precio + $cargos_wompi_total); 
 }
 
 // 5. ESTADO DE LA TRANSACCIÓN
@@ -218,9 +225,7 @@ if ($transaccion_id) {
                             $solicitud['localidad'], $solicitud['firma']
                         ]);
 
-                        // ================================================================
-                        // NUEVO: INSERTAR VENTA EN LA TABLA DE CONTABILIDAD
-                        // ================================================================
+                        // C. INSERTAR VENTA EN LA TABLA DE CONTABILIDAD
                         $stmt_pago_contable = $conn->prepare("INSERT INTO pagos_suscripciones (empresa_id, transaccion_wompi, monto, plan_nombre, estado) VALUES (?, ?, ?, ?, ?)");
                         $stmt_pago_contable->execute([
                             $solicitud_id, 
@@ -229,11 +234,10 @@ if ($transaccion_id) {
                             $solicitud['plan_nombre'], 
                             'APPROVED'
                         ]);
-                        // ================================================================
 
                         $conn->commit();
 
-                        // C. Enviamos el correo con PHPMailer 
+                        // D. Enviamos el correo con PHPMailer 
                         $fullName = trim($solicitud['nombre'] . ' ' . $solicitud['apellido']);
                         [$ok, $msg] = sendWelcomeEmail($solicitud['email'], $fullName, $solicitud['cedula'], $solicitud['plan_nombre']);
                         
@@ -343,7 +347,7 @@ if ($transaccion_id) {
         
         .alert-warning { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; padding: 16px 20px; border-radius: 12px; font-size: 14px; font-weight: 600; margin-bottom: 24px; display: none; gap: 12px; align-items: center; animation: fadeUp 0.3s ease;}
 
-        /* --- PANTALLAS DE ESTADO (ÉXITO, PENDIENTE, ERROR) --- */
+        /* --- PANTALLAS DE ESTADO --- */
         .status-wrapper { width: 100%; max-width: 440px; margin: 0 auto; text-align: center; display: flex; flex-direction: column; align-items: center; }
         
         .status-icon { width: 64px; height: 64px; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin: 0 auto 20px; border: 3px solid; flex-shrink: 0; animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: scale(0.5); }
@@ -461,11 +465,7 @@ if ($transaccion_id) {
                     <?php if($precio > 0): ?>
                     <div class="detail-row sub">
                         <span>Tarifa de procesamiento Wompi</span>
-                        <span>$<?php echo number_format($fee_wompi, 0, ',', '.'); ?></span>
-                    </div>
-                    <div class="detail-row sub">
-                        <span>IVA (19%)</span>
-                        <span>$<?php echo number_format($iva, 0, ',', '.'); ?></span>
+                        <span>$<?php echo number_format($cargos_wompi_total, 0, ',', '.'); ?></span>
                     </div>
                     <?php endif; ?>
                     <div class="detail-row total">
