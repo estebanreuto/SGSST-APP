@@ -526,5 +526,6 @@ if (isset($_GET['status']) && $_GET['status'] === 'success') {
             document.getElementById('loader').classList.add('active');
         }
     </script>
+    <?php include_once __DIR__ . '/components/cookie_banner.php'; ?>
 </body>
 </html>

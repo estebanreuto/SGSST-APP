@@ -240,6 +240,58 @@ foreach ($planes_db as $plan) {
     .btn-plan-solid:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(255, 138, 31, 0.35); color: white;}
 
     /* =========================================
+       CONTENIDO POST-PLANES
+       ========================================= */
+    .landing-band { padding: 88px 6vw; position: relative; z-index: 2; }
+    .landing-inner { width: 100%; max-width: 1180px; margin: 0 auto; }
+    .landing-kicker { color: var(--primary2); font-size: 0.75rem; font-weight: 800; text-transform: uppercase; margin-bottom: 10px; }
+    .landing-heading { max-width: 700px; margin-bottom: 42px; }
+    .landing-heading h2 { margin: 0 0 12px; color: var(--blue-dark); font-size: 2rem; line-height: 1.2; font-weight: 800; }
+    .landing-heading p { margin: 0; color: var(--text-muted); font-size: 0.95rem; line-height: 1.7; }
+
+    .process-band { background: #ffffff; }
+    .process-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
+    .process-step { padding: 28px 24px; position: relative; min-height: 190px; }
+    .process-step + .process-step { border-left: 1px solid #e2e8f0; }
+    .process-number { color: var(--primary); font-size: 0.75rem; font-weight: 800; margin-bottom: 24px; }
+    .process-icon { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #eef4fb; color: var(--blue-main); margin-bottom: 18px; border: 1px solid #dbe7f5; box-shadow: 0 8px 18px rgba(43, 90, 158, 0.08); }
+    .process-step h3 { margin: 0 0 8px; font-size: 1rem; color: var(--blue-dark); }
+    .process-step p { margin: 0; color: var(--text-muted); font-size: 0.82rem; line-height: 1.55; }
+
+    .roles-band { background: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
+    .roles-layout { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 72px; align-items: center; }
+    .roles-copy h2 { margin: 0 0 16px; color: var(--blue-dark); font-size: 2rem; line-height: 1.2; }
+    .roles-copy p { margin: 0 0 26px; color: var(--text-muted); line-height: 1.7; }
+    .roles-copy a { color: var(--blue-main); text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+    .role-list { display: grid; gap: 1px; background: #dbe3ec; border: 1px solid #dbe3ec; }
+    .role-row { display: grid; grid-template-columns: 48px 1fr; gap: 18px; align-items: start; padding: 24px; background: #ffffff; }
+    .role-row-icon { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #fff4e8; color: var(--primary2); border: 1px solid #fed7aa; box-shadow: 0 8px 18px rgba(255, 138, 31, 0.09); }
+    .role-row h3 { margin: 0 0 6px; color: var(--text-main); font-size: 1rem; }
+    .role-row p { margin: 0; color: var(--text-muted); font-size: 0.82rem; line-height: 1.55; }
+
+    .evidence-band { background: #ffffff; }
+    .evidence-layout { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 64px; align-items: center; }
+    .evidence-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; }
+    .evidence-item { padding: 24px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
+    .evidence-item > i { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #0f766e; background: #ecfdf5; border: 1px solid #a7f3d0; margin-bottom: 14px; font-size: 0.82rem; }
+    .evidence-item h3 { margin: 0 0 6px; color: var(--blue-dark); font-size: 0.95rem; }
+    .evidence-item p { margin: 0; color: var(--text-muted); font-size: 0.8rem; line-height: 1.5; }
+    .compliance-panel { background: #0f172a; color: #ffffff; padding: 42px 38px; border-radius: 8px; position: relative; overflow: hidden; isolation: isolate; }
+    .compliance-watermark { position: absolute; right: -24px; bottom: -32px; color: #ffffff; opacity: 0.055; font-size: 190px; transform: rotate(-10deg); z-index: -1; pointer-events: none; }
+    .compliance-panel h2 { margin: 0 0 14px; font-size: 1.65rem; line-height: 1.25; max-width: 390px; }
+    .compliance-panel p { margin: 0 0 24px; color: #cbd5e1; line-height: 1.65; font-size: 0.9rem; max-width: 410px; }
+    .compliance-panel a { color: #ffffff; font-weight: 700; text-decoration: none; display: inline-flex; gap: 8px; align-items: center; }
+
+    .final-cta { min-height: 390px; padding: 76px 6vw; color: #ffffff; position: relative; display: flex; align-items: center; background-image: linear-gradient(90deg, rgba(9, 29, 56, 0.98) 0%, rgba(15, 42, 75, 0.9) 42%, rgba(15, 42, 75, 0.28) 72%, rgba(15, 42, 75, 0.1) 100%), url('assets/cta-equipo-sst.png'); background-size: cover; background-position: center; }
+    .final-cta-inner { width: 100%; max-width: 1180px; margin: 0 auto; position: relative; }
+    .final-cta-copy { max-width: 570px; }
+    .final-cta-kicker { display: inline-flex; align-items: center; gap: 9px; margin-bottom: 18px; color: #fed7aa; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; }
+    .final-cta-kicker i { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ffffff; background: var(--primary); }
+    .final-cta h2 { margin: 0 0 12px; font-size: 2.15rem; line-height: 1.2; max-width: 560px; }
+    .final-cta p { margin: 0 0 28px; color: #dbeafe; line-height: 1.65; max-width: 500px; }
+    .final-cta .btn-primary { background: var(--primary); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2); width: auto; }
+
+    /* =========================================
        MEDIA QUERIES RESPONSIVES
        ========================================= */
     @media (max-width: 992px) {
@@ -250,6 +302,10 @@ foreach ($planes_db as $plan) {
       .feature-card { width: calc(50% - 12px); } 
       .plan-card.popular { transform: none; }
       .plan-card.popular:hover { transform: translateY(-5px); }
+      .process-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .process-step:nth-child(3) { border-left: 0; border-top: 1px solid #e2e8f0; }
+      .process-step:nth-child(4) { border-top: 1px solid #e2e8f0; }
+      .roles-layout, .evidence-layout { grid-template-columns: 1fr; gap: 40px; }
     }
 
     @media (max-width: 768px) {
@@ -262,6 +318,14 @@ foreach ($planes_db as $plan) {
       .features, .pricing-section { padding: 60px 6vw; }
       .pricing-grid { flex-direction: column; align-items: center; gap: 30px;}
       .plan-card { width: 100%; max-width: 400px;}
+      .landing-band { padding: 64px 6vw; }
+      .landing-heading h2, .roles-copy h2, .final-cta h2 { font-size: 1.65rem; }
+      .process-grid { grid-template-columns: 1fr; }
+      .process-step + .process-step, .process-step:nth-child(3), .process-step:nth-child(4) { border-left: 0; border-top: 1px solid #e2e8f0; }
+      .process-step { min-height: auto; }
+      .evidence-list { grid-template-columns: 1fr; }
+      .final-cta { min-height: 430px; background-position: 62% center; }
+      .final-cta .btn-primary { width: 100%; }
     }
 
     @media (max-width: 480px) {
@@ -458,6 +522,102 @@ foreach ($planes_db as $plan) {
                     </div>
                 </div>
             <?php endforeach; ?>
+        </div>
+    </section>
+
+    <section class="landing-band process-band">
+        <div class="landing-inner">
+            <div class="landing-heading">
+                <div class="landing-kicker">Una ruta clara</div>
+                <h2>Del registro de tu empresa al seguimiento diario del SG-SST</h2>
+                <p>PreventWork conecta la información de la empresa, las personas responsables y las evidencias de cumplimiento en un solo flujo de trabajo.</p>
+            </div>
+            <div class="process-grid">
+                <div class="process-step">
+                    <div class="process-number">01</div>
+                    <div class="process-icon"><i class="fa-solid fa-building"></i></div>
+                    <h3>Registra tu empresa</h3>
+                    <p>Selecciona el alcance adecuado y completa los datos legales de la organización.</p>
+                </div>
+                <div class="process-step">
+                    <div class="process-number">02</div>
+                    <div class="process-icon"><i class="fa-solid fa-user-shield"></i></div>
+                    <h3>Vincula tu equipo</h3>
+                    <p>Asocia al representante, responsable SST y trabajadores bajo la misma empresa.</p>
+                </div>
+                <div class="process-step">
+                    <div class="process-number">03</div>
+                    <div class="process-icon"><i class="fa-solid fa-list-check"></i></div>
+                    <h3>Gestiona estándares</h3>
+                    <p>Organiza actas, planillas, capacitaciones, firmas y soportes por cada requisito.</p>
+                </div>
+                <div class="process-step">
+                    <div class="process-number">04</div>
+                    <div class="process-icon"><i class="fa-solid fa-chart-column"></i></div>
+                    <h3>Haz seguimiento</h3>
+                    <p>Consulta estados, vencimientos, asistencia y avances desde un panel central.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="landing-band roles-band">
+        <div class="landing-inner roles-layout">
+            <div class="roles-copy">
+                <div class="landing-kicker">Trabajo coordinado</div>
+                <h2>Cada persona ve lo que necesita para cumplir su función</h2>
+                <p>Los roles mantienen las responsabilidades claras, evitan cruces de información y permiten que cada proceso avance con la persona correcta.</p>
+                <a href="register.php">Crear una cuenta <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+            <div class="role-list">
+                <div class="role-row">
+                    <div class="role-row-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+                    <div><h3>Representante Legal</h3><p>Administra la empresa, aprueba documentos, firma actas y consulta el plan contratado.</p></div>
+                </div>
+                <div class="role-row">
+                    <div class="role-row-icon"><i class="fa-solid fa-helmet-safety"></i></div>
+                    <div><h3>Responsable SG-SST</h3><p>Programa actividades, gestiona evidencias y lidera el cumplimiento de los estándares.</p></div>
+                </div>
+                <div class="role-row">
+                    <div class="role-row-icon"><i class="fa-solid fa-id-badge"></i></div>
+                    <div><h3>Trabajador</h3><p>Completa su información, participa en capacitaciones y registra asistencia con firma.</p></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="landing-band evidence-band">
+        <div class="landing-inner evidence-layout">
+            <div>
+                <div class="landing-heading">
+                    <div class="landing-kicker">Evidencia organizada</div>
+                    <h2>La operación deja de estar dispersa entre archivos y mensajes</h2>
+                    <p>Cada acción relevante queda asociada a la empresa y disponible para seguimiento.</p>
+                </div>
+                <div class="evidence-list">
+                    <div class="evidence-item"><i class="fa-solid fa-check"></i><h3>Actas firmadas</h3><p>Versiones y PDF final del documento de designación.</p></div>
+                    <div class="evidence-item"><i class="fa-solid fa-check"></i><h3>Planillas PILA</h3><p>Soportes mensuales organizados por empresa y año.</p></div>
+                    <div class="evidence-item"><i class="fa-solid fa-check"></i><h3>Capacitaciones</h3><p>Programación, participantes, estados y reprogramaciones.</p></div>
+                    <div class="evidence-item"><i class="fa-solid fa-check"></i><h3>Asistencia</h3><p>Registros digitales con identificación y firma del trabajador.</p></div>
+                </div>
+            </div>
+            <div class="compliance-panel">
+                <i class="fa-solid fa-shield-halved compliance-watermark"></i>
+                <h2>Construido alrededor de la Resolución 0312 de 2019</h2>
+                <p>El alcance de cada membresía acompaña el tamaño y las necesidades de la empresa, desde los estándares esenciales hasta una gestión más amplia del sistema.</p>
+                <a href="#planes">Comparar membresías <i class="fa-solid fa-arrow-up"></i></a>
+            </div>
+        </div>
+    </section>
+
+    <section class="final-cta">
+        <div class="final-cta-inner">
+            <div class="final-cta-copy">
+                <div class="final-cta-kicker"><i class="fa-solid fa-helmet-safety"></i> Gestión confiable</div>
+                <h2>Empieza a ordenar la gestión SST de tu empresa</h2>
+                <p>Elige una membresía, registra tu organización y continúa al proceso de activación.</p>
+                <a href="register.php" class="btn-primary">Crear mi empresa <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
         </div>
     </section>
 

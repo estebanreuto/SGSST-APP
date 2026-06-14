@@ -138,3 +138,5 @@
     <a href="login.php" class="btn-primary header-btn">Iniciar Sesión</a>
   </div>
 </header>
+
+<?php include_once __DIR__ . '/cookie_banner.php'; ?>

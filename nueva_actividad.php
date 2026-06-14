@@ -1,9 +1,11 @@
 <?php
 require_once 'config/db.php';
 require_once 'config/auth.php';
+require_once 'config/capacitaciones_schema.php';
 
 // Exige sesión válida
 $u = require_auth($conn);
+ensure_capacitaciones_schema($conn);
 
 $usuario_id = $_SESSION['usuario_id'] ?? 0;
 $usuario_rol = $_SESSION['usuario_rol'] ?? '';
@@ -28,6 +30,9 @@ $google_connected = isset($_SESSION['google_access_token']) && !empty($_SESSION[
 $edit_id = isset($_GET['edit_id']) ? intval($_GET['edit_id']) : 0;
 $act_edit = null;
 $trabajadores_edit = [];
+$curso_edit = null;
+$preguntas_edit = [];
+$materiales_edit = [];
 
 if ($edit_id > 0) {
     try {
@@ -39,6 +44,28 @@ if ($edit_id > 0) {
             $stmt_te = $conn->prepare("SELECT usuario_id FROM actividades_trabajadores WHERE actividad_id = ?");
             $stmt_te->execute([$edit_id]);
             $trabajadores_edit = $stmt_te->fetchAll(PDO::FETCH_COLUMN);
+        }
+
+        if ($act_edit) {
+            $stmt_curso = $conn->prepare("SELECT * FROM capacitaciones_cursos WHERE actividad_id = ?");
+            $stmt_curso->execute([$edit_id]);
+            $curso_edit = $stmt_curso->fetch(PDO::FETCH_ASSOC);
+            if ($curso_edit) {
+                $stmt_materiales = $conn->prepare("SELECT * FROM capacitaciones_materiales WHERE curso_id = ? ORDER BY orden, id");
+                $stmt_materiales->execute([$curso_edit['id']]);
+                $materiales_edit = $stmt_materiales->fetchAll(PDO::FETCH_ASSOC);
+
+                $stmt_preguntas = $conn->prepare("SELECT * FROM capacitaciones_preguntas WHERE curso_id = ? ORDER BY orden, id");
+                $stmt_preguntas->execute([$curso_edit['id']]);
+                foreach ($stmt_preguntas->fetchAll(PDO::FETCH_ASSOC) as $pregunta) {
+                    $stmt_opciones = $conn->prepare("SELECT texto, es_correcta FROM capacitaciones_opciones WHERE pregunta_id = ? ORDER BY orden, id");
+                    $stmt_opciones->execute([$pregunta['id']]);
+                    $pregunta['opciones'] = array_map(static function ($opcion) {
+                        return ['texto' => $opcion['texto'], 'correcta' => (bool)$opcion['es_correcta']];
+                    }, $stmt_opciones->fetchAll(PDO::FETCH_ASSOC));
+                    $preguntas_edit[] = $pregunta;
+                }
+            }
         }
     } catch (PDOException $e) {}
 }
@@ -104,7 +131,7 @@ $current_page = 'estandar3.php';
         .content-area { padding: 32px 40px; flex: 1; max-width: 1200px; margin: 0 auto; width: 100%; box-sizing: border-box; }
         
         /* HEADER CONSTANTE */
-        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid rgba(148, 163, 184, 0.22); }
         .estandar-header-group { display: flex; align-items: center; gap: 14px; }
         
         .icon-box-std { 
@@ -122,23 +149,28 @@ $current_page = 'estandar3.php';
         .btn-back { background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 8px 14px; border-radius: 8px; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease; font-size: 0.8rem; }
         .btn-back:hover { background: #f1f5f9; color: #0f172a; }
 
-        /* GOOGLE BANNER */
-        .google-sync-banner { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-radius: 12px; margin-bottom: 32px; font-family: 'Inter', sans-serif; transition: all 0.3s ease;}
-        .google-sync-banner.disconnected { background: #fffbeb; border: 1px solid #fde68a; }
-        .google-sync-banner.connected { background: #f0fdf4; border: 1px solid #bbf7d0; }
+        /* ESTADO DE GOOGLE CALENDAR */
+        .google-sync-banner { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: center; padding: 16px 18px; border-radius: 10px; margin-bottom: 24px; font-family: 'Inter', sans-serif; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.035);}
+        .google-sync-banner.disconnected { background: #ffffff; border: 1px solid #dbe3ec; border-left: 4px solid #4285f4; }
+        .google-sync-banner.connected { background: #ffffff; border: 1px solid #dbe3ec; border-left: 4px solid #16a34a; }
         .g-sync-info { display: flex; align-items: center; gap: 14px; }
-        .g-sync-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
-        .disconnected .g-sync-icon { background: rgba(217, 119, 6, 0.1); color: #d97706; }
+        .g-sync-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0; }
+        .disconnected .g-sync-icon { background: rgba(66, 133, 244, 0.1); color: #4285f4; }
         .connected .g-sync-icon { background: rgba(22, 163, 74, 0.1); color: #16a34a; }
         .g-sync-text h4 { margin: 0; font-size: 0.95rem; font-weight: 700; color: #1e293b; }
-        .g-sync-text p { margin: 2px 0 0 0; font-size: 0.8rem; color: #475569; }
-        .btn-google { background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
+        .g-sync-text p { margin: 4px 0 0 0; font-size: 0.78rem; color: #64748b; line-height: 1.4; }
+        .sync-status { color: #16a34a; font-weight: 700; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+        .btn-google { background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.02); box-sizing: border-box;}
         .btn-google:hover { background: #f8fafc; border-color: #94a3b8; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transform: translateY(-1px); }
         .btn-google svg { width: 16px; height: 16px; }
 
         /* LAYOUT 2 COLUMNAS */
-        .layout-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; align-items: start; }
+        .layout-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 28px; align-items: start; }
         .left-column { display: flex; flex-direction: column; gap: 24px; }
+        .form-section-heading { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; }
+        .form-section-heading .section-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: var(--primary); background: rgba(255,138,31,0.1); flex-shrink: 0; }
+        .form-section-heading h2 { margin: 0; font-size: 0.95rem; color: var(--blue-dark); }
+        .form-section-heading p { margin: 2px 0 0; font-size: 0.75rem; color: #64748b; }
         .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         
         .form-group { text-align: left; }
@@ -150,6 +182,59 @@ $current_page = 'estandar3.php';
         .input-icon-wrapper > input.actividad-input, .input-icon-wrapper > select.actividad-input { height: 42px; }
         .input-icon-wrapper > select.actividad-input { appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg fill='none' stroke='%2364748b' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 14px; }
         .input-icon-wrapper > input.actividad-input:focus, .input-icon-wrapper > select.actividad-input:focus, .input-icon-wrapper > textarea.actividad-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.15); }
+
+        .course-builder { display: none; flex-direction: column; gap: 18px; background: #ffffff; border: 1px solid #dbe3ec; border-left: 4px solid #8b5cf6; border-radius: 12px; padding: 20px; }
+        .course-builder.active { display: flex; }
+        .course-note { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 9px; background: #f5f3ff; color: #5b21b6; font-size: 0.78rem; line-height: 1.45; }
+        .content-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .content-mode label { display: flex; align-items: center; gap: 9px; border: 1px solid #cbd5e1; border-radius: 9px; padding: 11px 12px; cursor: pointer; font-weight: 650; color: #475569; }
+        .content-mode label:has(input:checked) { border-color: #8b5cf6; background: #f5f3ff; color: #5b21b6; }
+        .evaluation-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .evaluation-choice label { display: flex; gap: 10px; align-items: center; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 9px; background: #ffffff; cursor: pointer; font-weight: 700; color: #475569; }
+        .evaluation-choice label:has(input:checked) { border-color: #8b5cf6; background: #f5f3ff; color: #6d28d9; }
+        .evaluation-choice input { accent-color: #7c3aed; }
+        .evaluation-hint { margin: 7px 0 0; color: #64748b; font-size: 0.72rem; line-height: 1.4; }
+        .upload-field { border: 1px dashed #94a3b8; border-radius: 10px; padding: 14px; background: #f8fafc; }
+        .upload-field input { width: 100%; font-family: inherit; font-size: 0.78rem; }
+        .materials-builder { display: flex; flex-direction: column; gap: 12px; }
+        .materials-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+        .materials-toolbar h3 { margin: 0; color: var(--blue-dark); font-size: 0.92rem; }
+        .material-list { display: flex; flex-direction: column; gap: 12px; }
+        .material-editor { border: 1px solid #dbe3ec; border-radius: 10px; padding: 15px; background: #fff; box-shadow: 0 3px 12px rgba(15,23,42,.035); }
+        .material-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .material-number { color: #0369a1; font-size: .76rem; font-weight: 800; display: flex; align-items: center; gap: 7px; }
+        .material-grid { display: grid; grid-template-columns: minmax(0,1fr) 190px; gap: 10px; }
+        .material-grid input, .material-body textarea, .material-body input { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; font: inherit; box-sizing: border-box; background: #fff; }
+        .material-type-wrap { position: relative; min-width: 0; }
+        .material-type-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 25px; height: 25px; border-radius: 6px; display: grid; place-items: center; color: #0369a1; background: #e0f2fe; font-size: .72rem; pointer-events: none; z-index: 1; }
+        .material-type { appearance: none; width: 100%; height: 42px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 34px 0 45px; font: inherit; font-size: .78rem; font-weight: 700; color: #334155; background: #f8fafc; cursor: pointer; outline: none; }
+        .material-type:focus { border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(14,165,233,.12); background: #fff; }
+        .material-type-arrow { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: .68rem; pointer-events: none; }
+        .material-body { margin-top: 10px; }
+        .material-body textarea { min-height: 88px; resize: vertical; }
+        .material-existing { margin-top: 8px; padding: 8px 10px; border-radius: 7px; background: #eff6ff; color: #1d4ed8; font-size: .72rem; }
+        .exam-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+        .exam-toolbar h3 { margin: 0; color: var(--blue-dark); font-size: 0.92rem; }
+        .btn-add-question { border: 1px solid #c4b5fd; background: #f5f3ff; color: #6d28d9; border-radius: 8px; padding: 9px 12px; font: inherit; font-weight: 700; cursor: pointer; }
+        .question-list { display: flex; flex-direction: column; gap: 12px; }
+        .question-editor { border: 1px solid #dbe3ec; border-radius: 10px; padding: 16px; background: #ffffff; box-shadow: 0 3px 12px rgba(15,23,42,0.035); }
+        .question-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+        .question-number { display: inline-flex; align-items: center; gap: 7px; color: #5b21b6; font-size: 0.76rem; font-weight: 800; }
+        .question-top { display: grid; grid-template-columns: minmax(0, 1fr) 90px; gap: 10px; align-items: end; }
+        .question-field label, .points-field label { display: block; margin-bottom: 5px; color: #64748b; font-size: 0.67rem; font-weight: 800; text-transform: uppercase; }
+        .question-editor input, .question-editor select { width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 10px; box-sizing: border-box; font: inherit; background: #ffffff; }
+        .btn-remove-question { width: 34px; height: 34px; border: 0; border-radius: 8px; color: #dc2626; background: #fee2e2; cursor: pointer; }
+        .question-type-switch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin: 12px 0; }
+        .type-choice { border: 1px solid #dbe3ec; background: #f8fafc; color: #475569; border-radius: 8px; padding: 9px 8px; cursor: pointer; font: inherit; font-size: 0.72rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .type-choice.active { border-color: #8b5cf6; background: #f5f3ff; color: #6d28d9; box-shadow: 0 0 0 2px rgba(139,92,246,.08); }
+        .answers-label { color: #64748b; font-size: 0.67rem; font-weight: 800; text-transform: uppercase; margin-top: 12px; }
+        .option-list { margin-top: 10px; display: flex; flex-direction: column; gap: 7px; }
+        .option-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 30px; gap: 7px; align-items: center; padding: 5px 7px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; }
+        .option-row:has(input[type="radio"]:checked), .option-row:has(input[type="checkbox"]:checked) { border-color: #86efac; background: #f0fdf4; }
+        .option-row input[type="checkbox"], .option-row input[type="radio"] { width: 17px; height: 17px; accent-color: #8b5cf6; }
+        .btn-option { border: 0; background: transparent; color: #64748b; cursor: pointer; font-weight: 700; padding: 5px 0; }
+        .btn-option.add-option { margin-top: 12px; padding: 8px 10px; border: 1px dashed #cbd5e1; border-radius: 8px; width: 100%; background: #f8fafc; }
+        .course-hidden { display: none !important; }
 
         /* TARJETAS FEATURE COMPACTAS */
         .cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
@@ -194,7 +279,11 @@ $current_page = 'estandar3.php';
         .fade-in-card { opacity: 0; animation: slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
         /* COLUMNA DERECHA (FIJA) */
-        .right-column { position: sticky; top: 32px; display: flex; flex-direction: column; gap: 24px; }
+        .right-column { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 20px; background: #ffffff; border: 1px solid #dbe3ec; border-top: 3px solid var(--primary); border-radius: 12px; padding: 20px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05); box-sizing: border-box; }
+        .schedule-heading { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid #e2e8f0; }
+        .schedule-heading i { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #0284c7; background: rgba(14,165,233,0.1); }
+        .schedule-heading h2 { margin: 0; font-size: 0.95rem; color: var(--blue-dark); }
+        .schedule-heading p { margin: 2px 0 0; font-size: 0.72rem; color: #64748b; }
         .schedule-group { display: flex; flex-direction: column; gap: 8px; }
         .datetime-row { display: grid; grid-template-columns: 3fr 2fr; gap: 12px; }
 
@@ -210,8 +299,8 @@ $current_page = 'estandar3.php';
 
         @media (max-width: 1024px) {
             .cards-grid { grid-template-columns: repeat(2, 1fr); }
-            .layout-grid { grid-template-columns: 1fr; gap: 40px;}
-            .right-column { position: static; order: -1; } 
+            .layout-grid { grid-template-columns: 1fr; gap: 28px;}
+            .right-column { position: static; order: initial; }
         }
         @media (max-width: 768px) {
             .main-wrapper { margin-left: 0; width: 100%; }
@@ -221,8 +310,11 @@ $current_page = 'estandar3.php';
             .form-grid-2 { grid-template-columns: 1fr; gap: 16px; }
             .cards-grid { grid-template-columns: 1fr; }
             .datetime-row { grid-template-columns: 1fr; gap: 12px; } 
-            .google-sync-banner { flex-direction: column; align-items: flex-start; gap: 16px; }
+            .google-sync-banner { grid-template-columns: 1fr; gap: 14px; }
             .btn-google { width: 100%; justify-content: center; }
+            .sync-status { padding-left: 56px; }
+            .question-type-switch { grid-template-columns: 1fr; }
+            .material-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -246,7 +338,7 @@ $current_page = 'estandar3.php';
                     <div class="estandar-header-text">
                         <h1 class="estandar-title"><?php echo $act_edit ? 'Reprogramar Actividad' : 'Programar Nueva Capacitación'; ?></h1>
                         <p class="estandar-subtitle">
-                            <?php echo $act_edit ? 'Actualiza los datos y fechas de la reunión.' : 'Crea tus reuniones o capacitaciones conectadas con Google Calendar.'; ?>
+                            <?php echo $act_edit ? 'Actualiza los datos y fechas de la reunión.' : 'Define la actividad, convoca al equipo y organiza su programación.'; ?>
                         </p>
                     </div>
                 </div>
@@ -263,20 +355,20 @@ $current_page = 'estandar3.php';
                             <div class="g-sync-icon"><i class="fa-solid fa-calendar-check"></i></div>
                             <div class="g-sync-text">
                                 <h4>Conectado a Google Calendar</h4>
-                                <p>Tus reuniones crearán un enlace de Google Meet automáticamente.</p>
+                                <p>Al guardar podrás continuar el evento en Google Calendar con los datos de la actividad.</p>
                             </div>
                         </div>
-                        <span style="color: #16a34a; font-weight: 700; display:flex; align-items:center; gap:6px;">
+                        <span class="sync-status">
                             <i class="fa-solid fa-check-circle"></i> Sincronizado
                         </span>
                     </div>
                 <?php else: ?>
                     <div class="google-sync-banner disconnected">
                         <div class="g-sync-info">
-                            <div class="g-sync-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                            <div class="g-sync-icon"><i class="fa-brands fa-google"></i></div>
                             <div class="g-sync-text">
-                                <h4>Google Calendar no conectado</h4>
-                                <p>Conecta tu cuenta para agendar y crear reuniones de Meet en automático.</p>
+                                <h4>Organiza también en Google Calendar</h4>
+                                <p>La conexión es opcional y te permite llevar los datos de la actividad a tu calendario.</p>
                             </div>
                         </div>
                         <a href="google_auth.php" class="btn-google">
@@ -293,7 +385,16 @@ $current_page = 'estandar3.php';
                 <?php endif; ?>
             <?php endif; ?>
 
-            <form id="formRegistroActividad" action="procesar_estandar3.php" method="POST">
+            <?php if (isset($_GET['error'])): ?>
+                <div class="google-sync-banner disconnected" style="border-left-color:#dc2626;">
+                    <div class="g-sync-info">
+                        <div class="g-sync-icon" style="color:#dc2626;background:#fee2e2;"><i class="fa-solid fa-circle-exclamation"></i></div>
+                        <div class="g-sync-text"><h4>No pudimos guardar la actividad</h4><p><?php echo htmlspecialchars($_GET['error']); ?></p></div>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <form id="formRegistroActividad" action="procesar_estandar3.php" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="accion" value="<?php echo $edit_id ? 'editar_actividad' : 'crear_actividad'; ?>">
                 <?php if($edit_id): ?>
                     <input type="hidden" name="edit_id" value="<?php echo $edit_id; ?>">
@@ -302,7 +403,6 @@ $current_page = 'estandar3.php';
                 <div class="layout-grid">
                     
                     <div class="left-column">
-                        
                         <div class="form-group full" style="margin-bottom: 0;">
                             <label class="title-label" for="nombre_actividad">Nombre de la Actividad *</label>
                             <div class="input-icon-wrapper">
@@ -310,6 +410,58 @@ $current_page = 'estandar3.php';
                                 <input type="text" name="nombre_actividad" id="nombre_actividad" class="actividad-input" value="<?php echo htmlspecialchars($act_edit['nombre_actividad'] ?? ''); ?>" required placeholder="Ej. Uso y manejo de extintores">
                             </div>
                         </div>
+
+                        <section class="course-builder" id="courseBuilder">
+                            <div class="form-section-heading">
+                                <div class="section-icon" style="color:#7c3aed;background:#f5f3ff;"><i class="fa-solid fa-graduation-cap"></i></div>
+                                <div>
+                                    <h2 id="builderTitle">Contenido y evaluación</h2>
+                                    <p id="builderSubtitle">Configura el material autogestionado y el examen de aprobación.</p>
+                                </div>
+                            </div>
+
+                            <div class="course-note" id="systemCourseNote">
+                                <i class="fa-solid fa-circle-info"></i>
+                                <span>La modalidad Sistema crea un curso autogestionado dentro de PreventWork. No abrirá Google Calendar y el trabajador deberá completar el contenido, el examen y el acta.</span>
+                            </div>
+
+                            <div class="materials-builder system-content-field">
+                                <div class="materials-toolbar">
+                                    <div><h3>Secciones y materiales</h3><span style="font-size:.72rem;color:#64748b;">Agrega texto, videos, enlaces, documentos o imágenes sin límite.</span></div>
+                                    <button type="button" class="btn-add-question" id="btnAddMaterial"><i class="fa-solid fa-plus"></i> Material</button>
+                                </div>
+                                <div class="material-list" id="materialList"></div>
+                                <input type="hidden" name="materiales_json" id="materialesJson">
+                            </div>
+
+                            <div class="form-grid-2">
+                                <div class="form-group">
+                                    <label class="title-label" for="escala_calificacion">Escala de calificación *</label>
+                                    <div class="input-icon-wrapper">
+                                        <i class="fa-solid fa-chart-simple icon-form"></i>
+                                        <select name="escala_calificacion" id="escala_calificacion" class="actividad-input">
+                                            <?php foreach (['5' => 'De 1 a 5', '10' => 'De 1 a 10', '100' => 'Porcentaje (0 a 100%)'] as $valor => $texto): ?>
+                                                <option value="<?php echo $valor; ?>" <?php echo (($curso_edit['escala_calificacion'] ?? '100') === (string)$valor) ? 'selected' : ''; ?>><?php echo $texto; ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="title-label" for="puntaje_aprobacion">Nota mínima para aprobar *</label>
+                                    <div class="input-icon-wrapper">
+                                        <i class="fa-solid fa-bullseye icon-form"></i>
+                                        <input type="number" name="puntaje_aprobacion" id="puntaje_aprobacion" class="actividad-input" min="0" step="0.1" value="<?php echo htmlspecialchars($curso_edit['puntaje_aprobacion'] ?? '60'); ?>">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="exam-toolbar">
+                                <div><h3>Preguntas del examen</h3><span style="font-size:.72rem;color:#64748b;">Los puntos se distribuyen automáticamente según la escala.</span></div>
+                                <button type="button" class="btn-add-question" id="btnAddQuestion"><i class="fa-solid fa-plus"></i> Pregunta</button>
+                            </div>
+                            <div class="question-list" id="questionList"></div>
+                            <input type="hidden" name="preguntas_json" id="preguntasJson">
+                        </section>
 
                         <div class="form-grid-2">
                             <div class="form-group" style="margin-bottom: 0;">
@@ -347,7 +499,7 @@ $current_page = 'estandar3.php';
                             </div>
                         </div>
 
-                        <div class="form-grid-2">
+                        <div class="form-grid-2" id="modalidadGrid">
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label class="title-label" for="modalidad">Modalidad *</label>
                                 <div class="input-icon-wrapper">
@@ -356,17 +508,33 @@ $current_page = 'estandar3.php';
                                         <option value="Virtual" <?php echo ($act_edit['modalidad']??'') == 'Virtual' ? 'selected' : ''; ?>>Virtual (Meet/Zoom/Teams)</option>
                                         <option value="Físico" <?php echo ($act_edit['modalidad']??'') == 'Físico' ? 'selected' : ''; ?>>Presencial (Físico)</option>
                                         <option value="Mixto" <?php echo ($act_edit['modalidad']??'') == 'Mixto' ? 'selected' : ''; ?>>Mixto (Ambas)</option>
+                                        <option value="Sistema" <?php echo ($act_edit['modalidad']??'') == 'Sistema' ? 'selected' : ''; ?>>Sistema (Curso autogestionado)</option>
                                     </select>
                                 </div>
                             </div>
 
-                            <div class="form-group" style="margin-bottom: 0;">
+                            <div class="form-group" id="lugarGroup" style="margin-bottom: 0;">
                                 <label class="title-label" for="lugar_exacto">Lugar / Enlace Alterno <span style="text-transform:none; font-weight:400; color:#94a3b8;">(Opcional)</span></label>
                                 <div class="input-icon-wrapper">
                                     <i class="fa-solid fa-location-dot icon-form"></i>
                                     <input type="text" name="lugar_exacto" id="lugar_exacto" class="actividad-input" placeholder="Sala 1, Oficina, o URL" value="<?php echo htmlspecialchars($act_edit['lugar_exacto']??''); ?>">
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="form-group" id="evaluationChoiceGroup">
+                            <label class="title-label">¿Esta actividad lleva evaluación? *</label>
+                            <div class="evaluation-choice">
+                                <label>
+                                    <input type="radio" name="requiere_evaluacion" value="1" <?php echo $curso_edit ? 'checked' : ''; ?>>
+                                    <i class="fa-solid fa-list-check"></i> Sí, agregar evaluación
+                                </label>
+                                <label>
+                                    <input type="radio" name="requiere_evaluacion" value="0" <?php echo !$curso_edit ? 'checked' : ''; ?>>
+                                    <i class="fa-solid fa-calendar-check"></i> No, solo programar
+                                </label>
+                            </div>
+                            <p class="evaluation-hint" id="evaluationHint">Puedes programar la reunión en Google Calendar y decidir si el trabajador deberá presentar una evaluación.</p>
                         </div>
 
                         <div class="form-group full" style="margin-bottom: 0;">
@@ -467,6 +635,13 @@ $current_page = 'estandar3.php';
                     </div>
 
                     <div class="right-column">
+                        <div class="schedule-heading">
+                            <i class="fa-regular fa-calendar-check"></i>
+                            <div>
+                                <h2>Programación</h2>
+                                <p>Indica cuándo inicia y finaliza.</p>
+                            </div>
+                        </div>
                         
                         <div class="schedule-group">
                             <label class="title-label">Inicio *</label>
@@ -539,6 +714,304 @@ $current_page = 'estandar3.php';
             });
 
             const formActividad = document.getElementById('formRegistroActividad');
+            const tipoCapacitacion = document.getElementById('tipo_capacitacion');
+            const courseBuilder = document.getElementById('courseBuilder');
+            const googleBanner = document.querySelector('.google-sync-banner.connected, .google-sync-banner.disconnected');
+            const contentUrlField = document.getElementById('contentUrlField');
+            const contentVideoField = document.getElementById('contentVideoField');
+            const contenidoUrl = document.getElementById('contenido_url');
+            const videoCurso = document.getElementById('video_curso');
+            const questionList = document.getElementById('questionList');
+            const preguntasJson = document.getElementById('preguntasJson');
+            const escalaCalificacion = document.getElementById('escala_calificacion');
+            const puntajeAprobacion = document.getElementById('puntaje_aprobacion');
+            const typeCategoryGrid = tipoCapacitacion?.closest('.form-grid-2');
+            const modalidadActividad = document.getElementById('modalidad');
+            const modalidadGrid = document.getElementById('modalidadGrid');
+            const lugarGroup = document.getElementById('lugarGroup');
+            const evaluationChoiceGroup = document.getElementById('evaluationChoiceGroup');
+            const evaluationRadios = document.querySelectorAll('input[name="requiere_evaluacion"]');
+            const evaluationHint = document.getElementById('evaluationHint');
+            const systemContentFields = document.querySelectorAll('.system-content-field');
+            const systemCourseNote = document.getElementById('systemCourseNote');
+            const builderTitle = document.getElementById('builderTitle');
+            const builderSubtitle = document.getElementById('builderSubtitle');
+            const initialQuestions = <?php echo json_encode($preguntas_edit, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+            const materialList = document.getElementById('materialList');
+            const materialesJson = document.getElementById('materialesJson');
+            const initialMaterials = <?php echo json_encode($materiales_edit, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+            let questionCounter = 0;
+            let materialCounter = 0;
+
+            if (modalidadGrid && typeCategoryGrid) {
+                typeCategoryGrid.after(modalidadGrid);
+            }
+            if (evaluationChoiceGroup && modalidadGrid) {
+                modalidadGrid.after(evaluationChoiceGroup);
+            }
+            if (courseBuilder && evaluationChoiceGroup) {
+                evaluationChoiceGroup.after(courseBuilder);
+            }
+
+            function isSelfPacedCourse() {
+                return modalidadActividad?.value === 'Sistema';
+            }
+
+            function requiresEvaluation() {
+                return isSelfPacedCourse() || document.querySelector('input[name="requiere_evaluacion"]:checked')?.value === '1';
+            }
+
+            function updateContentMode() {
+                return;
+            }
+
+            function updateCourseMode() {
+                const systemMode = isSelfPacedCourse();
+                if (systemMode) {
+                    const yesRadio = document.querySelector('input[name="requiere_evaluacion"][value="1"]');
+                    if (yesRadio) yesRadio.checked = true;
+                }
+                evaluationRadios.forEach(radio => {
+                    radio.disabled = systemMode && radio.value === '0';
+                });
+                const evaluationActive = requiresEvaluation();
+                courseBuilder?.classList.toggle('active', evaluationActive);
+                systemContentFields.forEach(field => field.classList.toggle('course-hidden', !systemMode));
+                if (systemCourseNote) systemCourseNote.classList.toggle('course-hidden', !systemMode);
+                if (builderTitle) builderTitle.textContent = systemMode ? 'Contenido y evaluación' : 'Evaluación de la actividad';
+                if (builderSubtitle) builderSubtitle.textContent = systemMode
+                    ? 'Configura el material autogestionado y el examen de aprobación.'
+                    : 'Crea el examen que el trabajador presentará después de la actividad.';
+                if (googleBanner) googleBanner.style.display = systemMode ? 'none' : '';
+                if (lugarGroup) lugarGroup.style.display = systemMode ? 'none' : '';
+                if (modalidadGrid) modalidadGrid.style.gridTemplateColumns = systemMode ? '1fr' : '';
+                if (evaluationHint) evaluationHint.textContent = systemMode
+                    ? 'En modalidad Sistema la evaluación es obligatoria para completar el curso y firmar el acta.'
+                    : 'Google Calendar seguirá creando la reunión. La evaluación se realizará después desde PreventWork.';
+                document.querySelector('.schedule-heading h2').textContent = systemMode ? 'Disponibilidad' : 'Programación';
+                document.querySelector('.schedule-heading p').textContent = systemMode
+                    ? 'Define desde cuándo y hasta cuándo estará disponible.'
+                    : 'Indica cuándo inicia y finaliza.';
+                updateContentMode();
+            }
+
+            function updateScoreScale(event) {
+                if (!escalaCalificacion || !puntajeAprobacion) return;
+                const scale = Number(escalaCalificacion.value);
+                const defaults = {5: 3, 10: 6, 100: 60};
+                puntajeAprobacion.max = String(scale);
+                if (event || Number(puntajeAprobacion.value) > scale || Number(puntajeAprobacion.value) <= 0) {
+                    puntajeAprobacion.value = defaults[scale];
+                }
+                distributeQuestionPoints();
+            }
+
+            function distributeQuestionPoints() {
+                const editors = [...questionList.querySelectorAll('.question-editor')];
+                if (!editors.length) return;
+                const scale = Number(escalaCalificacion?.value || 100);
+                const base = Math.floor((scale / editors.length) * 100) / 100;
+                let used = 0;
+                editors.forEach((editor, index) => {
+                    const value = index === editors.length - 1 ? Math.round((scale - used) * 100) / 100 : base;
+                    editor.querySelector('.question-points').value = value;
+                    used += value;
+                    const label = editor.querySelector('.question-number');
+                    if (label) label.innerHTML = `<i class="fa-solid fa-circle-question"></i> Pregunta ${index + 1}`;
+                });
+            }
+
+            function materialBodyTemplate(key, type, content = '', file = '') {
+                if (type === 'texto') {
+                    return `<textarea class="material-content" placeholder="Escribe el contenido completo de esta sección...">${escapeHtml(content)}</textarea>`;
+                }
+                if (type === 'enlace') {
+                    return `<input type="url" class="material-content" value="${escapeHtml(content)}" placeholder="https://...">`;
+                }
+                const accepts = type === 'video' ? '.mp4,.webm,.mov' : (type === 'imagen' ? '.jpg,.jpeg,.png,.webp' : '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt');
+                return `<div class="upload-field"><input type="file" name="material_file_${key}" accept="${accepts}"></div>
+                    ${file ? `<div class="material-existing"><i class="fa-solid fa-paperclip"></i> Archivo actual: ${escapeHtml(file.split('/').pop())}</div>` : ''}`;
+            }
+
+            function addMaterial(data = {}) {
+                const key = `m${Date.now()}_${++materialCounter}`;
+                const type = data.tipo || 'texto';
+                const editor = document.createElement('div');
+                editor.className = 'material-editor';
+                editor.dataset.materialKey = key;
+                editor.dataset.existingFile = data.archivo || '';
+                editor.innerHTML = `
+                    <div class="material-head">
+                        <span class="material-number"><i class="fa-solid fa-layer-group"></i> Sección ${materialList.children.length + 1}</span>
+                        <button type="button" class="btn-remove-question remove-material" title="Eliminar material"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                    <div class="material-grid">
+                        <input type="text" class="material-title" value="${escapeHtml(data.titulo || '')}" placeholder="Título de la sección">
+                        <div class="material-type-wrap">
+                            <span class="material-type-icon"><i class="fa-solid ${materialTypeIcon(type)}"></i></span>
+                            <select class="material-type" aria-label="Tipo de material">
+                                <option value="texto" ${type === 'texto' ? 'selected' : ''}>Lectura o texto</option>
+                                <option value="video" ${type === 'video' ? 'selected' : ''}>Archivo de video</option>
+                                <option value="enlace" ${type === 'enlace' ? 'selected' : ''}>Enlace externo</option>
+                                <option value="documento" ${type === 'documento' ? 'selected' : ''}>Documento o presentación</option>
+                                <option value="imagen" ${type === 'imagen' ? 'selected' : ''}>Imagen</option>
+                            </select>
+                            <i class="fa-solid fa-chevron-down material-type-arrow"></i>
+                        </div>
+                    </div>
+                    <div class="material-body">${materialBodyTemplate(key, type, data.contenido || '', data.archivo || '')}</div>`;
+                materialList.appendChild(editor);
+                renumberMaterials();
+            }
+
+            function renumberMaterials() {
+                [...materialList.querySelectorAll('.material-editor')].forEach((editor, index) => {
+                    editor.querySelector('.material-number').innerHTML = `<i class="fa-solid fa-layer-group"></i> Sección ${index + 1}`;
+                });
+            }
+
+            function materialTypeIcon(type) {
+                return {
+                    texto: 'fa-align-left',
+                    video: 'fa-circle-play',
+                    enlace: 'fa-link',
+                    documento: 'fa-file-lines',
+                    imagen: 'fa-image'
+                }[type] || 'fa-layer-group';
+            }
+
+            function serializeMaterials() {
+                return [...materialList.querySelectorAll('.material-editor')].map(editor => ({
+                    key: editor.dataset.materialKey,
+                    titulo: editor.querySelector('.material-title').value.trim(),
+                    tipo: editor.querySelector('.material-type').value,
+                    contenido: editor.querySelector('.material-content')?.value.trim() || '',
+                    archivo_actual: editor.dataset.existingFile || ''
+                }));
+            }
+
+            function optionTemplate(questionId, option = {}, optionIndex = 0, inputType = 'radio') {
+                return `
+                    <div class="option-row">
+                        <input type="${inputType}" name="correct_${questionId}" ${option.correcta ? 'checked' : ''} aria-label="Respuesta correcta">
+                        <input type="text" class="option-text" value="${escapeHtml(option.texto || '')}" placeholder="Opción ${optionIndex + 1}">
+                        <button type="button" class="btn-option remove-option" title="Eliminar opción"><i class="fa-solid fa-xmark"></i></button>
+                    </div>`;
+            }
+
+            function escapeHtml(value) {
+                return String(value).replace(/[&<>"']/g, char => ({
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+                })[char]);
+            }
+
+            function addQuestion(data = {}) {
+                const id = ++questionCounter;
+                const type = data.tipo || 'unica';
+                const options = data.opciones?.length ? data.opciones : [
+                    { texto: type === 'verdadero_falso' ? 'Verdadero' : '', correcta: true },
+                    { texto: type === 'verdadero_falso' ? 'Falso' : '', correcta: false }
+                ];
+                const inputType = type === 'multiple' ? 'checkbox' : 'radio';
+                const editor = document.createElement('div');
+                editor.className = 'question-editor';
+                editor.dataset.questionId = id;
+                editor.innerHTML = `
+                    <div class="question-heading">
+                        <span class="question-number"><i class="fa-solid fa-circle-question"></i> Pregunta ${questionList.children.length + 1}</span>
+                        <button type="button" class="btn-remove-question" title="Eliminar pregunta"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                    <div class="question-top">
+                        <div class="question-field">
+                            <label>Enunciado</label>
+                            <input type="text" class="question-text" value="${escapeHtml(data.enunciado || '')}" placeholder="¿Qué deseas evaluar?">
+                        </div>
+                        <div class="points-field">
+                            <label>Puntos</label>
+                            <input type="number" class="question-points" min="0.01" step="0.01" value="${data.puntos || 1}" readonly>
+                        </div>
+                    </div>
+                    <input type="hidden" class="question-type" value="${type}">
+                    <div class="question-type-switch">
+                        <button type="button" class="type-choice ${type === 'unica' ? 'active' : ''}" data-type="unica"><i class="fa-regular fa-circle-dot"></i> Una respuesta</button>
+                        <button type="button" class="type-choice ${type === 'multiple' ? 'active' : ''}" data-type="multiple"><i class="fa-regular fa-square-check"></i> Varias respuestas</button>
+                        <button type="button" class="type-choice ${type === 'verdadero_falso' ? 'active' : ''}" data-type="verdadero_falso"><i class="fa-solid fa-scale-balanced"></i> Verdadero / Falso</button>
+                    </div>
+                    <div class="answers-label">Opciones · marca la respuesta correcta</div>
+                    <div class="option-list">${options.map((option, index) => optionTemplate(id, option, index, inputType)).join('')}</div>
+                    <button type="button" class="btn-option add-option" style="${type === 'verdadero_falso' ? 'display:none' : ''}"><i class="fa-solid fa-plus"></i> Agregar opción</button>`;
+                questionList.appendChild(editor);
+                distributeQuestionPoints();
+            }
+
+            function resetOptionsForType(editor, type) {
+                editor.querySelector('.question-type').value = type;
+                editor.querySelectorAll('.type-choice').forEach(button => button.classList.toggle('active', button.dataset.type === type));
+                const options = type === 'verdadero_falso'
+                    ? [{ texto: 'Verdadero', correcta: true }, { texto: 'Falso', correcta: false }]
+                    : [{ texto: '', correcta: true }, { texto: '', correcta: false }];
+                const inputType = type === 'multiple' ? 'checkbox' : 'radio';
+                const id = editor.dataset.questionId;
+                editor.querySelector('.option-list').innerHTML = options.map((option, index) => optionTemplate(id, option, index, inputType)).join('');
+                editor.querySelector('.add-option').style.display = type === 'verdadero_falso' ? 'none' : '';
+            }
+
+            function serializeQuestions() {
+                return [...questionList.querySelectorAll('.question-editor')].map(editor => ({
+                    enunciado: editor.querySelector('.question-text').value.trim(),
+                    tipo: editor.querySelector('.question-type').value,
+                    puntos: parseFloat(editor.querySelector('.question-points').value) || 1,
+                    opciones: [...editor.querySelectorAll('.option-row')].map(row => ({
+                        texto: row.querySelector('.option-text').value.trim(),
+                        correcta: row.querySelector('input[type="radio"], input[type="checkbox"]').checked
+                    })).filter(option => option.texto)
+                }));
+            }
+
+            tipoCapacitacion?.addEventListener('change', updateCourseMode);
+            modalidadActividad?.addEventListener('change', updateCourseMode);
+            evaluationRadios.forEach(radio => radio.addEventListener('change', updateCourseMode));
+            escalaCalificacion?.addEventListener('change', updateScoreScale);
+            document.querySelectorAll('input[name="tipo_contenido"]').forEach(input => input.addEventListener('change', updateContentMode));
+            document.getElementById('btnAddQuestion')?.addEventListener('click', () => addQuestion());
+            document.getElementById('btnAddMaterial')?.addEventListener('click', () => addMaterial());
+            materialList?.addEventListener('click', event => {
+                if (event.target.closest('.remove-material')) {
+                    event.target.closest('.material-editor')?.remove();
+                    renumberMaterials();
+                }
+            });
+            materialList?.addEventListener('change', event => {
+                if (!event.target.classList.contains('material-type')) return;
+                const editor = event.target.closest('.material-editor');
+                editor.dataset.existingFile = '';
+                editor.querySelector('.material-type-icon').innerHTML = `<i class="fa-solid ${materialTypeIcon(event.target.value)}"></i>`;
+                editor.querySelector('.material-body').innerHTML = materialBodyTemplate(
+                    editor.dataset.materialKey, event.target.value
+                );
+            });
+            questionList?.addEventListener('click', event => {
+                const editor = event.target.closest('.question-editor');
+                if (event.target.closest('.btn-remove-question')) {
+                    editor?.remove();
+                    distributeQuestionPoints();
+                }
+                const typeButton = event.target.closest('.type-choice');
+                if (typeButton && editor) resetOptionsForType(editor, typeButton.dataset.type);
+                if (event.target.closest('.remove-option')) event.target.closest('.option-row')?.remove();
+                if (event.target.closest('.add-option') && editor) {
+                    const type = editor.querySelector('.question-type').value;
+                    const list = editor.querySelector('.option-list');
+                    list.insertAdjacentHTML('beforeend', optionTemplate(
+                        editor.dataset.questionId, {}, list.children.length, type === 'multiple' ? 'checkbox' : 'radio'
+                    ));
+                }
+            });
+            (initialMaterials.length ? initialMaterials : [{titulo: 'Bienvenida', tipo: 'texto', contenido: ''}]).forEach(addMaterial);
+            (initialQuestions.length ? initialQuestions : [{}]).forEach(addQuestion);
+            updateScoreScale();
+            updateCourseMode();
+
             const radiosDirigido = document.querySelectorAll('input[name="dirigido_a"]');
             const contenedorTrabajadores = document.getElementById('contenedor_trabajadores_especificos');
             const checkboxes = document.querySelectorAll('.chk-trabajador');
@@ -587,6 +1060,33 @@ $current_page = 'estandar3.php';
                         if (seleccionados.length === 0) {
                             e.preventDefault(); 
                             alert('Debes seleccionar al menos un trabajador de la lista.');
+                            return;
+                        }
+                    }
+
+                    if (requiresEvaluation()) {
+                        const questions = serializeQuestions();
+                        const invalid = questions.length === 0 || questions.some(question =>
+                            !question.enunciado || question.opciones.length < 2 || !question.opciones.some(option => option.correcta)
+                        );
+                        if (invalid) {
+                            e.preventDefault();
+                            alert('Revisa el examen: cada pregunta necesita enunciado, dos opciones y al menos una respuesta correcta.');
+                            return;
+                        }
+                        preguntasJson.value = JSON.stringify(questions);
+                        if (isSelfPacedCourse()) {
+                            const materials = serializeMaterials();
+                            const invalidMaterials = materials.length === 0 || materials.some(material =>
+                                !material.titulo || (material.tipo === 'texto' && !material.contenido) ||
+                                (material.tipo === 'enlace' && !material.contenido)
+                            );
+                            if (invalidMaterials) {
+                                e.preventDefault();
+                                alert('Revisa los materiales: cada sección necesita título y contenido.');
+                                return;
+                            }
+                            materialesJson.value = JSON.stringify(materials);
                         }
                     }
                 });

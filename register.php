@@ -185,6 +185,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
 
         * { box-sizing: border-box; }
+        html { max-width: 100%; overflow-x: hidden; }
 
         body { margin: 0; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--bg-top) 0%, var(--bg-mid) 50%, var(--bg-bottom) 100%); color: var(--text-main); position: relative; min-height: 100vh; overflow-x: hidden;}
 
@@ -317,6 +318,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         .input-nit { border-color: var(--primary); background: #fffaf5; font-weight: 600; }
         .input-plan { border-color: var(--blue-main); background: #f8fafc; font-weight: 600; color: var(--blue-dark); cursor: pointer;}
 
+        .membership-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; margin-bottom: 14px; }
+        .membership-heading label { margin: 0; color: var(--blue-main); }
+        .membership-heading p { margin: 0; color: var(--text-muted); font-size: 0.75rem; }
+        .membership-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .membership-option {
+            min-height: 118px; padding: 16px; border: 1px solid var(--border); border-radius: 8px;
+            background: #ffffff; color: var(--text-main); display: flex; flex-direction: column;
+            align-items: flex-start; justify-content: space-between; text-align: left; box-shadow: none;
+        }
+        .membership-option:hover { border-color: #94a3b8; transform: translateY(-1px); box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06); }
+        .membership-option.selected { border: 2px solid var(--primary); background: #fffaf5; padding: 15px; }
+        .membership-option-top { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
+        .membership-option-name { font-size: 0.82rem; font-weight: 800; color: var(--blue-dark); }
+        .membership-check { width: 20px; height: 20px; border: 1px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: transparent; flex-shrink: 0; }
+        .membership-option.selected .membership-check { background: var(--primary); border-color: var(--primary); color: #ffffff; }
+        .membership-option-price { font-size: 1.05rem; font-weight: 800; color: var(--text-main); }
+        .membership-option-price small { color: var(--text-muted); font-size: 0.68rem; font-weight: 600; }
+        .membership-option-capacity { color: var(--text-muted); font-size: 0.7rem; font-weight: 600; }
+        .membership-error { margin: 10px 0 0; color: #dc2626; font-size: 0.75rem; font-weight: 700; }
+
         .section { margin-top: 24px; border: 1px solid var(--card-border); background: rgba(255, 255, 255, 0.6); border-radius: 16px; padding: 24px; }
         .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;}
         .section-title h3 { margin: 0; font-size: 1rem; color: var(--blue-dark); font-weight: 800; text-transform: uppercase;}
@@ -358,20 +379,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
            VISTA PREVIA DEL PLAN - DISEÑO PREMIUM
            ========================================= */
         .plan-preview-box {
-            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-            border: 2px solid var(--primary);
-            border-radius: 14px;
-            padding: 24px;
+            background: #f8fafc;
+            border: 1px solid #dbe3ec;
+            border-radius: 8px;
+            padding: 18px;
             margin-top: 16px;
-            box-shadow: 0 10px 25px rgba(255, 138, 31, 0.12);
+            box-shadow: none;
             position: relative;
             overflow: hidden;
             animation: popInPlan 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        
-        .plan-preview-box::before {
-            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px;
-            background: linear-gradient(90deg, var(--primary), var(--primary2));
         }
 
         @keyframes popInPlan {
@@ -381,7 +397,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         .preview-header {
             display: flex; justify-content: space-between; align-items: flex-start;
-            border-bottom: 1px dashed #cbd5e1; padding-bottom: 16px; margin-bottom: 16px;
+            border-bottom: 1px solid #dbe3ec; padding-bottom: 14px; margin-bottom: 14px;
         }
 
         .preview-title-wrapper { display: flex; flex-direction: column; gap: 4px; }
@@ -393,11 +409,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         .preview-price { font-size: 1.8rem; font-weight: 800; color: var(--text-main); margin: 0; line-height: 1; }
         .preview-price span { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
 
-        .preview-features { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem; color: #334155; font-weight: 500;}
+        .preview-features { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; font-size: 0.82rem; color: #334155; font-weight: 500;}
         .preview-features li { display: flex; align-items: flex-start; gap: 10px; }
         .preview-features li i.fa-check { color: #10b981; margin-top: 3px; font-size: 1rem;}
-        .preview-features li.disabled { color: #94a3b8; text-decoration: line-through; }
-        .preview-features li.disabled i.fa-xmark { color: #cbd5e1; margin-top: 3px; font-size: 1rem;}
+        .preview-more { margin: 12px 0 0; color: var(--text-muted); font-size: 0.75rem; font-weight: 600; }
 
         @media(max-width: 992px) { 
             .watermark-bg { left: 50%; top: 30%; transform: translate(-50%, -50%) rotate(-10deg); font-size: 35vh; }
@@ -426,6 +441,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             .footer a { justify-content: center; background: #f1f5f9; }
             .actions { flex-direction: column-reverse; width: 100%; }
             .actions button { width: 100%; }
+            .membership-options, .preview-features { grid-template-columns: 1fr; }
+            .membership-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
         }
     </style>
 </head>
@@ -524,23 +541,30 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             </div>
 
                             <div class="field full-width hidden" id="seccion_planes">
-                                <label style="color: var(--blue-main);">Plan de Suscripción Seleccionado</label>
-                                <div class="control">
-                                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line>
-                                    </svg>
-                                    <select name="plan_id" id="plan_id" class="input-plan" onchange="actualizarVistaPlan()">
-                                        <option value="">Seleccione el plan que desea adquirir...</option>
-                                        <?php foreach($planes_info as $p): ?>
-                                            <option value="<?php echo $p['id']; ?>" 
-                                                <?php if(isset($_GET['plan']) && $_GET['plan'] == $p['id']) echo 'selected'; ?>>
-                                                <?php echo htmlspecialchars($p['nombre']); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
+                                <div class="membership-heading">
+                                    <label>Elige la membresía de tu empresa</label>
+                                    <p>Podrás revisar el resumen antes de continuar al pago.</p>
                                 </div>
-                                
+                                <input type="hidden" name="plan_id" id="plan_id" value="<?php echo htmlspecialchars($_GET['plan'] ?? $_POST['plan_id'] ?? ''); ?>">
+                                <div class="membership-options" id="membership_options">
+                                    <?php foreach($planes_info as $p):
+                                        $tiene_descuento = ($p['precio_descuento'] > 0 && $p['precio_descuento'] < $p['precio_normal']);
+                                        $precio_final = $tiene_descuento ? $p['precio_descuento'] : $p['precio_normal'];
+                                    ?>
+                                        <button type="button" class="membership-option" data-plan-id="<?php echo $p['id']; ?>" onclick="seleccionarPlan('<?php echo $p['id']; ?>')">
+                                            <span class="membership-option-top">
+                                                <span class="membership-option-name"><?php echo htmlspecialchars($p['nombre']); ?></span>
+                                                <span class="membership-check"><i class="fa-solid fa-check"></i></span>
+                                            </span>
+                                            <span class="membership-option-price">$<?php echo number_format($precio_final, 0, ',', '.'); ?> <small>/ año</small></span>
+                                            <span class="membership-option-capacity">
+                                                <?php echo $p['trabajadores'] == 999 ? 'Usuarios ilimitados' : 'Hasta ' . $p['trabajadores'] . ' usuarios'; ?>
+                                            </span>
+                                        </button>
+                                    <?php endforeach; ?>
+                                </div>
                                 <div id="plan_preview" class="hidden"></div>
+                                <p id="membership_error" class="membership-error hidden">Selecciona una membresía para continuar.</p>
                             </div>
 
                             <div class="field full-width hidden" id="empresa_section">
@@ -1044,11 +1068,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         // 2. MAGIA DE LA URL Y VISTA PREVIA DEL PLAN
         // ========================================================
         const planesData = <?php echo json_encode($planes_info); ?>;
+
+        function seleccionarPlan(planId) {
+            document.getElementById('plan_id').value = planId;
+            document.getElementById('membership_error').classList.add('hidden');
+            actualizarVistaPlan();
+            saveFormData();
+        }
         
         function actualizarVistaPlan() {
             const planSelect = document.getElementById('plan_id');
             const previewBox = document.getElementById('plan_preview');
             const planId = planSelect.value;
+
+            document.querySelectorAll('.membership-option').forEach(option => {
+                const selected = option.dataset.planId == planId;
+                option.classList.toggle('selected', selected);
+                option.setAttribute('aria-pressed', selected ? 'true' : 'false');
+            });
             
             // ACTUALIZAR LA URL DINÁMICAMENTE SIN RECARGAR LA PÁGINA
             const url = new URL(window.location);
@@ -1062,6 +1099,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             if (!planId) {
                 previewBox.classList.add('hidden');
+                previewBox.innerHTML = '';
                 return;
             }
 
@@ -1075,19 +1113,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             let formatOldPrice = new Intl.NumberFormat('es-CO').format(plan.precio_normal);
 
             let featuresHtml = '';
+            let includedFeatures = plan.features.filter(f => f.incluido);
             
             let textoTrabajadores = plan.trabajadores == 999 ? 'Trabajadores Ilimitados' : 'Hasta ' + plan.trabajadores + ' Trabajadores';
             featuresHtml += `<li><i class="fa-solid fa-check"></i> <span>${textoTrabajadores}</span></li>`;
             
-            plan.features.forEach(f => {
-                if(f.incluido) {
-                    featuresHtml += `<li><i class="fa-solid fa-check"></i> <span>${f.texto}</span></li>`;
-                } else {
-                    featuresHtml += `<li class="disabled"><i class="fa-solid fa-xmark"></i> <span>${f.texto}</span></li>`;
-                }
+            includedFeatures.slice(0, 3).forEach(f => {
+                featuresHtml += `<li><i class="fa-solid fa-check"></i> <span>${f.texto}</span></li>`;
             });
 
-            // NUEVO DISEÑO PREMIUM PARA EL RECIBO DE PLAN
             previewBox.innerHTML = `
                 <div class="plan-preview-box">
                     <div class="preview-header">
@@ -1103,6 +1137,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     <ul class="preview-features">
                         ${featuresHtml}
                     </ul>
+                    ${includedFeatures.length > 3 ? `<p class="preview-more">Incluye ${includedFeatures.length - 3} beneficios adicionales de la membresía.</p>` : ''}
                 </div>
             `;
             
@@ -1260,6 +1295,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
 
         function beforeSubmit() { 
+            const rolSeleccionado = document.getElementById('rol').value;
+            const planSeleccionado = document.getElementById('plan_id').value;
+
+            if (rolSeleccionado === 'representante' && !planSeleccionado) {
+                const membershipError = document.getElementById('membership_error');
+                membershipError.classList.remove('hidden');
+                document.getElementById('seccion_planes').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return false;
+            }
+
             guardarFirma(); 
             // Limpiamos el localStorage al enviar para que el próximo registro esté limpio
             localStorage.removeItem('sgst_registro_form');
@@ -1268,5 +1313,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     </script>
     <?php endif; ?>
 
+    <?php include_once __DIR__ . '/components/cookie_banner.php'; ?>
 </body>
 </html>

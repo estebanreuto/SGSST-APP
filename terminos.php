@@ -504,5 +504,6 @@
             });
         });
     </script>
+    <?php include_once __DIR__ . '/components/cookie_banner.php'; ?>
 </body>
 </html>

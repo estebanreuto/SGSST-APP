@@ -9,6 +9,7 @@ if ($current_page == 'reportes.php') $titulo_header = "Reportes y Estadísticas"
 if ($current_page == 'empresa.php') $titulo_header = "Datos de la Empresa";
 if ($current_page == 'evaluaciones.php') $titulo_header = "Evaluaciones SG-SST";
 if ($current_page == 'mis_encuestas.php') $titulo_header = "Mis Encuestas";
+if (in_array($current_page, ['capacitaciones.php', 'curso.php', 'recursos_curso.php'])) $titulo_header = "Capacitaciones";
 if ($current_page == 'notificaciones.php') $titulo_header = "Centro de Notificaciones";
 if ($current_page == 'configuracion.php') $titulo_header = "Configuración de Cuenta";
 if ($current_page == 'planes.php') $titulo_header = "Gestión de Planes";

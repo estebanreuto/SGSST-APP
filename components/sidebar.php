@@ -139,20 +139,30 @@ $nombres_estandares = [
 $ruta_logo = file_exists('assets/logo_preventwork.jpeg') ? 'assets/logo_preventwork.jpeg' : '../assets/logo_preventwork.jpeg';
 
 ?>
+<script>
+    if (window.innerWidth > 768 && localStorage.getItem('preventwork_sidebar_collapsed') === '1') {
+        document.body.classList.add('sidebar-collapsed');
+    }
+</script>
 <style>
     :root {
         --primary: #ff8a1f; --primary2: #ff7a00; --card: #ffffff;
         --text: #1f2d3d; --muted: #5f6f82; --border: #e2e8f0;
+        --sidebar-expanded: 260px; --sidebar-compact: 76px;
     }
 
     .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); z-index: 1040; backdrop-filter: blur(3px); opacity: 0; transition: opacity 0.3s ease; }
     .sidebar-overlay.active { display: block; opacity: 1; }
 
-    .sidebar { width: 260px; background: #ffffff; border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100dvh; position: fixed; left: 0; top: 0; font-family: 'Inter', sans-serif; z-index: 1050; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 4px 0 15px rgba(0, 0, 0, 0.02); }
+    .sidebar { width: var(--sidebar-expanded); background: #ffffff; border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100dvh; position: fixed; left: 0; top: 0; font-family: 'Inter', sans-serif; z-index: 1050; transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 4px 0 15px rgba(0, 0, 0, 0.02); }
     
     .sidebar-header { height: 68px; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); box-sizing: border-box; }
     .brand { display: flex; align-items: center; flex: 1; min-width: 0; margin-right: 12px; }
     .brand img { max-height: 28px; max-width: 100%; width: auto; object-fit: contain; object-position: left center; display: block; }
+
+    .btn-collapse-sidebar { width: 31px; height: 31px; border: 1px solid #e2e8f0; border-radius: 7px; background: #f8fafc; color: #64748b; cursor: pointer; display: grid; place-items: center; flex-shrink: 0; transition: color .2s ease, background .2s ease, border-color .2s ease; }
+    .btn-collapse-sidebar:hover { color: var(--primary2); border-color: #fdba74; background: #fff7ed; }
+    .btn-collapse-sidebar svg { width: 16px; height: 16px; }
     
     .btn-close-sidebar { display: none; background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 6px; border-radius: 50%; transition: all 0.3s ease; flex-shrink: 0; }
     .btn-close-sidebar:hover { background: #fee2e2; color: #dc2626; transform: rotate(90deg); }
@@ -239,10 +249,98 @@ $ruta_logo = file_exists('assets/logo_preventwork.jpeg') ? 'assets/logo_preventw
     .action-btn.exit-btn:hover { background: #fee2e2; color: #dc2626; }
     .action-btn.exit-btn:hover svg { color: #dc2626; }
 
+    @media (min-width: 769px) {
+        body .main-wrapper { transition: margin-left .28s cubic-bezier(.4,0,.2,1), width .28s cubic-bezier(.4,0,.2,1) !important; }
+        body .main-wrapper > .content-area,
+        body .main-wrapper > .content {
+            width: 100% !important;
+            max-width: none !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            padding-left: clamp(24px, 2.4vw, 44px) !important;
+            padding-right: clamp(24px, 2.4vw, 44px) !important;
+            box-sizing: border-box;
+        }
+        body.sidebar-collapsed .main-wrapper { margin-left: var(--sidebar-compact) !important; width: calc(100% - var(--sidebar-compact)) !important; }
+        body.sidebar-collapsed .sidebar { width: var(--sidebar-compact); }
+        body.sidebar-collapsed .sidebar-header { padding: 0 13px; justify-content: center; }
+        body.sidebar-collapsed .brand { display: none; }
+        body.sidebar-collapsed .btn-collapse-sidebar { width: 34px; height: 34px; background: #fff; border-color: #dbe3ec; box-shadow: 0 3px 10px rgba(15,23,42,.08); }
+        body.sidebar-collapsed .sidebar-nav { padding: 12px 10px 20px; align-items: center; overflow-x: visible; }
+        body.sidebar-collapsed .nav-section,
+        body.sidebar-collapsed .sidebar-search-box,
+        body.sidebar-collapsed .nav-dropdown-menu { display: none !important; }
+        body.sidebar-collapsed .nav-item { width: 44px; height: 42px; padding: 0; justify-content: center; gap: 0; font-size: 0; overflow: visible; }
+        body.sidebar-collapsed .nav-item:hover { transform: none; }
+        body.sidebar-collapsed .nav-item > svg { width: 19px; height: 19px; }
+        body.sidebar-collapsed .nav-item.active::before { left: -10px; top: 22%; height: 56%; }
+        body.sidebar-collapsed .nav-dropdown { width: 44px; }
+        body.sidebar-collapsed .nav-dropdown-toggle { width: 44px; height: 42px; padding: 0; justify-content: center; }
+        body.sidebar-collapsed .nav-dropdown-toggle .dropdown-left { gap: 0; font-size: 0; }
+        body.sidebar-collapsed .nav-dropdown-toggle .dropdown-left svg { width: 19px; height: 19px; }
+        body.sidebar-collapsed .nav-dropdown-toggle > .chevron-icon { display: none; }
+        body.sidebar-collapsed .nav-dropdown.active .nav-dropdown-toggle { background: #fff3e8; }
+        body.sidebar-collapsed .nav-item-locked { width: 44px; height: 42px; padding: 0; justify-content: center; font-size: 0; }
+        body.sidebar-collapsed .nav-item-locked .lock-left { gap: 0; font-size: 0; }
+        body.sidebar-collapsed .nav-item-locked .lock-left svg { width: 19px; height: 19px; }
+        body.sidebar-collapsed .nav-item-locked > svg { display: none; }
+        body.sidebar-collapsed .sidebar-footer { padding: 10px; }
+        body.sidebar-collapsed .user-box { padding: 8px 6px; gap: 8px; align-items: center; border-radius: 9px; }
+        body.sidebar-collapsed .user-mini { justify-content: center; }
+        body.sidebar-collapsed .avatar-mini { width: 34px; height: 34px; }
+        body.sidebar-collapsed .user-details,
+        body.sidebar-collapsed .user-box-divider { display: none; }
+        body.sidebar-collapsed .user-actions { align-items: center; width: 100%; }
+        body.sidebar-collapsed .action-btn { width: 38px; height: 36px; padding: 0; justify-content: center; gap: 0; font-size: 0; position: relative; }
+        body.sidebar-collapsed .action-btn > div { flex: none !important; gap: 0 !important; }
+        body.sidebar-collapsed .action-btn svg { width: 17px; height: 17px; }
+        body.sidebar-collapsed .action-btn .dot-indicator { position: absolute; right: 4px; top: 5px; width: 7px; height: 7px; }
+    }
+
+    /* Listados de tarjetas: más contenido visible sin perder lectura. */
+    @media (min-width: 1400px) {
+        body .workers-grid,
+        body .grupos-grid,
+        body .standards-grid,
+        body .cards-wrapper {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            gap: 14px !important;
+        }
+    }
+
+    @media (min-width: 1100px) and (max-width: 1399px) {
+        body .workers-grid,
+        body .grupos-grid,
+        body .standards-grid,
+        body .cards-wrapper {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 14px !important;
+        }
+    }
+
+    @media (min-width: 769px) and (max-width: 1099px) {
+        body .workers-grid,
+        body .grupos-grid,
+        body .standards-grid,
+        body .cards-wrapper {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 14px !important;
+        }
+    }
+
+    @media (min-width: 1100px) {
+        body .worker-card { padding: 16px !important; gap: 12px !important; }
+        body .grupo-header,
+        body .grupo-footer { padding: 13px 15px !important; }
+        body .grupo-body { padding: 15px !important; }
+        body .standard-card { padding: 16px !important; min-height: 165px !important; }
+    }
+
     @media (max-width: 768px) {
-        .sidebar { transform: translateX(-100%); }
+        .sidebar { width: 260px; transform: translateX(-100%); }
         .sidebar.active { transform: translateX(0); }
         .btn-close-sidebar { display: block; }
+        .btn-collapse-sidebar { display: none; }
         .sidebar-header { padding: 0 20px; }
     }
 </style>
@@ -254,6 +352,12 @@ $ruta_logo = file_exists('assets/logo_preventwork.jpeg') ? 'assets/logo_preventw
         <div class="brand">
             <img src="<?php echo $ruta_logo; ?>" alt="PrevenWork">
         </div>
+        <button class="btn-collapse-sidebar" id="btnCollapseSidebar" type="button" title="Contraer barra lateral" aria-label="Contraer barra lateral" aria-expanded="true">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" stroke-width="1.7"></rect>
+                <path stroke-linecap="round" stroke-width="1.7" d="M8.5 5v14"></path>
+            </svg>
+        </button>
         <button class="btn-close-sidebar" id="btnCloseSidebar" title="Cerrar Menú">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -389,6 +493,9 @@ $ruta_logo = file_exists('assets/logo_preventwork.jpeg') ? 'assets/logo_preventw
 
             <?php if ($usuario_rol === 'trabajador'): ?>
                 <div class="nav-section" style="margin-top: 20px;">Mis Tareas</div>
+                <a href="capacitaciones.php" class="nav-item <?php echo in_array($current_page, ['capacitaciones.php', 'curso.php', 'recursos_curso.php']) ? 'active' : ''; ?>">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422A12.083 12.083 0 0121 16.5c-2.658 1.84-5.858 3-9 3s-6.342-1.16-9-3a12.083 12.083 0 012.84-5.922L12 14z" /></svg> Capacitaciones
+                </a>
                 <a href="mis_encuestas.php" class="nav-item <?php echo $current_page == 'mis_encuestas.php' ? 'active' : ''; ?>">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Mis Encuestas
                 </a>
@@ -482,7 +589,7 @@ $ruta_logo = file_exists('assets/logo_preventwork.jpeg') ? 'assets/logo_preventw
                     }
                 } else {
                     dropdown.style.display = 'flex';
-                    item.style.display = 'flex';
+                    items.forEach(item => item.style.display = 'flex');
                     if (!dropdown.querySelector('.std-item.active')) {
                         dropdown.classList.remove('active');
                     }
@@ -526,8 +633,24 @@ $ruta_logo = file_exists('assets/logo_preventwork.jpeg') ? 'assets/logo_preventw
     document.addEventListener('DOMContentLoaded', () => {
         const btnOpenSidebar = document.getElementById('btnOpenSidebar');
         const btnCloseSidebar = document.getElementById('btnCloseSidebar');
+        const btnCollapseSidebar = document.getElementById('btnCollapseSidebar');
         const mainSidebar = document.getElementById('mainSidebar');
         const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+        function syncDesktopSidebar() {
+            const collapsed = document.body.classList.contains('sidebar-collapsed');
+            if (btnCollapseSidebar) {
+                btnCollapseSidebar.title = collapsed ? 'Expandir barra lateral' : 'Contraer barra lateral';
+                btnCollapseSidebar.setAttribute('aria-label', btnCollapseSidebar.title);
+                btnCollapseSidebar.setAttribute('aria-expanded', String(!collapsed));
+            }
+        }
+
+        function setDesktopSidebar(collapsed) {
+            document.body.classList.toggle('sidebar-collapsed', collapsed);
+            localStorage.setItem('preventwork_sidebar_collapsed', collapsed ? '1' : '0');
+            syncDesktopSidebar();
+        }
 
         function toggleMenu() {
             if (mainSidebar && sidebarOverlay) {
@@ -536,10 +659,28 @@ $ruta_logo = file_exists('assets/logo_preventwork.jpeg') ? 'assets/logo_preventw
                 document.body.style.overflow = mainSidebar.classList.contains('active') ? 'hidden' : '';
             }
         }
+        document.querySelectorAll('.nav-item, .nav-item-locked, .nav-dropdown-toggle, .action-btn').forEach(item => {
+            const label = item.innerText.replace(/\s+/g, ' ').trim();
+            if (label && !item.title) item.title = label;
+        });
+        document.querySelectorAll('.nav-dropdown-toggle').forEach(toggle => {
+            toggle.addEventListener('click', () => {
+                if (window.innerWidth > 768 && document.body.classList.contains('sidebar-collapsed')) {
+                    setDesktopSidebar(false);
+                }
+            });
+        });
+        if (btnCollapseSidebar) {
+            btnCollapseSidebar.addEventListener('click', () => {
+                setDesktopSidebar(!document.body.classList.contains('sidebar-collapsed'));
+            });
+        }
         if (btnOpenSidebar) btnOpenSidebar.addEventListener('click', toggleMenu);
         if (btnCloseSidebar) btnCloseSidebar.addEventListener('click', toggleMenu);
         if (sidebarOverlay) sidebarOverlay.addEventListener('click', toggleMenu);
+        syncDesktopSidebar();
     });
 </script>
 
 <?php include_once __DIR__ . '/modal_confirmacion.php'; ?>
+<?php include_once __DIR__ . '/cookie_banner.php'; ?>

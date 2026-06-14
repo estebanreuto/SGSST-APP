@@ -221,7 +221,7 @@ $current_page = 'estandar3.php';
         .alert-danger { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 16px 24px; border-radius: 12px; margin-bottom: 24px; display: flex; gap: 12px; font-weight: 600; align-items: center; }
         
         /* ENCABEZADO */
-        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid rgba(148, 163, 184, 0.22); }
         .estandar-header-group { display: flex; align-items: center; gap: 14px; }
         .icon-box-std { width: 44px; height: 44px; background: rgba(255, 138, 31, 0.08); color: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid rgba(255, 138, 31, 0.2); box-shadow: 0 4px 10px rgba(255, 138, 31, 0.05); }
         .icon-box-std svg { width: 22px; height: 22px; }
@@ -231,21 +231,21 @@ $current_page = 'estandar3.php';
         .estandar-subtitle { margin: 4px 0 0 0; color: var(--muted); font-size: 0.8rem; font-weight: 500; }
 
         /* =========================================
-           TARJETAS RESUMEN (6 COLUMNAS FLUIDAS)
+           INDICADORES OPERATIVOS
            ========================================= */
-        .summary-cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 30px; }
-        .summary-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; position: relative; overflow: hidden !important; box-shadow: 0 4px 6px rgba(0,0,0,0.02); transition: transform 0.3s ease; z-index: 1;}
-        .summary-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.05); border-color: #cbd5e1; }
+        .summary-cards-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+        .summary-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; min-width: 0; position: relative; overflow: hidden !important; box-shadow: 0 3px 10px rgba(15, 23, 42, 0.025); transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; z-index: 1;}
+        .summary-card:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06); border-color: #cbd5e1; }
         
-        .summary-bg-icon { position: absolute; right: -15px; top: 50%; transform: translateY(-50%) rotate(-15deg); font-size: 100px; color: var(--primary); opacity: 0.04; transition: all 0.4s ease; pointer-events: none; z-index: 0; }
-        .summary-card:hover .summary-bg-icon { transform: translateY(-50%) rotate(0deg) scale(1.15); opacity: 0.08; }
+        .summary-bg-icon { position: absolute; right: -12px; bottom: -16px; font-size: 72px; color: var(--primary); opacity: 0.035; transform: rotate(-15deg); transition: all 0.3s ease; pointer-events: none; z-index: 0; }
+        .summary-card:hover .summary-bg-icon { transform: rotate(0deg) scale(1.08); opacity: 0.07; }
         
         .summary-content { position: relative; z-index: 2; }
-        .summary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .summary-icon-box { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink:0;}
-        .summary-value { font-size: 1.8rem; font-weight: 800; color: var(--text); margin: 0; line-height: 1; text-align: right;}
-        .summary-title { font-size: 0.95rem; font-weight: 700; color: var(--blue-dark); margin: 0 0 4px 0; }
-        .summary-desc { font-size: 0.75rem; color: var(--muted); margin: 0; line-height: 1.3;}
+        .summary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .summary-icon-box { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; flex-shrink:0;}
+        .summary-value { font-size: 1.45rem; font-weight: 800; color: var(--text); margin: 0; line-height: 1; text-align: right;}
+        .summary-title { font-size: 0.82rem; font-weight: 750; color: var(--blue-dark); margin: 0 0 3px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .summary-desc { font-size: 0.68rem; color: var(--muted); margin: 0; line-height: 1.35; min-height: 1.8em;}
 
         /* Colores Específicos */
         .card-total .summary-icon-box { background: rgba(255, 138, 31, 0.1); color: var(--primary); }
@@ -273,7 +273,7 @@ $current_page = 'estandar3.php';
         .card-kpi .summary-bg-icon { color: #6366f1; }
 
         /* ACORDEÓN MOSTRAR MÁS EN TARJETAS */
-        .btn-show-more { background: transparent; border: none; font-size: 0.75rem; font-weight: 700; color: #94a3b8; cursor: pointer; padding: 0; margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; transition: color 0.2s; }
+        .btn-show-more { background: transparent; border: none; font-size: 0.68rem; font-weight: 700; color: #94a3b8; cursor: pointer; padding: 0; margin-top: 9px; display: inline-flex; align-items: center; gap: 5px; transition: color 0.2s; }
         .btn-show-more:hover { color: var(--primary); }
         .btn-show-more i { transition: transform 0.3s; }
         .btn-show-more.active i { transform: rotate(180deg); color: var(--primary);}
@@ -287,7 +287,7 @@ $current_page = 'estandar3.php';
         /* =========================================
            BARRA DE HERRAMIENTAS Y FILTROS PREMIUM
            ========================================= */
-        .workspace-toolbar { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02); margin-bottom: 24px; }
+        .workspace-toolbar { background: var(--card); border: 1px solid var(--border); border-top: 3px solid var(--primary); border-radius: var(--radius); padding: 14px 18px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.035); margin-bottom: 16px; }
         
         .toolbar-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; width: 100%; }
         
@@ -309,7 +309,7 @@ $current_page = 'estandar3.php';
         .btn-filter-toggle { background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 9px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; flex-shrink: 0;}
         .btn-filter-toggle:hover, .btn-filter-toggle.active { background: #f1f5f9; color: var(--blue-dark); border-color: #94a3b8; }
         
-        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(255, 138, 31, 0.15); white-space: nowrap; flex-shrink: 0;}
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(255, 138, 31, 0.15); white-space: nowrap; flex-shrink: 0; box-sizing: border-box;}
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(255, 138, 31, 0.25); color: white;}
 
         /* Panel de Filtros Avanzados (Desplegable) */
@@ -321,7 +321,7 @@ $current_page = 'estandar3.php';
         .filter-group select:focus { border-color: var(--primary); }
 
         /* AGENDA */
-        .agenda-container { width: 100%; margin-top: 20px; }
+        .agenda-container { width: 100%; margin-top: 8px; background: rgba(255,255,255,0.7); border: 1px solid rgba(219,227,236,0.85); border-radius: 12px; padding: 4px 20px 18px; box-sizing: border-box; }
         .agenda-day-block { display: flex; padding: 16px 0; border-bottom: 1px solid rgba(0,0,0,0.06); scroll-margin-top: 100px; }
         .agenda-date-col { width: 80px; display: flex; flex-direction: column; align-items: flex-start; flex-shrink: 0; padding-top: 6px; }
         
@@ -461,8 +461,8 @@ $current_page = 'estandar3.php';
         .btn-floating-today:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12); color: #174ea6; border-color: #cbd5e1; }
 
         /* RESPONSIVE */
-        @media (max-width: 1024px) {
-            .summary-cards-grid { grid-template-columns: repeat(2, 1fr); }
+        @media (max-width: 1180px) {
+            .summary-cards-grid { grid-template-columns: repeat(3, 1fr); }
         }
         @media (max-width: 900px) {
             .advanced-filters { grid-template-columns: 1fr 1fr; }
@@ -475,8 +475,12 @@ $current_page = 'estandar3.php';
             .content-area { padding: 16px 14px; }
             .header-actions { flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 20px; border-bottom: none; padding-bottom: 0; }
             .estandar-header-group { flex-direction: row; align-items: flex-start; gap: 12px; width: 100%; }
-            .summary-cards-grid { grid-template-columns: 1fr; }
+            .summary-cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
             .workspace-toolbar { padding: 16px; }
+            .summary-card { padding: 12px; }
+            .summary-desc { display: none; }
+            .summary-title { font-size: 0.78rem; }
+            .agenda-container { padding: 2px 12px 14px; }
             
             .toolbar-top { flex-direction: column; align-items: stretch; gap: 12px;}
             .search-box { max-width: 100%; flex: 1 1 100%; }
@@ -535,6 +539,12 @@ $current_page = 'estandar3.php';
             <?php if (isset($_GET['msg']) && $_GET['msg'] === 'actividad_eliminada'): ?>
                 <div class="alert-danger">
                     <i class="fa-solid fa-trash-can"></i> Actividad eliminada correctamente de la agenda.
+                </div>
+            <?php endif; ?>
+
+            <?php if (isset($_GET['save']) && $_GET['save'] === 'curso_success'): ?>
+                <div class="alert-success">
+                    <i class="fa-solid fa-graduation-cap"></i> Curso, evaluación y asignación guardados correctamente.
                 </div>
             <?php endif; ?>
 
@@ -744,6 +754,7 @@ $current_page = 'estandar3.php';
                                 <option value="Virtual">Virtual</option>
                                 <option value="Físico">Presencial (Físico)</option>
                                 <option value="Mixto">Mixto</option>
+                                <option value="Sistema">Sistema (Curso)</option>
                             </select>
                         </div>
                     </div>

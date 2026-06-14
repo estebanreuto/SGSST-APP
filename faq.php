@@ -562,5 +562,6 @@ try {
             slowScrollTo(0, 1200); // Sube suavecito en 1.2 segundos
         });
     </script>
+    <?php include_once __DIR__ . '/components/cookie_banner.php'; ?>
 </body>
 </html>

@@ -19,6 +19,7 @@
         font-size: 0.85rem; 
         max-width: 340px; /* Más compacto para la esquina */
         width: 100%;
+        box-sizing: border-box;
         
         /* ANIMACIÓN */
         opacity: 0; 
@@ -43,6 +44,16 @@
         color: #ffffff;
         font-size: 0.95rem;
         margin-bottom: 6px;
+    }
+
+    .cookie-content a {
+        color: #fdba74;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .cookie-content a:hover {
+        text-decoration: underline;
     }
     
     .cookie-buttons { 
@@ -100,7 +111,8 @@
 <div class="cookie-banner" id="cookieBanner">
     <div class="cookie-content">
         <strong>Privacidad y Cookies</strong>
-        Utilizamos cookies esenciales para recordar tu sesión y mejorar tu experiencia en la plataforma.
+        Utilizamos cookies esenciales para recordar tu sesión y mejorar tu experiencia.
+        <a href="<?php echo str_contains($_SERVER['PHP_SELF'] ?? '', '/admin/') ? '../cookies.php' : 'cookies.php'; ?>">Conoce nuestra política</a>.
     </div>
     <div class="cookie-buttons">
         <button class="btn-cookie btn-cookie-reject" onclick="manejarCookies(false)">Rechazar</button>
@@ -112,18 +124,27 @@
     document.addEventListener('DOMContentLoaded', () => {
         // Verifica si el usuario ya tomó una decisión antes
         const cookieStatus = localStorage.getItem('cookies_sgsst_estado');
-        if (!cookieStatus) {
+        if (cookieStatus !== 'aceptadas') {
             // Muestra el banner después de 1 segundo de entrar a la página
             setTimeout(() => {
-                document.getElementById('cookieBanner').classList.add('show');
+                const banner = document.getElementById('cookieBanner');
+                if (banner) banner.classList.add('show');
             }, 1000);
         }
     });
 
     function manejarCookies(aceptadas) {
-        // Guardamos la decisión en el almacenamiento local para no volver a preguntar
-        localStorage.setItem('cookies_sgsst_estado', aceptadas ? 'aceptadas' : 'rechazadas');
-        document.getElementById('cookieBanner').classList.remove('show');
+        const banner = document.getElementById('cookieBanner');
+
+        if (aceptadas) {
+            // Solo la aceptación evita que el aviso vuelva a mostrarse.
+            localStorage.setItem('cookies_sgsst_estado', 'aceptadas');
+        } else {
+            // Al rechazar, volveremos a informar en la siguiente página visitada.
+            localStorage.removeItem('cookies_sgsst_estado');
+        }
+
+        if (banner) banner.classList.remove('show');
 
         if (!aceptadas) {
             // Si el usuario rechaza, destruimos forzosamente la cookie de "Mantener sesión"

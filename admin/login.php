@@ -444,5 +444,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             btn.style.pointerEvents = 'none';
         });
     </script>
+    <?php include_once __DIR__ . '/../components/cookie_banner.php'; ?>
 </body>
 </html>
