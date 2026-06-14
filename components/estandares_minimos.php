@@ -1,4 +1,7 @@
 <?php
+require_once __DIR__ . '/../config/estandar4_schema.php';
+ensure_estandar4_schema($conn);
+
 // ========================================================
 // LÓGICA ESTÁNDAR 1 (DOCUMENTO DE ASIGNACIÓN)
 // ========================================================
@@ -69,6 +72,22 @@ $std2_class = $std2_tiene_vencidos ? 'badge-std-pending' : 'badge-std-success';
 
 $std3_estado = 'Pendiente'; $std3_class = 'badge-std-pending';
 $std4_estado = 'Pendiente'; $std4_class = 'badge-std-pending';
+try {
+    $stmt_empresa_std4 = $conn->prepare("SELECT empresa_id FROM usuarios WHERE id=?");
+    $stmt_empresa_std4->execute([$_SESSION['usuario_id']]);
+    $empresa_std4 = (int)$stmt_empresa_std4->fetchColumn();
+    $stmt_std4 = $conn->prepare("SELECT estado FROM estandar4_planes WHERE empresa_id=? AND anio=? LIMIT 1");
+    $stmt_std4->execute([$empresa_std4, $anio_actual]);
+    $estado_std4_db = $stmt_std4->fetchColumn();
+    if ($estado_std4_db === 'firmado') {
+        $std4_estado = 'Completado';
+        $std4_class = 'badge-std-success';
+    } elseif ($estado_std4_db === 'pendiente_firma') {
+        $std4_estado = 'Por firmar';
+    } elseif ($estado_std4_db === 'borrador') {
+        $std4_estado = 'En proceso';
+    }
+} catch (Throwable $e) {}
 $std5_estado = 'Pendiente'; $std5_class = 'badge-std-pending';
 $std6_estado = 'Pendiente'; $std6_class = 'badge-std-pending';
 $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
@@ -382,9 +401,13 @@ $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
                 <span class="badge-std <?php echo $std4_class; ?>"><?php echo $std4_estado; ?></span>
             </div>
             <h3 class="std-title">4. Plan Anual de Trabajo</h3>
-            <p class="std-desc">Elaboración del Plan Anual de Trabajo avalado por la gerencia.</p>
+            <?php if ($usuario_rol === 'sst'): ?>
+                <p class="std-desc">Programa actividades, registra avances y envía el plan anual a gerencia.</p>
+            <?php else: ?>
+                <p class="std-desc">Revisa el avance y firma el Plan Anual de Trabajo de la empresa.</p>
+            <?php endif; ?>
             <div class="std-footer">
-                <button class="btn-std disabled" disabled>Próximamente</button>
+                <a href="estandar4.php" class="btn-std"><?php echo $usuario_rol === 'sst' ? 'Gestionar plan' : 'Revisar plan'; ?> <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></a>
             </div>
         </div>
     </div>
