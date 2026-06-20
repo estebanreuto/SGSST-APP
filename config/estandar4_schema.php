@@ -84,6 +84,140 @@ function estandar4_get_or_create_plan(PDO $conn, int $empresa_id, int $anio): ar
     return $plan;
 }
 
+function estandar4_estado_desde_capacitacion(array $capacitacion, ?string $estado_actual = null): string
+{
+    $estado_capacitacion = strtolower(trim((string)($capacitacion['estado'] ?? '')));
+
+    if (in_array($estado_capacitacion, ['ejecutada', 'completada', 'cumplida', 'finalizada', 'realizada'], true)) {
+        return 'E';
+    }
+
+    if ($estado_capacitacion === 'reprogramada') {
+        return 'R';
+    }
+
+    if (in_array($estado_capacitacion, ['programada', 'en_proceso', 'no_ejecutada', 'cancelada'], true)) {
+        return 'P';
+    }
+
+    return in_array($estado_actual, ['P', 'E', 'R'], true) ? $estado_actual : 'P';
+}
+
+function estandar4_programacion_desde_capacitacion(array $capacitacion, array $programacion_actual = []): array
+{
+    $fecha_inicio = $capacitacion['fecha_inicio'] ?? null;
+    $timestamp = $fecha_inicio ? strtotime((string)$fecha_inicio) : false;
+
+    if (!$timestamp) {
+        return $programacion_actual ?: ['1' => ['estado' => 'P', 'fecha' => null]];
+    }
+
+    $mes = (string)(int)date('n', $timestamp);
+    $estado_actual = null;
+    if (isset($programacion_actual[$mes])) {
+        $dato_actual = $programacion_actual[$mes];
+        $estado_actual = is_array($dato_actual) ? ($dato_actual['estado'] ?? null) : $dato_actual;
+    }
+
+    return [
+        $mes => [
+            'estado' => estandar4_estado_desde_capacitacion($capacitacion, $estado_actual),
+            'fecha' => date('Y-m-d', $timestamp),
+        ],
+    ];
+}
+
+function estandar4_importar_capacitaciones(PDO $conn, int $plan_id, int $empresa_id, int $anio): int
+{
+    $stmt = $conn->prepare("
+        SELECT a.* FROM actividades_capacitacion a
+        WHERE a.empresa_id=? AND YEAR(a.fecha_inicio)=?
+        ORDER BY a.fecha_inicio
+    ");
+    $stmt->execute([$empresa_id, $anio]);
+    $capacitaciones = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if (!$capacitaciones) {
+        return 0;
+    }
+
+    $existentes_stmt = $conn->prepare("
+        SELECT * FROM estandar4_actividades
+        WHERE plan_id=? AND actividad_capacitacion_id IS NOT NULL
+    ");
+    $existentes_stmt->execute([$plan_id]);
+    $existentes = [];
+    foreach ($existentes_stmt->fetchAll(PDO::FETCH_ASSOC) as $actividad) {
+        $existentes[(int)$actividad['actividad_capacitacion_id']] = $actividad;
+    }
+
+    $orden_stmt = $conn->prepare("SELECT COALESCE(MAX(orden), 0) FROM estandar4_actividades WHERE plan_id = ?");
+    $orden_stmt->execute([$plan_id]);
+    $orden = (int)$orden_stmt->fetchColumn();
+
+    $insert = $conn->prepare("
+        INSERT INTO estandar4_actividades
+            (plan_id, actividad_capacitacion_id, tema, actividad, responsable, programacion_json, observaciones, orden)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ");
+
+    $update = $conn->prepare("
+        UPDATE estandar4_actividades
+        SET tema=?, actividad=?, responsable=?, programacion_json=?
+        WHERE id=? AND plan_id=?
+    ");
+
+    $sincronizadas = 0;
+
+    foreach ($capacitaciones as $capacitacion) {
+        $capacitacion_id = (int)$capacitacion['id'];
+        $tema = $capacitacion['categoria'] ?: 'Capacitación SST';
+        $actividad = $capacitacion['nombre_actividad'];
+        $responsable = $capacitacion['dirigido_a'] ?: 'Responsable SST';
+        $existente = $existentes[$capacitacion_id] ?? null;
+        $programacion_actual = $existente
+            ? estandar4_decode_programacion($existente['programacion_json'] ?? '')
+            : [];
+        $programacion = estandar4_programacion_desde_capacitacion($capacitacion, $programacion_actual);
+        $programacion_json = json_encode($programacion, JSON_UNESCAPED_UNICODE);
+
+        if ($existente) {
+            if (
+                ($existente['tema'] ?? '') === $tema
+                && ($existente['actividad'] ?? '') === $actividad
+                && ($existente['responsable'] ?? '') === $responsable
+                && ($existente['programacion_json'] ?? '') === $programacion_json
+            ) {
+                continue;
+            }
+
+            $update->execute([
+                $tema,
+                $actividad,
+                $responsable,
+                $programacion_json,
+                (int)$existente['id'],
+                $plan_id,
+            ]);
+            $sincronizadas++;
+            continue;
+        }
+
+        $insert->execute([
+            $plan_id,
+            $capacitacion_id,
+            $tema,
+            $actividad,
+            $responsable,
+            $programacion_json,
+            'Importada automáticamente desde el Estándar 3.',
+            ++$orden,
+        ]);
+        $sincronizadas++;
+    }
+
+    return $sincronizadas;
+}
+
 function estandar4_decode_programacion(?string $json): array
 {
     $programacion = json_decode((string)$json, true);

@@ -170,52 +170,13 @@ try {
 
     if ($accion === 'importar_capacitaciones') {
         estandar4_require_sst($rol, $anio);
-        $stmt = $conn->prepare("
-            SELECT a.* FROM actividades_capacitacion a
-            WHERE a.empresa_id=? AND YEAR(a.fecha_inicio)=?
-              AND NOT EXISTS (
-                  SELECT 1 FROM estandar4_actividades e
-                  WHERE e.plan_id=? AND e.actividad_capacitacion_id=a.id
-              )
-            ORDER BY a.fecha_inicio
-        ");
-        $stmt->execute([$empresa_id, $anio, $plan_id]);
-        $capacitaciones = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $orden = (int)$conn->query("SELECT COALESCE(MAX(orden), 0) FROM estandar4_actividades WHERE plan_id = " . $plan_id)->fetchColumn();
-        $insert = $conn->prepare("
-            INSERT INTO estandar4_actividades
-                (plan_id, actividad_capacitacion_id, tema, actividad, responsable, programacion_json, observaciones, orden)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ");
-
-        foreach ($capacitaciones as $capacitacion) {
-            $mes = (int)date('n', strtotime($capacitacion['fecha_inicio']));
-            $estado = in_array($capacitacion['estado'], ['ejecutada', 'completada'], true)
-                ? 'E'
-                : ($capacitacion['estado'] === 'reprogramada' ? 'R' : 'P');
-            $programacion = [
-                (string)$mes => [
-                    'estado' => $estado,
-                    'fecha' => date('Y-m-d', strtotime($capacitacion['fecha_inicio'])),
-                ],
-            ];
-            $insert->execute([
-                $plan_id,
-                $capacitacion['id'],
-                $capacitacion['categoria'] ?: 'Capacitación SST',
-                $capacitacion['nombre_actividad'],
-                $capacitacion['dirigido_a'] ?: 'Responsable SST',
-                json_encode($programacion, JSON_UNESCAPED_UNICODE),
-                'Importada automáticamente desde el Estándar 3.',
-                ++$orden,
-            ]);
-        }
-        if ($capacitaciones) {
+        $importadas = estandar4_importar_capacitaciones($conn, $plan_id, $empresa_id, $anio);
+        if ($importadas) {
             estandar4_invalidar_firmas($conn, $plan_id);
         }
-        estandar4_redirect($anio, $capacitaciones
-            ? count($capacitaciones) . ' capacitación(es) incorporada(s) al plan.'
-            : 'No hay capacitaciones nuevas para importar.');
+        estandar4_redirect($anio, $importadas
+            ? $importadas . ' capacitación(es) sincronizada(s) con el Estándar 3.'
+            : 'El plan ya está actualizado con el Estándar 3.');
     }
 
     if ($accion === 'guardar_seguimiento') {

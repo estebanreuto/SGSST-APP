@@ -107,6 +107,7 @@ if (isset($_SESSION['cpanel_admin_id'])) {
     /* Ajusté el botón para que combine mejor con el fondo sólido */
     .icon-btn { background: #f8fafc; border: 1px solid #e2e8f0; width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted); cursor: pointer; transition: all 0.3s ease; text-decoration: none; position: relative; }
     .icon-btn:hover { background: #ffffff; color: var(--primary); border-color: #cbd5e1; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); }
+    .btn-scroll-top { display: none; }
 
     /* ESTILO DEL PUNTICO EN EL HEADER */
     @keyframes pulse-dot {
@@ -123,6 +124,7 @@ if (isset($_SESSION['cpanel_admin_id'])) {
     @media (max-width: 768px) {
         .top-header { margin: 12px 16px; top: 12px; padding: 0 16px; }
         .btn-mobile-menu { display: flex; }
+        .btn-scroll-top { display: flex; }
         .role-badge, .plan-badge { display: none; }
         .header-title { font-size: 1rem; }
     }
@@ -137,6 +139,10 @@ if (isset($_SESSION['cpanel_admin_id'])) {
     </div>
 
     <div class="top-header-actions">
+        <button class="icon-btn btn-scroll-top" type="button" title="Subir al inicio" aria-label="Subir al inicio" onclick="window.scrollTo({top:0, behavior:'smooth'})">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+        </button>
+
         <?php if ($nombre_plan_header !== null): ?>
             <div class="plan-badge <?php echo $clase_plan_header; ?>" title="Suscripción Actual">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>

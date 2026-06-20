@@ -8,6 +8,8 @@ const outputPath = `${outputDir}/control_mensual_volquetas.xlsx`;
 const wb = Workbook.create();
 const dashboard = wb.worksheets.add("Resumen");
 const registro = wb.worksheets.add("Registro diario");
+const gastos = wb.worksheets.add("Gastos volqueta");
+const aportes = wb.worksheets.add("Aportes tios");
 const config = wb.worksheets.add("Configuracion");
 
 const colors = {
@@ -81,15 +83,15 @@ function card(sheet, labelRange, valueRange, label, formula, fill, numberFormat)
 
 // Configuration
 config.showGridLines = false;
-titleBand(config, "A1:F2", "CONFIGURACION - CONTROL DE VOLQUETAS");
-config.getRange("A3:F3").merge();
-config.getRange("A3:F3").values = [[
+titleBand(config, "A1:I2", "CONFIGURACION - CONTROL DE VOLQUETAS");
+config.getRange("A3:I3").merge();
+config.getRange("A3:I3").values = [[
   "Cambia solamente las celdas amarillas con letra azul. El resto del archivo se actualiza automaticamente.",
 ]];
-config.getRange("A3:F3").format.fill = colors.paleBlue;
-config.getRange("A3:F3").format.font = { italic: true, color: colors.text, size: 10 };
-config.getRange("A3:F3").format.wrapText = true;
-config.getRange("A3:F3").format.rowHeight = 30;
+config.getRange("A3:I3").format.fill = colors.paleBlue;
+config.getRange("A3:I3").format.font = { italic: true, color: colors.text, size: 10 };
+config.getRange("A3:I3").format.wrapText = true;
+config.getRange("A3:I3").format.rowHeight = 30;
 
 sectionBand(config, "A5:C5", "PARAMETROS DEL MES");
 config.getRange("A6:B10").values = [
@@ -110,7 +112,7 @@ config.getRange("B7").dataValidation = {
   rule: { type: "whole", operator: "between", formula1: 2020, formula2: 2100 },
 };
 config.getRange("B8").dataValidation = {
-  rule: { type: "whole", operator: "between", formula1: 1, formula2: 12 },
+  rule: { type: "list", values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
 };
 config.getRange("B9").dataValidation = {
   rule: { type: "whole", operator: "between", formula1: 1, formula2: 200 },
@@ -118,6 +120,35 @@ config.getRange("B9").dataValidation = {
 config.getRange("B10").dataValidation = {
   rule: { type: "decimal", operator: "between", formula1: 0, formula2: 1 },
 };
+
+sectionBand(config, "G5:I5", "LISTAS EDITABLES");
+config.getRange("G6:I6").values = [["Categoria gasto", "Pagado por", "Medio pago/envio"]];
+config.getRange("G6:I6").format.fill = colors.sky;
+config.getRange("G6:I6").format.font = { bold: true, color: colors.navy };
+config.getRange("G7:I25").values = [
+  ["ACPM", "Mi bolsillo", "Nequi"],
+  ["Mantenimiento", "Juancho", "Daviplata"],
+  ["Llantas", "Beto", "Davivienda"],
+  ["Aceite", "Caja", "Bancolombia"],
+  ["Lavadero", "Otro", "Efectivo"],
+  ["Peajes", null, "Transferencia"],
+  ["Parqueadero", null, "Banco"],
+  ["Reparacion", null, "Otro"],
+  ["Alimentacion", null, null],
+  ["Documentos", null, null],
+  ["Impuestos", null, null],
+  ["Seguro", null, null],
+  ["Multas", null, null],
+  ["Grua", null, null],
+  ["Lavada", null, null],
+  ["Repuestos", null, null],
+  ["Mano de obra", null, null],
+  ["Prestamo", null, null],
+  ["Otro", null, null],
+];
+config.getRange("G7:I25").format.fill = colors.yellow;
+config.getRange("G7:I25").format.font = { color: colors.inputBlue };
+config.getRange("G6:I25").format.borders = { preset: "all", style: "thin", color: colors.border };
 
 sectionBand(config, "A12:D12", "TARIFAS POR VIAJE");
 config.getRange("A13:C18").values = [
@@ -138,25 +169,54 @@ config.getRange("B14:B18").dataValidation = {
   rule: { type: "whole", operator: "between", formula1: 0, formula2: 10000000 },
 };
 
-sectionBand(config, "A20:F20", "COMO USAR EL ARCHIVO");
-config.getRange("A21:F25").merge(true);
-config.getRange("A21:F25").values = [
+sectionBand(config, "A20:D20", "REPARTO DE GASTOS ENTRE TIOS");
+config.getRange("A21:C23").values = [
+  ["Persona", "% que cubre", "Nota"],
+  ["Juancho", 0.5, "Editable"],
+  ["Beto", 0.5, "Editable"],
+];
+config.getRange("A21:C21").format.fill = colors.sky;
+config.getRange("A21:C21").format.font = { bold: true, color: colors.navy };
+config.getRange("A21:C23").format.borders = { preset: "all", style: "thin", color: colors.border };
+config.getRange("B22:B23").format.fill = colors.yellow;
+config.getRange("B22:B23").format.font = { color: colors.inputBlue, bold: true };
+config.getRange("B22:B23").format.numberFormat = percentFormat;
+config.getRange("B22:B23").dataValidation = {
+  rule: { type: "decimal", operator: "between", formula1: 0, formula2: 1 },
+};
+config.getRange("A24:B24").values = [["Total reparto", null]];
+config.getRange("B24").formulas = [["=SUM(B22:B23)"]];
+config.getRange("A24:B24").format.fill = colors.paleBlue;
+config.getRange("A24:B24").format.font = { bold: true, color: colors.linkGreen };
+config.getRange("B24").format.numberFormat = percentFormat;
+config.getRange("A24:B24").format.borders = { preset: "all", style: "thin", color: colors.border };
+config.getRange("B24").conditionalFormats.add("cellIs", {
+  operator: "notEqual",
+  formula: 1,
+  format: { fill: colors.paleRed, font: { color: colors.red, bold: true } },
+});
+
+sectionBand(config, "A26:F26", "COMO USAR EL ARCHIVO");
+config.getRange("A27:F32").merge(true);
+config.getRange("A27:F32").values = [
   ["1. Selecciona el año y el mes en esta hoja."],
   ["2. En Registro diario escribe la cantidad de viajes de cada ruta."],
-  ["3. La meta normal es de lunes a jueves; el atraso se reparte entre viernes, sabado y domingo."],
-  ["4. El valor bruto y tu 22% se calculan automaticamente."],
-  ["5. Revisa el avance semanal y mensual en la hoja Resumen."],
+  ["3. En Gastos volqueta anota cada egreso con fecha, categoria y valor."],
+  ["4. En Aportes tios anota lo que envien Juancho y Beto."],
+  ["5. El resumen calcula ingresos, gastos, saldos pendientes y lo que falta por enviar."],
+  ["6. La meta normal es de lunes a jueves; el atraso se reparte entre viernes, sabado y domingo."],
 ];
-config.getRange("A21:F25").format.fill = "#FFFFFF";
-config.getRange("A21:F25").format.font = { color: colors.text, size: 10 };
-config.getRange("A21:F25").format.wrapText = true;
-config.getRange("A21:F25").format.rowHeight = 24;
-config.getRange("A21:F25").format.borders = { preset: "outside", style: "thin", color: colors.border };
+config.getRange("A27:F32").format.fill = "#FFFFFF";
+config.getRange("A27:F32").format.font = { color: colors.text, size: 10 };
+config.getRange("A27:F32").format.wrapText = true;
+config.getRange("A27:F32").format.rowHeight = 24;
+config.getRange("A27:F32").format.borders = { preset: "outside", style: "thin", color: colors.border };
 
 config.getRange("A:A").format.columnWidth = 30;
 config.getRange("B:B").format.columnWidth = 18;
 config.getRange("C:C").format.columnWidth = 28;
 config.getRange("D:F").format.columnWidth = 14;
+config.getRange("G:I").format.columnWidth = 18;
 config.freezePanes.freezeRows(5);
 
 // Daily register
@@ -278,6 +338,142 @@ registro.freezePanes.freezeColumns(3);
 const widths = [13, 13, 9, 18, 15, 20, 20, 14, 12, 13, 16, 14, 15, 14, 17, 26];
 for (let i = 0; i < widths.length; i += 1) {
   registro.getRangeByIndexes(0, i, 37, 1).format.columnWidth = widths[i];
+}
+
+// Expense register
+gastos.showGridLines = false;
+titleBand(gastos, "A1:I2", "GASTOS DE LA VOLQUETA");
+gastos.getRange("A3:I3").merge();
+gastos.getRange("A3:I3").formulas = [[
+  '="Periodo activo: "&CHOOSE(Configuracion!$B$8,"Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")&" "&Configuracion!$B$7&" | Anota aqui cada egreso."',
+]];
+gastos.getRange("A3:I3").format.fill = colors.paleBlue;
+gastos.getRange("A3:I3").format.font = { bold: true, color: colors.linkGreen, size: 10 };
+gastos.getRange("A3:I3").format.horizontalAlignment = "center";
+gastos.getRange("A5:I5").merge();
+gastos.getRange("A5:I5").values = [[
+  "Tip: usa una fila por factura, recibo, tanqueo, arreglo o gasto. El resumen toma solo el mes seleccionado en Configuracion.",
+]];
+gastos.getRange("A5:I5").format.fill = colors.yellow;
+gastos.getRange("A5:I5").format.font = { bold: true, color: colors.navy, size: 10 };
+gastos.getRange("A5:I5").format.horizontalAlignment = "center";
+
+gastos.getRange("A6:I6").values = [[
+  "Fecha",
+  "Mes",
+  "Categoria",
+  "Detalle",
+  "Valor",
+  "Pagado por",
+  "Medio pago",
+  "Observaciones",
+  "Año",
+]];
+gastos.getRange("A6:I6").format.fill = colors.navy;
+gastos.getRange("A6:I6").format.font = { bold: true, color: colors.white, size: 9 };
+gastos.getRange("A6:I6").format.horizontalAlignment = "center";
+gastos.getRange("A6:I6").format.wrapText = true;
+
+for (let row = 7; row <= 205; row += 1) {
+  gastos.getRange(`B${row}`).formulas = [[`=IF(A${row}="","",MONTH(A${row}))`]];
+  gastos.getRange(`I${row}`).formulas = [[`=IF(A${row}="","",YEAR(A${row}))`]];
+}
+gastos.getRange("A7:I205").format.borders = { preset: "all", style: "thin", color: "#DCE6EC" };
+gastos.getRange("A7:I205").format.font = { color: colors.text, size: 9 };
+gastos.getRange("A7:I205").format.rowHeight = 20;
+gastos.getRange("A7:A205").format.fill = colors.paleBlue;
+gastos.getRange("C7:H205").format.fill = colors.paleBlue;
+gastos.getRange("A7:A205").format.font = { color: colors.inputBlue };
+gastos.getRange("C7:H205").format.font = { color: colors.inputBlue };
+gastos.getRange("B7:B205").format.font = { color: colors.linkGreen };
+gastos.getRange("I7:I205").format.font = { color: colors.linkGreen };
+gastos.getRange("A7:A205").format.numberFormat = "dd-mmm-yyyy";
+gastos.getRange("B7:B205").format.numberFormat = integerFormat;
+gastos.getRange("E7:E205").format.numberFormat = currencyFormat;
+gastos.getRange("I7:I205").format.numberFormat = integerFormat;
+gastos.getRange("C7:C205").dataValidation = {
+  rule: { type: "list", formula1: "Configuracion!$G$7:$G$25" },
+};
+gastos.getRange("F7:F205").dataValidation = {
+  rule: { type: "list", formula1: "Configuracion!$H$7:$H$25" },
+};
+gastos.getRange("G7:G205").dataValidation = {
+  rule: { type: "list", formula1: "Configuracion!$I$7:$I$25" },
+};
+gastos.getRange("E7:E205").dataValidation = {
+  rule: { type: "whole", operator: "between", formula1: 0, formula2: 100000000 },
+};
+gastos.tables.add("A6:I205", true, "TablaGastosVolqueta");
+gastos.freezePanes.freezeRows(6);
+const gastosWidths = [14, 8, 18, 34, 15, 15, 16, 32, 10];
+for (let i = 0; i < gastosWidths.length; i += 1) {
+  gastos.getRangeByIndexes(0, i, 205, 1).format.columnWidth = gastosWidths[i];
+}
+
+// Family contribution register
+aportes.showGridLines = false;
+titleBand(aportes, "A1:H2", "APORTES / ENVIOS DE TIOS");
+aportes.getRange("A3:H3").merge();
+aportes.getRange("A3:H3").formulas = [[
+  '="Periodo activo: "&CHOOSE(Configuracion!$B$8,"Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")&" "&Configuracion!$B$7&" | Anota aqui cada envio recibido."',
+]];
+aportes.getRange("A3:H3").format.fill = colors.paleBlue;
+aportes.getRange("A3:H3").format.font = { bold: true, color: colors.linkGreen, size: 10 };
+aportes.getRange("A3:H3").format.horizontalAlignment = "center";
+aportes.getRange("A5:H5").merge();
+aportes.getRange("A5:H5").values = [[
+  "El resumen compara lo que deberia enviar cada tio contra lo que realmente envio en este mes.",
+]];
+aportes.getRange("A5:H5").format.fill = colors.yellow;
+aportes.getRange("A5:H5").format.font = { bold: true, color: colors.navy, size: 10 };
+aportes.getRange("A5:H5").format.horizontalAlignment = "center";
+
+aportes.getRange("A6:H6").values = [[
+  "Fecha",
+  "Mes",
+  "Tio",
+  "Concepto",
+  "Valor enviado",
+  "Medio envio",
+  "Observaciones",
+  "Año",
+]];
+aportes.getRange("A6:H6").format.fill = colors.navy;
+aportes.getRange("A6:H6").format.font = { bold: true, color: colors.white, size: 9 };
+aportes.getRange("A6:H6").format.horizontalAlignment = "center";
+aportes.getRange("A6:H6").format.wrapText = true;
+
+for (let row = 7; row <= 205; row += 1) {
+  aportes.getRange(`B${row}`).formulas = [[`=IF(A${row}="","",MONTH(A${row}))`]];
+  aportes.getRange(`H${row}`).formulas = [[`=IF(A${row}="","",YEAR(A${row}))`]];
+}
+aportes.getRange("A7:H205").format.borders = { preset: "all", style: "thin", color: "#DCE6EC" };
+aportes.getRange("A7:H205").format.font = { color: colors.text, size: 9 };
+aportes.getRange("A7:H205").format.rowHeight = 20;
+aportes.getRange("A7:A205").format.fill = colors.paleBlue;
+aportes.getRange("C7:G205").format.fill = colors.paleBlue;
+aportes.getRange("A7:A205").format.font = { color: colors.inputBlue };
+aportes.getRange("C7:G205").format.font = { color: colors.inputBlue };
+aportes.getRange("B7:B205").format.font = { color: colors.linkGreen };
+aportes.getRange("H7:H205").format.font = { color: colors.linkGreen };
+aportes.getRange("A7:A205").format.numberFormat = "dd-mmm-yyyy";
+aportes.getRange("B7:B205").format.numberFormat = integerFormat;
+aportes.getRange("E7:E205").format.numberFormat = currencyFormat;
+aportes.getRange("H7:H205").format.numberFormat = integerFormat;
+aportes.getRange("C7:C205").dataValidation = {
+  rule: { type: "list", values: ["Juancho", "Beto"] },
+};
+aportes.getRange("F7:F205").dataValidation = {
+  rule: { type: "list", formula1: "Configuracion!$I$7:$I$25" },
+};
+aportes.getRange("E7:E205").dataValidation = {
+  rule: { type: "whole", operator: "between", formula1: 0, formula2: 100000000 },
+};
+aportes.tables.add("A6:H205", true, "TablaAportesTios");
+aportes.freezePanes.freezeRows(6);
+const aportesWidths = [14, 8, 14, 26, 16, 16, 34, 10];
+for (let i = 0; i < aportesWidths.length; i += 1) {
+  aportes.getRangeByIndexes(0, i, 205, 1).format.columnWidth = aportesWidths[i];
 }
 
 // Dashboard
@@ -416,30 +612,132 @@ if (chart.series.items.length >= 2) {
   chart.series.items[1].line = { color: colors.blue, width: 2 };
 }
 
-dashboard.getRange("A32:J33").merge();
-dashboard.getRange("A32:J33").values = [[
-  "Lectura rapida: si Viajes pendientes llega a 0, cumpliste la meta mensual. En Registro diario, Meta sugerida hoy indica cuantos viajes deberias hacer ese dia para mantenerte o recuperar el ritmo semanal.",
+sectionBand(dashboard, "A32:J32", "FINANZAS DEL MES");
+card(
+  dashboard,
+  "A34:B34",
+  "A35:B36",
+  "GASTOS VOLQUETA",
+  '=SUMIFS(\'Gastos volqueta\'!$E$7:$E$205,\'Gastos volqueta\'!$B$7:$B$205,Configuracion!$B$8,\'Gastos volqueta\'!$I$7:$I$205,Configuracion!$B$7)',
+  colors.paleOrange,
+  currencyFormat,
+);
+card(
+  dashboard,
+  "D34:E34",
+  "D35:E36",
+  "APORTES RECIBIDOS",
+  '=SUMIFS(\'Aportes tios\'!$E$7:$E$205,\'Aportes tios\'!$B$7:$B$205,Configuracion!$B$8,\'Aportes tios\'!$H$7:$H$205,Configuracion!$B$7)',
+  colors.paleGreen,
+  currencyFormat,
+);
+card(
+  dashboard,
+  "G34:H34",
+  "G35:H36",
+  "RESULTADO CAJA",
+  '=D10+D35-A35',
+  colors.sky,
+  currencyFormat,
+);
+card(
+  dashboard,
+  "I34:J34",
+  "I35:J36",
+  "GANANCIA - GASTOS",
+  '=D10-A35',
+  colors.yellow,
+  currencyFormat,
+);
+
+dashboard.getRange("A38:H41").values = [
+  ["Tio", "% cubre", "Debe cubrir", "Ya envio", "Falta por enviar", "Saldo a favor", "Estado", "Nota"],
+  ["Juancho", null, null, null, null, null, null, "Segun reparto en Configuracion"],
+  ["Beto", null, null, null, null, null, null, "Segun reparto en Configuracion"],
+  ["TOTAL", null, null, null, null, null, null, null],
+];
+dashboard.getRange("A38:H38").format.fill = colors.navy;
+dashboard.getRange("A38:H38").format.font = { bold: true, color: colors.white, size: 9 };
+dashboard.getRange("A38:H41").format.borders = { preset: "all", style: "thin", color: colors.border };
+dashboard.getRange("A39:A41").format.fill = colors.gray;
+dashboard.getRange("A39:A41").format.font = { bold: true, color: colors.navy };
+dashboard.getRange("B39").formulas = [["=Configuracion!$B$22"]];
+dashboard.getRange("B40").formulas = [["=Configuracion!$B$23"]];
+dashboard.getRange("B41").formulas = [["=SUM(B39:B40)"]];
+dashboard.getRange("C39").formulas = [["=$A$35*B39"]];
+dashboard.getRange("C40").formulas = [["=$A$35*B40"]];
+dashboard.getRange("C41").formulas = [["=SUM(C39:C40)"]];
+dashboard.getRange("D39").formulas = [["=SUMIFS('Aportes tios'!$E$7:$E$205,'Aportes tios'!$C$7:$C$205,A39,'Aportes tios'!$B$7:$B$205,Configuracion!$B$8,'Aportes tios'!$H$7:$H$205,Configuracion!$B$7)"]];
+dashboard.getRange("D40").formulas = [["=SUMIFS('Aportes tios'!$E$7:$E$205,'Aportes tios'!$C$7:$C$205,A40,'Aportes tios'!$B$7:$B$205,Configuracion!$B$8,'Aportes tios'!$H$7:$H$205,Configuracion!$B$7)"]];
+dashboard.getRange("D41").formulas = [["=SUM(D39:D40)"]];
+dashboard.getRange("E39").formulas = [["=MAX(0,C39-D39)"]];
+dashboard.getRange("E40").formulas = [["=MAX(0,C40-D40)"]];
+dashboard.getRange("E41").formulas = [["=SUM(E39:E40)"]];
+dashboard.getRange("F39").formulas = [["=MAX(0,D39-C39)"]];
+dashboard.getRange("F40").formulas = [["=MAX(0,D40-C40)"]];
+dashboard.getRange("F41").formulas = [["=SUM(F39:F40)"]];
+dashboard.getRange("G39").formulas = [["=IF(E39>0,\"Debe enviar\",IF(F39>0,\"A favor\",\"OK\"))"]];
+dashboard.getRange("G40").formulas = [["=IF(E40>0,\"Debe enviar\",IF(F40>0,\"A favor\",\"OK\"))"]];
+dashboard.getRange("G41").formulas = [["=IF(E41>0,\"Falta por cubrir\",IF(F41>0,\"Aportes de mas\",\"OK\"))"]];
+dashboard.getRange("B39:B41").format.numberFormat = percentFormat;
+dashboard.getRange("C39:F41").format.numberFormat = currencyFormat;
+dashboard.getRange("B39:G41").format.font = { color: colors.linkGreen };
+dashboard.getRange("E39:E41").conditionalFormats.add("cellIs", {
+  operator: "greaterThan",
+  formula: 0,
+  format: { fill: colors.paleRed, font: { color: colors.red, bold: true } },
+});
+dashboard.getRange("G39:G41").conditionalFormats.add("containsText", {
+  text: "Debe enviar",
+  format: { fill: colors.paleRed, font: { color: colors.red, bold: true } },
+});
+dashboard.getRange("G39:G41").conditionalFormats.add("containsText", {
+  text: "OK",
+  format: { fill: colors.paleGreen, font: { color: colors.green, bold: true } },
+});
+
+sectionBand(dashboard, "A44:D44", "GASTOS POR CATEGORIA");
+dashboard.getRange("A45:D64").values = [
+  ["Categoria", "Total gasto", "% del gasto", "Nota"],
+  ...Array.from({ length: 19 }, () => [null, null, null, null]),
+];
+dashboard.getRange("A45:D45").format.fill = colors.navy;
+dashboard.getRange("A45:D45").format.font = { bold: true, color: colors.white, size: 9 };
+dashboard.getRange("A45:D64").format.borders = { preset: "all", style: "thin", color: colors.border };
+for (let row = 46; row <= 64; row += 1) {
+  const configRow = row - 39;
+  dashboard.getRange(`A${row}`).formulas = [[`=Configuracion!G${configRow}`]];
+  dashboard.getRange(`B${row}`).formulas = [[`=SUMIFS('Gastos volqueta'!$E$7:$E$205,'Gastos volqueta'!$C$7:$C$205,A${row},'Gastos volqueta'!$B$7:$B$205,Configuracion!$B$8,'Gastos volqueta'!$I$7:$I$205,Configuracion!$B$7)`]];
+  dashboard.getRange(`C${row}`).formulas = [[`=IF($A$35=0,"",B${row}/$A$35)`]];
+}
+dashboard.getRange("B46:B64").format.numberFormat = currencyFormat;
+dashboard.getRange("C46:C64").format.numberFormat = percentFormat;
+dashboard.getRange("A46:C64").format.font = { color: colors.linkGreen };
+
+dashboard.getRange("A66:J67").merge();
+dashboard.getRange("A66:J67").values = [[
+  "Lectura rapida: si Viajes pendientes llega a 0, cumpliste la meta mensual. En Finanzas, 'Falta por enviar' muestra cuanto debe mandar cada tio segun los gastos anotados y el reparto configurado.",
 ]];
-dashboard.getRange("A32:J33").format.fill = colors.paleBlue;
-dashboard.getRange("A32:J33").format.font = { italic: true, color: colors.text, size: 9 };
-dashboard.getRange("A32:J33").format.wrapText = true;
-dashboard.getRange("A32:J33").format.borders = { preset: "outside", style: "thin", color: colors.border };
-dashboard.getRange("A32:J33").format.rowHeight = 32;
+dashboard.getRange("A66:J67").format.fill = colors.paleBlue;
+dashboard.getRange("A66:J67").format.font = { italic: true, color: colors.text, size: 9 };
+dashboard.getRange("A66:J67").format.wrapText = true;
+dashboard.getRange("A66:J67").format.borders = { preset: "outside", style: "thin", color: colors.border };
+dashboard.getRange("A66:J67").format.rowHeight = 32;
 
 const dashboardWidths = [19, 14, 13, 19, 14, 14, 19, 14, 12, 14, 14, 14, 14, 14, 14, 14];
 for (let i = 0; i < dashboardWidths.length; i += 1) {
-  dashboard.getRangeByIndexes(0, i, 33, 1).format.columnWidth = dashboardWidths[i];
+  dashboard.getRangeByIndexes(0, i, 67, 1).format.columnWidth = dashboardWidths[i];
 }
 dashboard.freezePanes.freezeRows(3);
 
 await fs.mkdir(previewDir, { recursive: true });
 const inspectSummary = await wb.inspect({
   kind: "table",
-  range: "Resumen!A1:G30",
+  range: "Resumen!A1:J67",
   include: "values,formulas",
-  tableMaxRows: 30,
-  tableMaxCols: 8,
-  maxChars: 12000,
+  tableMaxRows: 75,
+  tableMaxCols: 10,
+  maxChars: 18000,
 });
 console.log("SUMMARY_INSPECT");
 console.log(inspectSummary.ndjson);
@@ -465,9 +763,11 @@ console.log("ERROR_SCAN");
 console.log(errors.ndjson);
 
 for (const [sheetName, range, fileName] of [
-  ["Resumen", "A1:P33", "resumen.png"],
+  ["Resumen", "A1:P67", "resumen.png"],
   ["Registro diario", "A1:P37", "registro.png"],
-  ["Configuracion", "A1:F25", "configuracion.png"],
+  ["Gastos volqueta", "A1:I35", "gastos.png"],
+  ["Aportes tios", "A1:H35", "aportes.png"],
+  ["Configuracion", "A1:I32", "configuracion.png"],
 ]) {
   const preview = await wb.render({ sheetName, range, scale: 1.35, format: "png" });
   await fs.writeFile(`${previewDir}/${fileName}`, new Uint8Array(await preview.arrayBuffer()));

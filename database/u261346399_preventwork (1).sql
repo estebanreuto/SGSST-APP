@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: localhost
--- Tiempo de generación: 14-06-2026 a las 04:33:07
+-- Tiempo de generación: 14-06-2026 a las 05:28:02
 -- Versión del servidor: 10.4.28-MariaDB
 -- Versión de PHP: 8.2.4
 
@@ -391,6 +391,85 @@ CREATE TABLE `estandar2_planillas` (
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `estandar4_actividades`
+--
+
+CREATE TABLE `estandar4_actividades` (
+  `id` int(11) NOT NULL,
+  `plan_id` int(11) NOT NULL,
+  `actividad_capacitacion_id` int(11) DEFAULT NULL,
+  `tema` varchar(180) NOT NULL,
+  `actividad` varchar(255) NOT NULL,
+  `responsable` varchar(180) NOT NULL,
+  `programacion_json` longtext NOT NULL,
+  `observaciones` text DEFAULT NULL,
+  `orden` int(11) NOT NULL DEFAULT 0,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `actualizado_en` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `estandar4_actividades`
+--
+
+INSERT INTO `estandar4_actividades` (`id`, `plan_id`, `actividad_capacitacion_id`, `tema`, `actividad`, `responsable`, `programacion_json`, `observaciones`, `orden`, `creado_en`, `actualizado_en`) VALUES
+(1, 1, 9, 'Biológico', 'Hola mundo', 'Toda la empresa', '{\"6\":{\"estado\":\"P\",\"fecha\":\"2026-06-09\"}}', 'Importada automáticamente desde el Estándar 3.', 1, '2026-06-14 03:25:42', '2026-06-14 03:25:42'),
+(2, 1, 10, 'Físico', 'Hola mundo', 'Toda la empresa', '{\"6\":{\"estado\":\"P\",\"fecha\":\"2026-06-10\"}}', 'Importada automáticamente desde el Estándar 3.', 2, '2026-06-14 03:25:42', '2026-06-14 03:25:42'),
+(3, 1, 12, 'Biomecánicos', 'Hola mundocdscdsdcs', 'Toda la empresa', '{\"6\":{\"estado\":\"P\",\"fecha\":\"2026-06-10\"}}', 'Importada automáticamente desde el Estándar 3.', 3, '2026-06-14 03:25:42', '2026-06-14 03:25:42');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `estandar4_planes`
+--
+
+CREATE TABLE `estandar4_planes` (
+  `id` int(11) NOT NULL,
+  `empresa_id` int(11) NOT NULL,
+  `anio` smallint(5) UNSIGNED NOT NULL,
+  `meta_cumplimiento` tinyint(3) UNSIGNED NOT NULL DEFAULT 85,
+  `estado` enum('borrador','pendiente_firma','firmado') NOT NULL DEFAULT 'borrador',
+  `sst_id` int(11) DEFAULT NULL,
+  `representante_id` int(11) DEFAULT NULL,
+  `firma_sst` longtext DEFAULT NULL,
+  `firma_representante` longtext DEFAULT NULL,
+  `fecha_envio` datetime DEFAULT NULL,
+  `fecha_firma` datetime DEFAULT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `actualizado_en` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `estandar4_planes`
+--
+
+INSERT INTO `estandar4_planes` (`id`, `empresa_id`, `anio`, `meta_cumplimiento`, `estado`, `sst_id`, `representante_id`, `firma_sst`, `firma_representante`, `fecha_envio`, `fecha_firma`, `creado_en`, `actualizado_en`) VALUES
+(1, 1, 2026, 85, 'borrador', NULL, NULL, NULL, NULL, NULL, NULL, '2026-06-14 03:19:49', '2026-06-14 03:19:49');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `estandar4_seguimientos`
+--
+
+CREATE TABLE `estandar4_seguimientos` (
+  `id` int(11) NOT NULL,
+  `plan_id` int(11) NOT NULL,
+  `periodo` varchar(120) NOT NULL,
+  `analisis_resultado` text NOT NULL,
+  `accion_propuesta` text NOT NULL,
+  `responsable` varchar(180) NOT NULL,
+  `fecha_max_ejecucion` date DEFAULT NULL,
+  `fecha_seguimiento` date DEFAULT NULL,
+  `responsable_seguimiento` varchar(180) DEFAULT NULL,
+  `resultado_seguimiento` text DEFAULT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `actualizado_en` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `grupos_personal`
 --
 
@@ -477,7 +556,8 @@ INSERT INTO `logs_actividad` (`id`, `usuario_id`, `accion`, `descripcion`, `ip_a
 (45, 3, 'LOGOUT', 'Cierre de sesión', '::1', '2026-06-11 02:41:15'),
 (46, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-06-11 02:41:41'),
 (47, 2, 'LOGOUT', 'Cierre de sesión', '::1', '2026-06-11 02:44:44'),
-(48, 3, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-06-11 02:45:03');
+(48, 3, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-06-11 02:45:03'),
+(49, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-06-14 03:25:29');
 
 -- --------------------------------------------------------
 
@@ -714,7 +794,9 @@ INSERT INTO `sesiones` (`id`, `usuario_id`, `token`, `codigo_2fa`, `codigo_2fa_e
 (39, 3, '0e28ef6e73290e091c8995527f5e136ffc3aef98f2d7f2abd1463f2d773e5171', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-06-11 02:05:22', '2026-06-11 17:05:22', 0),
 (40, 3, '3821c9acfbca072b84e586f4f8924615893d891253c3bad6e24f5aaa5bdbf969', NULL, NULL, '192.168.1.45', 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_6_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/149.0.7827.45 Mobile/15E148 Safari/604.1', '2026-06-11 02:20:58', '2026-06-11 17:20:58', 1),
 (41, 2, 'a5dbf84c6882e4d3a752af055bd0a0b2c2b4041c9e8c0e901d78d1bc0daa2cc6', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-06-11 02:41:41', '2026-06-11 17:41:41', 0),
-(42, 3, '07d428b2d135c9de5204a39df3bf9e53c8438ea2791147f2b381684221699129', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-06-11 02:45:03', '2026-06-11 17:45:03', 1);
+(42, 3, '07d428b2d135c9de5204a39df3bf9e53c8438ea2791147f2b381684221699129', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-06-11 02:45:03', '2026-06-11 17:45:03', 1),
+(43, 2, 'd704f2584be6cf668861b64b7ce0cd15042301b236f34a2e53b1a9607e3b2c11', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-14 03:19:49', '2026-06-14 12:19:49', 1),
+(44, 2, '1064aa3a1821e8cd8ca207edeba2855976a336ac9ae8290c77c50d7482402b6c', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-14 03:25:29', '2026-06-14 18:25:29', 1);
 
 -- --------------------------------------------------------
 
@@ -943,6 +1025,32 @@ ALTER TABLE `estandar2_planillas`
   ADD KEY `subido_por` (`subido_por`);
 
 --
+-- Indices de la tabla `estandar4_actividades`
+--
+ALTER TABLE `estandar4_actividades`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_estandar4_actividad_capacitacion` (`plan_id`,`actividad_capacitacion_id`),
+  ADD KEY `idx_estandar4_actividad_plan` (`plan_id`),
+  ADD KEY `fk_estandar4_actividad_capacitacion` (`actividad_capacitacion_id`);
+
+--
+-- Indices de la tabla `estandar4_planes`
+--
+ALTER TABLE `estandar4_planes`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_estandar4_empresa_anio` (`empresa_id`,`anio`),
+  ADD KEY `idx_estandar4_estado` (`estado`),
+  ADD KEY `fk_estandar4_sst` (`sst_id`),
+  ADD KEY `fk_estandar4_representante` (`representante_id`);
+
+--
+-- Indices de la tabla `estandar4_seguimientos`
+--
+ALTER TABLE `estandar4_seguimientos`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_estandar4_seguimiento_plan` (`plan_id`);
+
+--
 -- Indices de la tabla `grupos_personal`
 --
 ALTER TABLE `grupos_personal`
@@ -1118,6 +1226,24 @@ ALTER TABLE `estandar2_planillas`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT de la tabla `estandar4_actividades`
+--
+ALTER TABLE `estandar4_actividades`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT de la tabla `estandar4_planes`
+--
+ALTER TABLE `estandar4_planes`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT de la tabla `estandar4_seguimientos`
+--
+ALTER TABLE `estandar4_seguimientos`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `grupos_personal`
 --
 ALTER TABLE `grupos_personal`
@@ -1127,7 +1253,7 @@ ALTER TABLE `grupos_personal`
 -- AUTO_INCREMENT de la tabla `logs_actividad`
 --
 ALTER TABLE `logs_actividad`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=49;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
 
 --
 -- AUTO_INCREMENT de la tabla `movimientos_financieros`
@@ -1169,7 +1295,7 @@ ALTER TABLE `preguntas_frecuentes`
 -- AUTO_INCREMENT de la tabla `sesiones`
 --
 ALTER TABLE `sesiones`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=45;
 
 --
 -- AUTO_INCREMENT de la tabla `solicitudes_empresas`
@@ -1270,6 +1396,26 @@ ALTER TABLE `encuesta_sociodemografica`
 --
 ALTER TABLE `estandar2_planillas`
   ADD CONSTRAINT `estandar2_planillas_ibfk_1` FOREIGN KEY (`subido_por`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `estandar4_actividades`
+--
+ALTER TABLE `estandar4_actividades`
+  ADD CONSTRAINT `fk_estandar4_actividad_capacitacion` FOREIGN KEY (`actividad_capacitacion_id`) REFERENCES `actividades_capacitacion` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_estandar4_actividad_plan` FOREIGN KEY (`plan_id`) REFERENCES `estandar4_planes` (`id`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `estandar4_planes`
+--
+ALTER TABLE `estandar4_planes`
+  ADD CONSTRAINT `fk_estandar4_representante` FOREIGN KEY (`representante_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_estandar4_sst` FOREIGN KEY (`sst_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL;
+
+--
+-- Filtros para la tabla `estandar4_seguimientos`
+--
+ALTER TABLE `estandar4_seguimientos`
+  ADD CONSTRAINT `fk_estandar4_seguimiento_plan` FOREIGN KEY (`plan_id`) REFERENCES `estandar4_planes` (`id`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `logs_actividad`
