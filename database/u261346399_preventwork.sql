@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: localhost
--- Tiempo de generación: 14-06-2026 a las 05:28:02
+-- Tiempo de generación: 20-06-2026 a las 04:57:58
 -- Versión del servidor: 10.4.28-MariaDB
 -- Versión de PHP: 8.2.4
 
@@ -49,9 +49,10 @@ CREATE TABLE `actividades_capacitacion` (
 --
 
 INSERT INTO `actividades_capacitacion` (`id`, `empresa_id`, `nombre_actividad`, `tipo_capacitacion`, `categoria`, `dirigido_a`, `fecha_inicio`, `fecha_fin`, `enlace_reunion`, `estado`, `fecha_creacion`, `modalidad`, `lugar_exacto`, `descripcion`) VALUES
-(9, 1, 'Hola mundo', 'Inducción', 'Biológico', 'Toda la empresa', '2026-06-09 12:00:00', '2026-06-12 12:00:00', NULL, 'programada', '2026-06-10 03:47:54', 'Sistema', '', ''),
-(10, 1, 'Hola mundo', 'Inducción', 'Físico', 'Toda la empresa', '2026-06-10 12:00:00', '2026-06-12 12:00:00', NULL, 'programada', '2026-06-11 01:20:22', 'Sistema', '', ''),
-(12, 1, 'Hola mundocdscdsdcs', 'Charla de Seguridad', 'Biomecánicos', 'Toda la empresa', '2026-06-10 12:00:00', '2026-06-10 22:00:00', NULL, 'programada', '2026-06-11 02:44:29', 'Sistema', '', '');
+(9, 1, 'Hola mundo', 'Inducción', 'Biológico', 'Toda la empresa', '2026-06-09 12:00:00', '2026-06-12 12:00:00', NULL, 'ejecutada', '2026-06-10 03:47:54', 'Sistema', '', ''),
+(10, 1, 'Hola mundo', 'Inducción', 'Físico', 'Toda la empresa', '2026-06-10 12:00:00', '2026-06-12 12:00:00', NULL, 'ejecutada', '2026-06-11 01:20:22', 'Sistema', '', ''),
+(12, 1, 'Hola mundocdscdsdcs', 'Charla de Seguridad', 'Biomecánicos', 'Toda la empresa', '2026-06-10 12:00:00', '2026-06-10 22:00:00', NULL, 'ejecutada', '2026-06-11 02:44:29', 'Sistema', '', ''),
+(13, 1, 'Hola mundo', 'Inducción', 'Biológico', 'Toda la empresa', '2026-06-19 12:00:00', '2026-06-27 22:00:00', NULL, 'reprogramada', '2026-06-20 02:42:24', 'Virtual', '', 'Hola mundosacadcadscdsa');
 
 -- --------------------------------------------------------
 
@@ -413,9 +414,10 @@ CREATE TABLE `estandar4_actividades` (
 --
 
 INSERT INTO `estandar4_actividades` (`id`, `plan_id`, `actividad_capacitacion_id`, `tema`, `actividad`, `responsable`, `programacion_json`, `observaciones`, `orden`, `creado_en`, `actualizado_en`) VALUES
-(1, 1, 9, 'Biológico', 'Hola mundo', 'Toda la empresa', '{\"6\":{\"estado\":\"P\",\"fecha\":\"2026-06-09\"}}', 'Importada automáticamente desde el Estándar 3.', 1, '2026-06-14 03:25:42', '2026-06-14 03:25:42'),
-(2, 1, 10, 'Físico', 'Hola mundo', 'Toda la empresa', '{\"6\":{\"estado\":\"P\",\"fecha\":\"2026-06-10\"}}', 'Importada automáticamente desde el Estándar 3.', 2, '2026-06-14 03:25:42', '2026-06-14 03:25:42'),
-(3, 1, 12, 'Biomecánicos', 'Hola mundocdscdsdcs', 'Toda la empresa', '{\"6\":{\"estado\":\"P\",\"fecha\":\"2026-06-10\"}}', 'Importada automáticamente desde el Estándar 3.', 3, '2026-06-14 03:25:42', '2026-06-14 03:25:42');
+(4, 1, 10, 'Físico', 'Hola mundo', 'Toda la empresa', '{\"6\":{\"estado\":\"E\",\"fecha\":\"2026-06-10\"}}', 'Importada automáticamente desde el Estándar 3.', 4, '2026-06-19 16:41:36', '2026-06-20 02:40:12'),
+(5, 1, 9, 'Biológico', 'Hola mundo', 'Toda la empresa', '{\"6\":{\"estado\":\"E\",\"fecha\":\"2026-06-09\"}}', 'Importada automáticamente desde el Estándar 3.', 5, '2026-06-19 16:41:39', '2026-06-20 02:40:12'),
+(6, 1, 12, 'Biomecánicos', 'Hola mundocdscdsdcs', 'Toda la empresa', '{\"6\":{\"estado\":\"E\",\"fecha\":\"2026-06-10\"}}', 'Importada automáticamente desde el Estándar 3.', 6, '2026-06-19 16:41:43', '2026-06-20 02:40:12'),
+(7, 1, 13, 'Biológico', 'Hola mundo', 'Toda la empresa', '{\"6\":{\"estado\":\"R\",\"fecha\":\"2026-06-19\"}}', 'Importada automáticamente desde el Estándar 3.', 7, '2026-06-20 02:42:26', '2026-06-20 02:43:48');
 
 -- --------------------------------------------------------
 
@@ -444,7 +446,9 @@ CREATE TABLE `estandar4_planes` (
 --
 
 INSERT INTO `estandar4_planes` (`id`, `empresa_id`, `anio`, `meta_cumplimiento`, `estado`, `sst_id`, `representante_id`, `firma_sst`, `firma_representante`, `fecha_envio`, `fecha_firma`, `creado_en`, `actualizado_en`) VALUES
-(1, 1, 2026, 85, 'borrador', NULL, NULL, NULL, NULL, NULL, NULL, '2026-06-14 03:19:49', '2026-06-14 03:19:49');
+(1, 1, 2026, 80, 'borrador', NULL, NULL, NULL, NULL, NULL, NULL, '2026-06-14 03:19:49', '2026-06-20 02:33:05'),
+(2, 1, 2025, 85, 'borrador', NULL, NULL, NULL, NULL, NULL, NULL, '2026-06-19 16:20:45', '2026-06-19 16:20:45'),
+(3, 1, 2027, 85, 'borrador', NULL, NULL, NULL, NULL, NULL, NULL, '2026-06-19 16:20:54', '2026-06-19 16:20:54');
 
 -- --------------------------------------------------------
 
@@ -557,7 +561,13 @@ INSERT INTO `logs_actividad` (`id`, `usuario_id`, `accion`, `descripcion`, `ip_a
 (46, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-06-11 02:41:41'),
 (47, 2, 'LOGOUT', 'Cierre de sesión', '::1', '2026-06-11 02:44:44'),
 (48, 3, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-06-11 02:45:03'),
-(49, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-06-14 03:25:29');
+(49, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-06-14 03:25:29'),
+(50, 2, 'LOGOUT', 'Cierre de sesión', '::1', '2026-06-14 03:30:59'),
+(51, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-06-14 03:31:15'),
+(52, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-06-19 16:03:57'),
+(53, 2, 'LOGOUT', 'Cierre de sesión', '::1', '2026-06-19 16:28:57'),
+(54, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-06-19 16:31:57'),
+(55, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-06-20 01:43:31');
 
 -- --------------------------------------------------------
 
@@ -796,7 +806,12 @@ INSERT INTO `sesiones` (`id`, `usuario_id`, `token`, `codigo_2fa`, `codigo_2fa_e
 (41, 2, 'a5dbf84c6882e4d3a752af055bd0a0b2c2b4041c9e8c0e901d78d1bc0daa2cc6', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-06-11 02:41:41', '2026-06-11 17:41:41', 0),
 (42, 3, '07d428b2d135c9de5204a39df3bf9e53c8438ea2791147f2b381684221699129', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-06-11 02:45:03', '2026-06-11 17:45:03', 1),
 (43, 2, 'd704f2584be6cf668861b64b7ce0cd15042301b236f34a2e53b1a9607e3b2c11', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-14 03:19:49', '2026-06-14 12:19:49', 1),
-(44, 2, '1064aa3a1821e8cd8ca207edeba2855976a336ac9ae8290c77c50d7482402b6c', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-14 03:25:29', '2026-06-14 18:25:29', 1);
+(44, 2, '1064aa3a1821e8cd8ca207edeba2855976a336ac9ae8290c77c50d7482402b6c', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-14 03:25:29', '2026-06-14 18:25:29', 0),
+(45, 2, 'dc31e585fafe29f6fe6de8fa2c58ecc09b0fc87b7e4a870c3c40a22a7201f312', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-14 03:31:15', '2026-06-14 18:31:15', 1),
+(46, 2, 'c2efb813f622868974b7172722f30f7830aabad0644364b6570d48834dae373e', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-19 16:03:57', '2026-06-20 07:03:57', 0),
+(47, 2, '95850f54a7f8eea7828ac0a7d41feddc7ba2c1f027697ac08fa4b7f42074e447', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-19 16:21:18', '2026-06-20 00:21:18', 1),
+(48, 2, '1c1b329b46356c909f8de211b7dffe4f3e01bb708e9de471c2e385d5f0eaa2e4', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-19 16:31:57', '2026-06-20 07:31:57', 1),
+(49, 2, '1815286d9689d837333e84f8fba97a401dafd80dc7835e66d701b132f7e8842d', NULL, NULL, '::1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-20 01:43:31', '2026-06-20 16:43:31', 1);
 
 -- --------------------------------------------------------
 
@@ -1145,7 +1160,7 @@ ALTER TABLE `usuarios`
 -- AUTO_INCREMENT de la tabla `actividades_capacitacion`
 --
 ALTER TABLE `actividades_capacitacion`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT de la tabla `asistencias_capacitacion`
@@ -1229,13 +1244,13 @@ ALTER TABLE `estandar2_planillas`
 -- AUTO_INCREMENT de la tabla `estandar4_actividades`
 --
 ALTER TABLE `estandar4_actividades`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT de la tabla `estandar4_planes`
 --
 ALTER TABLE `estandar4_planes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT de la tabla `estandar4_seguimientos`
@@ -1253,7 +1268,7 @@ ALTER TABLE `grupos_personal`
 -- AUTO_INCREMENT de la tabla `logs_actividad`
 --
 ALTER TABLE `logs_actividad`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=56;
 
 --
 -- AUTO_INCREMENT de la tabla `movimientos_financieros`
@@ -1295,7 +1310,7 @@ ALTER TABLE `preguntas_frecuentes`
 -- AUTO_INCREMENT de la tabla `sesiones`
 --
 ALTER TABLE `sesiones`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=45;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
 
 --
 -- AUTO_INCREMENT de la tabla `solicitudes_empresas`
