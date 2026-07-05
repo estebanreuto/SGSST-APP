@@ -1,0 +1,23 @@
+Ajuste responsive de la vista ejecutiva del Representante Legal - estandar2.php
+
+Fecha: 2026-06-22
+
+Archivos modificados:
+- estandar2.php
+
+Cambios realizados:
+- Se retiro visualmente la tarjeta lateral "Subir Nueva Planilla" para el rol Representante Legal.
+- Se elimino la nota lateral "Gestion asignada al Responsable SST" de la vista del representante.
+- Se movio el calculo automatico PILA a una franja horizontal debajo del encabezado del estandar.
+- Se dejo la nota de "Vista ejecutiva" como texto compacto dentro de la franja superior.
+- Se dejo la tarjeta "Planillas del Ano" ocupando todo el ancho disponible para mejorar lectura.
+- Se ajustaron grillas y puntos responsive para escritorio, tablet y celular.
+- En movil, la franja PILA se apila por datos y la tabla anual sigue convertida en tarjetas por mes.
+
+Validaciones:
+- php -l estandar2.php: sin errores de sintaxis.
+- Escritorio 1280x900: sin desbordamiento horizontal, 12 meses renderizados y desplazamiento hasta diciembre.
+- Movil 390x844: sin desbordamiento horizontal, 12 meses renderizados y desplazamiento hasta diciembre.
+
+Base de datos:
+- No se hicieron cambios de base de datos en este ajuste.

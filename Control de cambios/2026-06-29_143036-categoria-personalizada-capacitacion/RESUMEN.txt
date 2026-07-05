@@ -1,0 +1,33 @@
+Cambio: Categoria personalizada en capacitaciones SST
+Fecha: 2026-06-29
+
+Archivos modificados:
+- nueva_actividad.php
+- procesar_estandar3.php
+- database/migrations/2026_06_29_capacitaciones_categorias_personalizadas.sql
+
+Detalle:
+- Se agrego la opcion "Otra categoria..." al desplegable Categoria.
+- Al seleccionarla, aparece un campo para escribir la categoria nueva.
+- Se agrego selector para decidir:
+  - Solo esta actividad
+  - Dejar fija
+- Si se elige "Solo esta actividad", la categoria se guarda solo en la actividad creada/editada.
+- Si se elige "Dejar fija", la categoria se guarda para futuras actividades de la misma empresa y el mismo tipo de capacitacion.
+- Las categorias fijas personalizadas se cargan automaticamente en el formulario.
+- Se conserva el comportamiento previo:
+  - Induccion y Re Induccion seleccionan Legal.
+  - Entrenamiento mantiene sus categorias especificas.
+  - Campana PyP en Salud mantiene sus cuatro categorias especificas.
+
+Base de datos:
+- Se creo la migracion:
+  database/migrations/2026_06_29_capacitaciones_categorias_personalizadas.sql
+- La migracion ya fue aplicada en la base local.
+
+Validacion:
+- php -l nueva_actividad.php
+- php -l procesar_estandar3.php
+- Navegador: se verifico que "Otra categoria..." abre el panel.
+- Navegador: se verifico que al cambiar de tipo el panel se cierra y se reconstruyen las opciones.
+- Navegador: sin errores de consola.

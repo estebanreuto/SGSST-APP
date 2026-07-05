@@ -1,0 +1,21 @@
+Cambio: Primera versión funcional del subestándar 3.1.3.
+
+Archivos modificados o creados:
+- estandar5.php
+- procesar_estandar5.php
+- config/estandar5_schema.php
+- database/migrations/2026_06_29_estandar5_centros_medicos_perfiles_cargo.sql
+
+Base de datos:
+- Se crearon las tablas estandar5_centros_medicos y estandar5_perfiles_cargo.
+- La migración SQL quedó disponible para copiar y pegar en database/migrations/2026_06_29_estandar5_centros_medicos_perfiles_cargo.sql.
+- empresa_id queda como identificador lógico, sin llave foránea, porque la base actual no tiene tabla empresas.
+
+Vista 3.1.3:
+- Registro de centros médicos autorizados por empresa.
+- Carga de licencia de funcionamiento y licencia SST del médico o centro.
+- Registro de sedes adicionales opcionales.
+- Creación de perfiles de cargo reutilizables.
+- Tareas dinámicas con botón para agregar filas.
+- Lista de herramientas eléctricas autorizadas con opción para otra herramienta.
+- Descarga del perfil de cargo en PDF.

@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Campaña PreventWork | Marketing y Diseño Publicitario</title>
+  <style>
+    :root {
+      --ink: #0b1830;
+      --muted: #5b667a;
+      --blue: #1f4f8f;
+      --orange: #ff8a1f;
+      --line: #dfe6f1;
+      --soft: #f4f7fb;
+      --white: #ffffff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, Arial, sans-serif;
+      color: var(--ink);
+      background: var(--soft);
+    }
+
+    header {
+      min-height: 72vh;
+      padding: 34px clamp(22px, 6vw, 84px);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 520px);
+      gap: 44px;
+      align-items: center;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.98) 0%, rgba(255,255,255,.9) 42%, rgba(255,255,255,.68) 100%),
+        url("../assets/cta-equipo-sst.png") center/cover;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      width: min(240px, 70vw);
+      margin-bottom: 54px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.78);
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 720px;
+      margin: 22px 0 18px;
+      font-size: clamp(42px, 7vw, 82px);
+      line-height: .96;
+      letter-spacing: 0;
+    }
+
+    h1 span { color: var(--orange); }
+
+    .lead {
+      max-width: 660px;
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(18px, 2vw, 22px);
+      line-height: 1.55;
+    }
+
+    .hero-panel {
+      background: rgba(255,255,255,.92);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 24px;
+      box-shadow: 0 24px 60px rgba(19, 38, 68, .12);
+    }
+
+    .hero-panel h2 {
+      margin: 0 0 14px;
+      font-size: 24px;
+    }
+
+    .script-list {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .script-list li {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--white);
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    main {
+      padding: 38px clamp(18px, 5vw, 72px) 64px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      margin: 0 0 18px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 44px);
+      letter-spacing: 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--white);
+      overflow: hidden;
+    }
+
+    .card img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .card-body {
+      padding: 16px;
+    }
+
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-top: 34px;
+    }
+
+    .block {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--white);
+      padding: 22px;
+    }
+
+    .block h3 {
+      margin: 0 0 12px;
+      font-size: 22px;
+    }
+
+    .block p, .block li {
+      color: var(--muted);
+      line-height: 1.52;
+    }
+
+    @media (max-width: 980px) {
+      header,
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+
+      .grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .brand {
+        margin-bottom: 34px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <img class="brand" src="../assets/logo_preventwork.png" alt="PreventWork">
+      <div class="eyebrow">Campaña SG-SST</div>
+      <h1>Cuando el SG-SST se enreda, <span>PreventWork</span> lo ordena.</h1>
+      <p class="lead">Una linea creativa con humor cotidiano: papeles que aparecen tarde, firmas imposibles, Excels infinitos y auditorias que llegan justo cuando nadie encuentra la evidencia.</p>
+    </div>
+    <aside class="hero-panel">
+      <h2>Comerciales base</h2>
+      <ul class="script-list">
+        <li><strong>La carpeta viajera:</strong> la evidencia aparece en todas partes menos donde debe estar.</li>
+        <li><strong>La firma imposible:</strong> perseguir firmas deja de ser una mision diaria.</li>
+        <li><strong>El Excel con vida propia:</strong> versiones y filtros que complican el cumplimiento.</li>
+        <li><strong>Auditoria sorpresa:</strong> tranquilidad visible antes de que la pidan.</li>
+      </ul>
+    </aside>
+  </header>
+
+  <main>
+    <div class="section-title">
+      <h2>Capturas de la app</h2>
+    </div>
+    <section class="grid">
+      <article class="card">
+        <img src="capturas/01-home-hero.png" alt="Home PreventWork">
+        <div class="card-body">
+          <h3>Promesa principal</h3>
+          <p>Automatizacion de la gestion SST y cumplimiento Resolucion 0312.</p>
+        </div>
+      </article>
+      <article class="card">
+        <img src="capturas/02-home-beneficios.png" alt="Beneficios PreventWork">
+        <div class="card-body">
+          <h3>Beneficios</h3>
+          <p>Documentos, alertas, matriz de riesgos, control de personal, firmas y reportes.</p>
+        </div>
+      </article>
+      <article class="card">
+        <img src="capturas/03-home-planes.png" alt="Planes PreventWork">
+        <div class="card-body">
+          <h3>Oferta comercial</h3>
+          <p>Planes por tamano y alcance para convertir interes en registro.</p>
+        </div>
+      </article>
+      <article class="card">
+        <img src="capturas/04-login.png" alt="Login PreventWork">
+        <div class="card-body">
+          <h3>Sucursal virtual</h3>
+          <p>Entrada a la experiencia de gestion centralizada.</p>
+        </div>
+      </article>
+      <article class="card">
+        <img src="capturas/05-registro.png" alt="Registro PreventWork">
+        <div class="card-body">
+          <h3>Registro</h3>
+          <p>Inicio del flujo para crear empresa y organizar el SG-SST.</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="two-col">
+      <div class="block">
+        <h3>Copy principal</h3>
+        <p>Tu SG-SST no tiene que vivir entre carpetas, Excels y mensajes perdidos. Centraliza trabajadores, evidencias, firmas, capacitaciones y estandares en PreventWork.</p>
+      </div>
+      <div class="block">
+        <h3>Proximas tomas internas</h3>
+        <ul>
+          <li>Dashboard con estado general.</li>
+          <li>Trabajadores, grupos y responsables.</li>
+          <li>Estandares minimos y evidencias.</li>
+          <li>Capacitaciones, asistencia y actividades.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

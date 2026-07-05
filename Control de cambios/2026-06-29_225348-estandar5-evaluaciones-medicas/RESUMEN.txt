@@ -1,0 +1,10 @@
+﻿Cambio: Primera versión funcional del subestándar 3.1.4 Realización de evaluaciones médicas ocupacionales.
+- Se creó la vista de trabajadores para programación médica.
+- La lista toma trabajadores desde usuarios y muestra nombre, cédula, correo y el mejor dato disponible de cargo/grupo.
+- Se agregó programación por trabajador seleccionando tipo de examen, perfil de cargo y centro médico.
+- El centro médico muestra nombre, dirección y correo registrado.
+- Al programar se envía correo al centro médico con datos del trabajador y PDF del perfil de cargo adjunto.
+- Se agregó historial reciente de solicitudes enviadas.
+Base de datos:
+- Se creó estandar5_evaluaciones_medicas.
+Migración SQL: database/migrations/2026_06_29_estandar5_evaluaciones_medicas.sql

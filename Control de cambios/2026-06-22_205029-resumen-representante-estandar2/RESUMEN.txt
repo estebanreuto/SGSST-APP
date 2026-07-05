@@ -1,0 +1,17 @@
+﻿Control de cambios - Resumen representante Estandar 2
+Fecha: 2026-06-22
+
+Archivos modificados:
+- estandar2.php
+- procesar_estandar2.php
+- database/migrations/2026_06_22_estandar2_planilla_resumen.sql
+
+Resumen:
+- Representante Legal conserva la tarjeta lateral "Subir Nueva Planilla" como informacion PILA, sin formulario de carga.
+- Representante Legal ve tabla ejecutiva anual: estado, fecha limite, valor pagado, personas/cedulas, riesgos, gestion y soporte.
+- Responsable SST conserva carga, analisis PDF, guardado y eliminacion de planillas.
+- procesar_estandar2.php restringe carga/eliminacion a rol SST.
+- Se agregan campos de resumen a estandar2_planillas para guardar valor, cedulas, trabajadores esperados, riesgos, NIT y novedades.
+
+SQL aplicado localmente y disponible para produccion:
+- database/migrations/2026_06_22_estandar2_planilla_resumen.sql

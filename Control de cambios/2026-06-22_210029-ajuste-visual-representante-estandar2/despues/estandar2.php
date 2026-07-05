@@ -1,0 +1,1047 @@
+<?php
+require_once 'config/db.php';
+require_once 'config/auth.php';
+
+// Exige sesión válida
+$u = require_auth($conn);
+
+$usuario_rol = $_SESSION['usuario_rol'] ?? '';
+$es_representante = $usuario_rol === 'representante';
+$es_sst = $usuario_rol === 'sst';
+
+// ========================================================
+// 1. OBTENER EL ID DE LA EMPRESA DEL USUARIO ACTUAL
+// ========================================================
+$stmt_emp = $conn->prepare("SELECT empresa_id FROM usuarios WHERE id = ?");
+$stmt_emp->execute([$_SESSION['usuario_id']]);
+$empresa_id = $stmt_emp->fetchColumn();
+
+$nit_empresa = '';
+$nombre_empresa = '';
+
+if ($empresa_id) {
+    // Buscar primero si el Representante Legal ya configuró el NIT oficial
+    $stmt_rep = $conn->prepare("SELECT num_doc_empresa, nombre_empresa FROM usuarios WHERE empresa_id = ? AND rol = 'representante' LIMIT 1");
+    $stmt_rep->execute([$empresa_id]);
+    $rep_data = $stmt_rep->fetch(PDO::FETCH_ASSOC);
+
+    if ($rep_data && !empty($rep_data['num_doc_empresa'])) {
+        $nit_empresa = $rep_data['num_doc_empresa'];
+        $nombre_empresa = $rep_data['nombre_empresa'];
+    } else {
+        // Fallback: Tomar datos de la tabla de solicitudes originales
+        $stmt_sol = $conn->prepare("SELECT cedula, nombre FROM solicitudes_empresas WHERE id = ?");
+        $stmt_sol->execute([$empresa_id]);
+        $sol_data = $stmt_sol->fetch(PDO::FETCH_ASSOC);
+        if ($sol_data) {
+            $nit_empresa = $sol_data['cedula'];
+            $nombre_empresa = $sol_data['nombre'];
+        }
+    }
+}
+
+// ========================================================
+// 1.5 OBTENER TRABAJADORES DE LA EMPRESA (PARA ANÁLISIS)
+// ========================================================
+$trabajadores_empresa = [];
+if ($empresa_id) {
+    $stmt_trab = $conn->prepare("SELECT nombre, apellido, cedula FROM usuarios WHERE empresa_id = ? AND rol = 'trabajador' AND activo = 1");
+    $stmt_trab->execute([$empresa_id]);
+    $trabajadores_empresa = $stmt_trab->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// ========================================================
+// 2. CÁLCULO DE DÍAS HÁBILES Y FECHAS LÍMITE (DECRETO 1990/2016)
+// ========================================================
+$anio_seleccionado = isset($_GET['anio']) ? (int)$_GET['anio'] : (int)date('Y');
+
+$bloquear_subida = empty($nit_empresa);
+$dia_habil = 0;
+$ultimos_digitos = '';
+$fecha_limite_actual = '';
+$fechas_limites_meses = []; 
+
+if (!$bloquear_subida) {
+    $doc_parts = explode('-', $nit_empresa);
+    $doc_base = $doc_parts[0];
+    $doc_clean = preg_replace('/[^0-9]/', '', $doc_base);
+
+    $last_two = substr($doc_clean, -2);
+    if (strlen($last_two) < 2) $last_two = str_pad($last_two, 2, '0', STR_PAD_LEFT);
+
+    $last_two_num = (int) $last_two;
+    $ultimos_digitos = $last_two;
+
+    if ($last_two_num >= 0 && $last_two_num <= 7) $dia_habil = 2;
+    elseif ($last_two_num >= 8 && $last_two_num <= 14) $dia_habil = 3;
+    elseif ($last_two_num >= 15 && $last_two_num <= 21) $dia_habil = 4;
+    elseif ($last_two_num >= 22 && $last_two_num <= 28) $dia_habil = 5;
+    elseif ($last_two_num >= 29 && $last_two_num <= 35) $dia_habil = 6;
+    elseif ($last_two_num >= 36 && $last_two_num <= 42) $dia_habil = 7;
+    elseif ($last_two_num >= 43 && $last_two_num <= 49) $dia_habil = 8;
+    elseif ($last_two_num >= 50 && $last_two_num <= 56) $dia_habil = 9;
+    elseif ($last_two_num >= 57 && $last_two_num <= 63) $dia_habil = 10;
+    elseif ($last_two_num >= 64 && $last_two_num <= 69) $dia_habil = 11;
+    elseif ($last_two_num >= 70 && $last_two_num <= 75) $dia_habil = 12;
+    elseif ($last_two_num >= 76 && $last_two_num <= 81) $dia_habil = 13;
+    elseif ($last_two_num >= 82 && $last_two_num <= 87) $dia_habil = 14;
+    elseif ($last_two_num >= 88 && $last_two_num <= 93) $dia_habil = 15;
+    elseif ($last_two_num >= 94 && $last_two_num <= 99) $dia_habil = 16;
+
+    $mes_actual = date('n');
+    $anio_act = date('Y');
+
+    $count = 0;
+    $dia = 1;
+    $dias_del_mes = date('t', mktime(0, 0, 0, $mes_actual, 1, $anio_act));
+
+    while ($dia <= $dias_del_mes) {
+        $timestamp = mktime(0, 0, 0, $mes_actual, $dia, $anio_act);
+        $w = date('w', $timestamp);
+        if ($w != 0 && $w != 6) { $count++; }
+
+        if ($count == $dia_habil) {
+            $meses_nom = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            $fecha_limite_actual = date('d', $timestamp) . ' de ' . $meses_nom[$mes_actual] . ' de ' . $anio_act;
+            break;
+        }
+        $dia++;
+    }
+
+    for ($m = 1; $m <= 12; $m++) {
+        $count_mes = 0;
+        $dia_mes = 1;
+        $dias_totales_mes = date('t', mktime(0, 0, 0, $m, 1, $anio_seleccionado));
+
+        while ($dia_mes <= $dias_totales_mes) {
+            $ts = mktime(0, 0, 0, $m, $dia_mes, $anio_seleccionado);
+            $w_dia = date('w', $ts);
+            if ($w_dia != 0 && $w_dia != 6) { $count_mes++; }
+
+            if ($count_mes == $dia_habil) {
+                $fechas_limites_meses[$m] = date('d/m/Y', $ts);
+                break;
+            }
+            $dia_mes++;
+        }
+    }
+}
+
+// ========================================================
+// 3. OBTENER PLANILLAS POR AÑO SELECCIONADO
+// ========================================================
+try {
+    $stmt = $conn->prepare("
+        SELECT p.*, u.nombre, u.apellido 
+        FROM estandar2_planillas p
+        JOIN usuarios u ON p.subido_por = u.id
+        WHERE u.empresa_id = ? AND p.anio = ?
+    ");
+    $stmt->execute([$empresa_id, $anio_seleccionado]);
+    $planillas_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $planillas_mes = [];
+    foreach ($planillas_raw as $p) {
+        $planillas_mes[$p['mes']] = $p;
+    }
+} catch (PDOException $e) {
+    $planillas_mes = [];
+}
+
+$meses = [
+    1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril', 5 => 'Mayo', 6 => 'Junio',
+    7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
+];
+
+$planillas_cargadas = count($planillas_mes);
+$planillas_pendientes = 12 - $planillas_cargadas;
+$valor_total_anual = 0;
+$personas_ultimo_soporte = null;
+$riesgos_anuales = [];
+$ultimo_soporte = null;
+
+foreach ($planillas_mes as $planilla_resumen) {
+    $valor_total_anual += (float)($planilla_resumen['valor_total'] ?? 0);
+    if (!$ultimo_soporte || strtotime($planilla_resumen['fecha_subida']) > strtotime($ultimo_soporte['fecha_subida'])) {
+        $ultimo_soporte = $planilla_resumen;
+    }
+
+    if (!empty($planilla_resumen['riesgos_detectados'])) {
+        foreach (explode(',', $planilla_resumen['riesgos_detectados']) as $riesgo) {
+            $riesgo = trim($riesgo);
+            if ($riesgo !== '') {
+                $riesgos_anuales[$riesgo] = true;
+            }
+        }
+    }
+}
+
+if ($ultimo_soporte) {
+    $personas_ultimo_soporte = $ultimo_soporte['cedulas_detectadas'] ?? null;
+}
+
+$riesgos_anuales_texto = $riesgos_anuales ? implode(', ', array_keys($riesgos_anuales)) : 'Sin dato';
+
+$current_page = 'estandar2.php';
+?>
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estándar 2 | SG-SST Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+    <style>
+        :root { --primary: #ff8a1f; --primary2: #ff7a00; --bg1: #edf4fb; --bg2: #f7f9fc; --card: #ffffff; --text: #1f2d3d; --muted: #5f6f82; --border: #dbe3ec; --radius: 16px; --blue-dark: #1e3a8a; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(180deg, var(--bg1), var(--bg2)); margin: 0; padding: 0; min-height: 100vh; color: var(--text); display: flex; font-size: 0.85rem; overflow-x: hidden;}
+        .main-wrapper { margin-left: 260px; width: calc(100% - 260px); min-width: 0; display: flex; flex-direction: column; min-height: 100vh; transition: all 0.3s ease; }
+        .content-area { padding: 32px 40px; flex: 1; max-width: 1300px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+        
+        /* ENCABEZADO Y ALERTAS */
+        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .estandar-header-group { display: flex; align-items: center; gap: 14px; width: 100%; }
+        .icon-box-std { width: 44px; height: 44px; background: rgba(255, 138, 31, 0.08); color: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid rgba(255, 138, 31, 0.2); box-shadow: 0 4px 10px rgba(255, 138, 31, 0.05); }
+        .estandar-header-text { display: flex; flex-direction: column; }
+        .estandar-title { margin: 0; font-size: 1.15rem; color: var(--blue-dark); font-weight: 800; letter-spacing: -0.01em; display: block; }
+        .std-num-marker { color: var(--primary); font-weight: 800; margin-right: 4px; }
+        .estandar-subtitle { margin: 4px 0 0 0; color: var(--muted); font-size: 0.8rem; font-weight: 500; }
+
+        .alert-status { padding: 16px 20px; border-radius: 12px; margin-bottom: 24px; font-weight: 600; display: flex; align-items: center; gap: 12px; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
+        .alert-status.success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; border-left: 4px solid #22c55e;}
+        .alert-status.danger { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-left: 4px solid #ef4444;}
+
+        /* ESTRUCTURA PRINCIPAL */
+        .panel-container { display: grid; grid-template-columns: minmax(260px, .75fr) minmax(0, 2fr); gap: 24px; align-items: start;}
+        .panel-container.rep-view { grid-template-columns: 240px minmax(0, 1fr); gap: 24px; }
+        .card-box { min-width: 0; background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 24px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02); }
+        
+        .card-title { margin: 0 0 20px 0; font-size: 1.1rem; color: var(--blue-dark); font-weight: 800; display: flex; align-items: center; gap: 10px; border-bottom: 1px dashed var(--border); padding-bottom: 16px; }
+        .title-icon-wrapper { background: rgba(255, 138, 31, 0.12); padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--primary2); width: 32px; height: 32px; box-sizing: border-box;}
+
+        /* FORMULARIOS */
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--text); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .custom-select, .custom-input { width: 100%; padding: 12px 16px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 0.85rem; font-weight: 600; color: var(--text); box-sizing: border-box; background-color: #f8fafc; transition: all 0.2s; }
+        .custom-select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg fill='none' stroke='%2364748b' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; background-size: 16px; }
+        .custom-select:focus, .custom-input:focus { outline: none; border-color: var(--primary); background: #ffffff; box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.15); }
+        
+        .info-pila-box { background: var(--bg2); border: 1px dashed #cbd5e1; border-radius: 12px; padding: 18px; margin-bottom: 24px; }
+        .info-pila-box p { margin: 0 0 8px 0; font-size: 0.85rem; color: #334155; }
+        .info-pila-box .highlight { color: var(--primary2); font-weight: 800; font-size: 0.9rem; margin-left: 4px; }
+        .info-pila-box .fecha-roja { color: #dc2626; font-weight: 800; font-size: 0.85rem; display: block; margin-top: 4px; }
+        
+        .dropzone { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 30px 20px; text-align: center; background: #f8fafc; cursor: pointer; transition: all 0.2s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+        .dropzone:hover, .dropzone.dragover { border-color: var(--primary); background: rgba(255, 138, 31, 0.05); }
+        .dropzone p { margin: 0; font-size: 0.85rem; font-weight: 700; color: var(--text); }
+        .dropzone span { font-size: 0.7rem; color: var(--muted); font-weight: 500; }
+        
+        .preview-container { display: none; margin-top: 10px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); }
+        .preview-header { background: #f8fafc; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; }
+        .preview-header span { font-size: 0.75rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 6px; }
+        .btn-change-file { background: #fee2e2; color: #dc2626; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .btn-change-file:hover { background: #fca5a5; }
+        
+        /* PANEL DE ANÁLISIS */
+        .analysis-panel { background: #1e293b; color: #f8fafc; padding: 16px; border-bottom: 1px solid #334155; font-size: 0.8rem; display: none; flex-direction: column; gap: 12px; }
+        .analysis-title { font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 4px; }
+        .analysis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .analysis-item { background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); }
+        .analysis-label { color: #94a3b8; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; margin-bottom: 4px; display: block; }
+        .analysis-val { font-weight: 700; font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; }
+        .status-ok { color: #10b981; }
+        .status-warn { color: #f59e0b; }
+        .status-err { color: #ef4444; }
+        
+        .pdf-viewer { width: 100%; height: 280px; border: none; display: block; }
+        
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; width: 100%; cursor: pointer; transition: transform 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; font-family: inherit; margin-top: 24px; box-shadow: 0 4px 12px rgba(255, 138, 31, 0.2); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(255, 138, 31, 0.3); }
+        
+        /* SELECTOR DE AÑO Y TARJETAS MESES */
+        .year-selector { display: flex; align-items: center; gap: 12px; }
+        .year-btn { background: #f1f5f9; color: #475569; border: none; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; text-decoration: none; font-size: 0.85rem;}
+        .year-btn:hover { background: #e2e8f0; color: #1e293b; }
+        .year-display { font-size: 1.05rem; font-weight: 800; color: var(--blue-dark); }
+        
+        .months-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
+        .month-card { border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: #ffffff; display: flex; flex-direction: column; gap: 12px; transition: all 0.2s; position: relative; }
+        .month-card:hover { box-shadow: 0 6px 15px rgba(0, 0, 0, 0.04); border-color: #cbd5e1; transform: translateY(-2px);}
+        .month-card.loaded { border-top: 4px solid #10b981; }
+        .month-card.missing { border-top: 4px solid #cbd5e1; }
+        
+        .month-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .month-name { font-weight: 800; color: var(--blue-dark); font-size: 1rem; display: block; }
+        .status-badge { font-size: 0.6rem; font-weight: 800; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em; height: fit-content; }
+        .status-loaded { background: #dcfce7; color: #166534; }
+        .status-missing { background: #f1f5f9; color: #64748b; }
+        .month-info { font-size: 0.75rem; color: var(--muted); line-height: 1.5; flex: 1; }
+        
+        .month-actions { display: flex; gap: 8px; margin-top: auto; }
+        .btn-view { background: #e0f2fe; color: #0284c7; padding: 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s; flex: 1; }
+        .btn-view:hover { background: #bae6fd; }
+        .btn-delete { background: #fee2e2; color: #dc2626; padding: 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s; flex: 1; }
+        .btn-delete:hover { background: #ef4444; color: white; }
+        .btn-outline-upload { background: #fff8f3; border: 1px dashed var(--primary); color: var(--primary2); padding: 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; width: 100%; font-family: inherit; }
+        .btn-outline-upload:hover { background: var(--primary); color: white; border-style: solid; }
+
+        .executive-note { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 12px; align-items: start; background: #fff7ed; border: 1px solid #fed7aa; border-left: 4px solid var(--primary2); border-radius: 12px; padding: 14px 16px; margin: -8px 0 22px 0; color: #7c2d12; }
+        .executive-note i { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: #ffedd5; color: var(--primary2); }
+        .executive-note strong { display: block; color: var(--blue-dark); font-size: 0.86rem; margin-bottom: 4px; }
+        .executive-note p { margin: 0; line-height: 1.5; font-size: 0.8rem; color: #7c2d12; }
+        .rep-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 12px; margin-bottom: 18px; }
+        .rep-metric { border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 10px; padding: 13px; min-height: 78px; display: flex; flex-direction: column; justify-content: space-between; }
+        .rep-metric span { color: #64748b; font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.035em; line-height: 1.25; }
+        .rep-metric strong { color: var(--blue-dark); font-size: 1.12rem; font-weight: 850; margin-top: 8px; line-height: 1.15; }
+        .rep-metric.ok strong { color: #15803d; }
+        .rep-metric.warn strong { color: #b45309; }
+        .rep-table-wrap { width: 100%; max-width: 100%; overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+        .rep-summary-table { width: 100%; border-collapse: collapse; min-width: 0; table-layout: fixed; }
+        .rep-summary-table th { background: #f8fafc; color: #475569; font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.035em; text-align: left; padding: 9px 7px; border-bottom: 1px solid #e2e8f0; line-height: 1.15; }
+        .rep-summary-table td { padding: 10px 7px; border-bottom: 1px solid #eef2f7; color: #334155; font-size: 0.68rem; vertical-align: top; line-height: 1.32; overflow-wrap: anywhere; }
+        .rep-summary-table tr:last-child td { border-bottom: none; }
+        .summary-status { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border-radius: 999px; font-size: 0.58rem; font-weight: 850; text-transform: uppercase; line-height: 1.1; white-space: nowrap; max-width: 100%; }
+        .summary-status.ok { background: #dcfce7; color: #166534; }
+        .summary-status.pending { background: #f1f5f9; color: #64748b; }
+        .summary-status.late { background: #fef2f2; color: #b91c1c; }
+        .summary-muted { color: #94a3b8; font-style: italic; }
+        .risk-pill { display: inline-flex; padding: 4px 8px; border-radius: 999px; background: #eef2ff; color: #1e3a8a; font-size: 0.62rem; font-weight: 800; margin: 2px 4px 2px 0; }
+        
+        #loader-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.9); z-index: 999999; display: none; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        #loader-overlay.active { display: flex; }
+
+        @media (max-width: 900px) {
+            .panel-container { grid-template-columns: 1fr; }
+            .panel-container.rep-view { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 768px) {
+            .main-wrapper { margin-left: 0; width: 100%; }
+            .content-area { padding: 16px 14px; }
+            .header-actions { flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 20px; border-bottom: none; padding-bottom: 0; }
+            .estandar-header-group { flex-direction: row; align-items: flex-start; width: 100%; }
+            
+            .card-box { padding: 20px 16px; }
+            .months-grid { grid-template-columns: 1fr; }
+            .analysis-grid { grid-template-columns: 1fr; }
+            .executive-note { grid-template-columns: 32px minmax(0, 1fr); margin-top: -4px; padding: 12px; }
+            .executive-note i { width: 32px; height: 32px; }
+            .rep-summary-grid { grid-template-columns: 1fr 1fr; }
+            .rep-table-wrap { border: none; overflow: visible; background: transparent; }
+            .rep-summary-table { min-width: 0; table-layout: auto; }
+            .rep-summary-table, .rep-summary-table tbody, .rep-summary-table tr, .rep-summary-table td { display: block; width: 100%; box-sizing: border-box; }
+            .rep-summary-table thead { display: none; }
+            .rep-summary-table tr { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(15,23,42,.025); }
+            .rep-summary-table td { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 9px 0; border-bottom: 1px solid #eef2f7; text-align: right; }
+            .rep-summary-table td:last-child { border-bottom: none; }
+            .rep-summary-table td::before { content: attr(data-label); flex: 0 0 42%; color: #64748b; font-size: 0.62rem; font-weight: 850; text-transform: uppercase; letter-spacing: .035em; text-align: left; }
+        }
+        @media (max-width: 480px) {
+            .rep-summary-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="loader-overlay">
+        <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 3rem; color: var(--primary);"></i>
+        <h3 style="margin-top:20px; font-weight: 800; color: var(--blue-dark);">Guardando documento...</h3>
+        <p style="color: var(--muted); margin: 5px 0 0 0;">Por favor no cierres la ventana.</p>
+    </div>
+
+    <?php include 'components/sidebar.php'; ?>
+
+    <main class="main-wrapper">
+        <?php include 'components/header.php'; ?>
+
+        <div class="content-area">
+
+            <?php if (isset($_GET['msg']) && $_GET['msg'] === 'subido'): ?>
+                <div class="alert-status success" id="alertBox">
+                    <i class="fa-solid fa-circle-check" style="font-size: 1.2rem;"></i>
+                    Planilla guardada y asignada correctamente.
+                </div>
+            <?php elseif (isset($_GET['msg']) && $_GET['msg'] === 'eliminado'): ?>
+                <div class="alert-status danger" id="alertBox">
+                    <i class="fa-solid fa-trash-can" style="font-size: 1.2rem;"></i>
+                    La planilla ha sido eliminada del historial.
+                </div>
+            <?php endif; ?>
+
+            <div class="header-actions">
+                <div class="estandar-header-group">
+                    <div class="icon-box-std">
+                        <i class="fa-solid fa-file-invoice-dollar" style="font-size: 1.2rem;"></i>
+                    </div>
+                    <div class="estandar-header-text">
+                        <h1 class="estandar-title"><span class="std-num-marker">2.</span> Afiliación al Sistema de Seguridad Social</h1>
+                        <p class="estandar-subtitle">Control y carga mensual de la planilla de pago de Seguridad Social (PILA).</p>
+                    </div>
+                </div>
+            </div>
+
+            <?php if ($es_representante): ?>
+                <div class="executive-note">
+                    <i class="fa-solid fa-eye"></i>
+                    <div>
+                        <strong>Vista ejecutiva del Representante Legal</strong>
+                        <p>El Responsable SST carga y valida los soportes PILA. En este rol se presenta un resumen gerencial del estado, valor, personas cubiertas y riesgos reportados por periodo.</p>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <div class="panel-container <?php echo $es_representante ? 'rep-view' : ''; ?>">
+                
+                <?php if ($es_sst || $es_representante): ?>
+                    <div class="card-box" style="align-self: start;">
+                        <h3 class="card-title">
+                            <div class="title-icon-wrapper"><i class="fa-solid <?php echo $es_sst ? 'fa-cloud-arrow-up' : 'fa-circle-info'; ?>"></i></div>
+                            Subir Nueva Planilla
+                        </h3>
+
+                        <?php if ($bloquear_subida): ?>
+                            <div class="alert-status danger" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                                <div style="display:flex; gap: 8px; align-items:center;">
+                                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.1rem;"></i>
+                                    <strong style="font-size: 0.9rem;">¡Falta el NIT de la Empresa!</strong>
+                                </div>
+                                <p style="margin:0; font-size: 0.8rem; font-weight: 500; line-height: 1.5;">
+                                    No podemos calcular tu fecha límite de pago (Decreto 1990 de 2016) porque no tienes el <strong>NIT</strong> configurado.
+                                </p>
+                                <?php if ($usuario_rol === 'representante'): ?>
+                                    <a href="configuracion.php" class="btn-primary" style="margin-top: 8px; width: 100%; font-size: 0.8rem; padding: 10px; background: #dc2626;">Completar Perfil de Empresa</a>
+                                <?php else: ?>
+                                    <p style="margin:8px 0 0 0; font-size: 0.8rem; font-weight: 700; color: #991b1b; padding: 8px; background: rgba(220,38,38,0.1); border-radius: 6px; width: 100%;">El Representante Legal debe actualizar el "Perfil Corporativo" en Configuración.</p>
+                                <?php endif; ?>
+                            </div>
+                        <?php else: ?>
+
+                            <div class="info-pila-box">
+                                <p style="margin-bottom: 12px; font-weight: 800; font-size: 0.75rem; color: var(--primary2); display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.05em;">
+                                    <i class="fa-solid fa-calculator"></i>
+                                    Cálculo Automático PILA
+                                </p>
+                                <p>Empresa: <strong style="color: var(--blue-dark);"><?php echo htmlspecialchars($nombre_empresa); ?></strong></p>
+                                <p>NIT finaliza en: <span class="highlight"><?php echo $ultimos_digitos; ?></span></p>
+                                <p>Día hábil límite: <span class="highlight"><?php echo $dia_habil; ?>°</span></p>
+
+                                <div style="margin-top: 16px; background: #ffffff; border-radius: 8px; padding: 12px; border: 1px solid rgba(255,138,31,0.2);">
+                                    <span style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--muted); margin-bottom: 4px; text-transform: uppercase;">Límite sugerido para este mes:</span>
+                                    <span class="fecha-roja"><?php echo $fecha_limite_actual; ?></span>
+                                </div>
+                            </div>
+
+                            <?php if ($es_sst): ?>
+                            <form action="procesar_estandar2.php" method="POST" enctype="multipart/form-data" onsubmit="mostrarLoader()">
+                                <input type="hidden" name="accion" value="subir_planilla">
+
+                                <div class="form-group">
+                                    <label>Mes Correspondiente</label>
+                                    <select name="mes" id="select_mes_upload" class="custom-select" required>
+                                        <?php foreach ($meses as $num => $nombre): ?>
+                                            <option value="<?php echo $num; ?>" <?php echo date('n') == $num ? 'selected' : ''; ?>><?php echo $nombre; ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Año</label>
+                                    <input type="number" name="anio" id="input_anio_upload" class="custom-input" value="<?php echo $anio_seleccionado; ?>" min="2020" max="2050" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Documento PDF (PILA)</label>
+
+                                    <div class="dropzone" id="dropzone">
+                                        <input type="file" name="archivo" id="archivoPdf" accept="application/pdf" required hidden>
+                                        <i class="fa-solid fa-file-pdf" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 8px;"></i>
+                                        <p>Haz clic o arrastra tu PDF</p>
+                                        <span>Solo se aceptan archivos .pdf</span>
+                                    </div>
+
+                                    <div class="preview-container" id="previewContainer">
+
+                                        <div class="analysis-panel" id="analysisPanel">
+                                            <div class="analysis-title">
+                                                <i class="fa-solid fa-robot"></i> Análisis Rápido del Documento
+                                            </div>
+                                            <div class="analysis-grid">
+                                                <div class="analysis-item">
+                                                    <span class="analysis-label">Validación NIT</span>
+                                                    <span class="analysis-val" id="resNit">Cargando...</span>
+                                                </div>
+                                                <div class="analysis-item">
+                                                    <span class="analysis-label">Cruce de Trabajadores</span>
+                                                    <span class="analysis-val" id="resTrabajadores">Cargando...</span>
+                                                </div>
+                                                <div class="analysis-item" style="grid-column: 1 / -1;">
+                                                    <span class="analysis-label">Novedades Detectadas (Aprox)</span>
+                                                    <span class="analysis-val" id="resNovedades" style="font-weight: 500;">Cargando...</span>
+                                                </div>
+                                            </div>
+                                            <div style="font-size: 0.65rem; color: #64748b; font-style: italic; margin-top: 4px;">
+                                                *Nota: Este análisis automatizado exige que la cédula aparezca como un número exacto en la tabla de la PILA.
+                                            </div>
+                                        </div>
+
+                                        <div class="preview-header">
+                                            <span>
+                                                <i class="fa-solid fa-eye" style="color: #ef4444;"></i>
+                                                Vista previa
+                                            </span>
+                                            <button type="button" class="btn-change-file" id="btnRemovePdf">Cambiar</button>
+                                        </div>
+                                        <iframe id="pdfViewer" class="pdf-viewer"></iframe>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn-primary" id="btnSubmitForm" style="display: none;">
+                                    <i class="fa-solid fa-floppy-disk"></i> Guardar Planilla
+                                </button>
+                            </form>
+                            <?php else: ?>
+                                <div class="info-pila-box" style="background:#f8fafc; margin-bottom:0;">
+                                    <p style="font-weight:800; color:var(--blue-dark); margin-bottom:8px;">
+                                        <i class="fa-solid fa-lock" style="color:var(--primary2);"></i>
+                                        Gestión asignada al Responsable SST
+                                    </p>
+                                    <p style="line-height:1.55; color:#475569;">
+                                        La carga y validación de soportes se realiza desde el rol operativo. Aquí se conserva el cálculo PILA y la fecha límite para revisión.
+                                    </p>
+                                </div>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+
+                <div class="card-box" <?php echo ($usuario_rol === 'trabajador') ? 'style="grid-column: span 2;"' : ''; ?>>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; border-bottom: 1px dashed var(--border); padding-bottom: 12px;">
+                        <h3 class="card-title" style="border: none; padding: 0; margin: 0;">
+                            <div class="title-icon-wrapper"><i class="fa-solid fa-calendar-check"></i></div>
+                            Planillas del Año
+                        </h3>
+
+                        <div class="year-selector">
+                            <a href="?anio=<?php echo $anio_seleccionado - 1; ?>" class="year-btn" title="Año Anterior">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </a>
+                            <span class="year-display"><?php echo $anio_seleccionado; ?></span>
+                            <a href="?anio=<?php echo $anio_seleccionado + 1; ?>" class="year-btn" title="Año Siguiente">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <?php if ($es_representante): ?>
+                        <div class="rep-summary-grid">
+                            <div class="rep-metric ok">
+                                <span>Planillas cargadas</span>
+                                <strong><?php echo $planillas_cargadas; ?>/12</strong>
+                            </div>
+                            <div class="rep-metric <?php echo $planillas_pendientes === 0 ? 'ok' : 'warn'; ?>">
+                                <span>Periodos pendientes</span>
+                                <strong><?php echo $planillas_pendientes; ?></strong>
+                            </div>
+                            <div class="rep-metric">
+                                <span>Valor anual reportado</span>
+                                <strong><?php echo $valor_total_anual > 0 ? '$' . number_format($valor_total_anual, 0, ',', '.') : 'Sin dato'; ?></strong>
+                            </div>
+                            <div class="rep-metric">
+                                <span>Personas ultimo soporte</span>
+                                <strong><?php echo $personas_ultimo_soporte !== null ? (int)$personas_ultimo_soporte : 'Sin dato'; ?></strong>
+                            </div>
+                        </div>
+
+                        <div class="rep-table-wrap">
+                            <table class="rep-summary-table">
+                                <thead>
+                                    <tr>
+                                        <th>Periodo</th>
+                                        <th>Estado</th>
+                                        <th>Fecha limite</th>
+                                        <th>Valor pagado</th>
+                                        <th>Personas / cedulas</th>
+                                        <th>Riesgos pagados</th>
+                                        <th>Gestion</th>
+                                        <th>Soporte</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php for ($m = 1; $m <= 12; $m++): ?>
+                                        <?php
+                                            $is_loaded = isset($planillas_mes[$m]);
+                                            $mes_nombre = $meses[$m];
+                                            $p = $is_loaded ? $planillas_mes[$m] : null;
+                                            $limite = $fechas_limites_meses[$m] ?? 'Sin NIT';
+                                            $limite_dt = DateTime::createFromFormat('d/m/Y', $limite);
+                                            $esta_vencido = !$is_loaded && $limite_dt && $limite_dt < new DateTime('today');
+                                            $estado_clase = $is_loaded ? 'ok' : ($esta_vencido ? 'late' : 'pending');
+                                            $estado_texto = $is_loaded ? 'Al dia' : ($esta_vencido ? 'Vencida' : 'Pendiente');
+                                            $riesgos = $p['riesgos_detectados'] ?? '';
+                                        ?>
+                                        <tr>
+                                            <td data-label="Periodo"><strong style="color:var(--blue-dark);"><?php echo $mes_nombre; ?></strong></td>
+                                            <td data-label="Estado">
+                                                <span class="summary-status <?php echo $estado_clase; ?>">
+                                                    <i class="fa-solid <?php echo $is_loaded ? 'fa-circle-check' : ($esta_vencido ? 'fa-triangle-exclamation' : 'fa-clock'); ?>"></i>
+                                                    <?php echo $estado_texto; ?>
+                                                </span>
+                                            </td>
+                                            <td data-label="Fecha limite"><?php echo htmlspecialchars($limite); ?></td>
+                                            <td data-label="Valor pagado">
+                                                <?php if ($is_loaded && !empty($p['valor_total'])): ?>
+                                                    <strong>$<?php echo number_format((float)$p['valor_total'], 0, ',', '.'); ?></strong>
+                                                <?php else: ?>
+                                                    <span class="summary-muted">Sin dato</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td data-label="Personas / cedulas">
+                                                <?php if ($is_loaded && isset($p['cedulas_detectadas'])): ?>
+                                                    <strong><?php echo (int)$p['cedulas_detectadas']; ?></strong>
+                                                    <?php if (isset($p['trabajadores_esperados'])): ?>
+                                                        <span class="summary-muted"> de <?php echo (int)$p['trabajadores_esperados']; ?> esperadas</span>
+                                                    <?php endif; ?>
+                                                <?php else: ?>
+                                                    <span class="summary-muted">Sin soporte</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td data-label="Riesgos pagados">
+                                                <?php if ($is_loaded && trim($riesgos) !== ''): ?>
+                                                    <?php foreach (explode(',', $riesgos) as $riesgo): ?>
+                                                        <?php if (trim($riesgo) !== ''): ?>
+                                                            <span class="risk-pill"><?php echo htmlspecialchars(trim($riesgo)); ?></span>
+                                                        <?php endif; ?>
+                                                    <?php endforeach; ?>
+                                                <?php else: ?>
+                                                    <span class="summary-muted">Sin dato</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td data-label="Gestion">
+                                                <?php if ($is_loaded): ?>
+                                                    <div><strong><?php echo htmlspecialchars(trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''))); ?></strong></div>
+                                                    <span class="summary-muted"><?php echo date('d/m/Y', strtotime($p['fecha_subida'])); ?></span>
+                                                <?php else: ?>
+                                                    <span class="summary-muted">Pendiente por SST</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td data-label="Soporte">
+                                                <?php if ($is_loaded): ?>
+                                                    <a href="<?php echo htmlspecialchars($p['archivo_url']); ?>" target="_blank" class="btn-view" title="Ver soporte">
+                                                        <i class="fa-regular fa-eye"></i> Ver
+                                                    </a>
+                                                <?php else: ?>
+                                                    <span class="summary-muted">No cargado</span>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endfor; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php else: ?>
+                    <div class="months-grid">
+                        <?php for ($m = 1; $m <= 12; $m++): ?>
+                            <?php
+                            $is_loaded = isset($planillas_mes[$m]);
+                            $mes_nombre = $meses[$m];
+                            ?>
+                            <div class="month-card <?php echo $is_loaded ? 'loaded' : 'missing'; ?>">
+                                <div class="month-header">
+                                    <div>
+                                        <span class="month-name"><?php echo $mes_nombre; ?></span>
+                                        <?php if (!$bloquear_subida && isset($fechas_limites_meses[$m])): ?>
+                                            <div style="font-size: 0.65rem; color: #64748b; margin-top: 4px;">
+                                                Límite: <strong style="color: #dc2626; font-weight: 800;"><?php echo $fechas_limites_meses[$m]; ?></strong>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <span class="status-badge <?php echo $is_loaded ? 'status-loaded' : 'status-missing'; ?>">
+                                        <?php echo $is_loaded ? 'Cargado' : 'Pendiente'; ?>
+                                    </span>
+                                </div>
+
+                                <?php if ($is_loaded): ?>
+                                    <?php $p = $planillas_mes[$m]; ?>
+                                    <div class="month-info" style="margin-top: 6px;">
+                                        <div style="display:flex; align-items:center; gap: 6px; margin-bottom: 6px;">
+                                            <i class="fa-solid fa-user-check" style="width: 14px; text-align: center; color: #94a3b8;"></i>
+                                            <span style="font-weight: 600; color: #334155;"><?php echo htmlspecialchars($p['nombre'] . ' ' . $p['apellido']); ?></span>
+                                        </div>
+                                        <div style="display:flex; align-items:center; gap: 6px;">
+                                            <i class="fa-solid fa-clock-rotate-left" style="width: 14px; text-align: center; color: #94a3b8;"></i>
+                                            Subido el <?php echo date('d/m/Y', strtotime($p['fecha_subida'])); ?>
+                                        </div>
+                                    </div>
+                                    <div class="month-actions">
+                                        <a href="<?php echo htmlspecialchars($p['archivo_url']); ?>" target="_blank" class="btn-view" title="Ver Documento">
+                                            <i class="fa-regular fa-eye"></i> Ver
+                                        </a>
+                                        <?php if ($es_sst): ?>
+                                            <a href="#" onclick="showConfirmModal('Eliminar Planilla', '¿Estás seguro de eliminar la planilla de <?php echo $mes_nombre; ?>? Esta acción no se puede deshacer.', 'procesar_estandar2.php?accion=eliminar_planilla&id=<?php echo $p['id']; ?>', 'danger', 'Sí, eliminar'); return false;" class="btn-delete" title="Eliminar">
+                                                <i class="fa-regular fa-trash-can"></i> Borrar
+                                            </a>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="month-info" style="color: #94a3b8; font-style: italic; display: flex; align-items: center; margin-top: 6px;">
+                                        No se ha subido el soporte para este periodo.
+                                    </div>
+                                    <?php if (!$bloquear_subida && $es_sst): ?>
+                                        <div class="month-actions">
+                                            <button type="button" class="btn-outline-upload" onclick="prepararSubida(<?php echo $m; ?>, <?php echo $anio_seleccionado; ?>)">
+                                                <i class="fa-solid fa-cloud-arrow-up"></i> Cargar Planilla
+                                            </button>
+                                        </div>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+                            </div>
+                        <?php endfor; ?>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <?php include_once 'components/modal_confirmacion.php'; ?>
+
+    <script>
+        // ==========================================
+        // VARIABLES PHP PARA EL MOTOR JS
+        // ==========================================
+        const dbNitEmpresa = "<?php echo htmlspecialchars($nit_empresa); ?>";
+        const dbTrabajadores = <?php echo json_encode($trabajadores_empresa); ?>;
+
+        // Cargar worker de PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        function mostrarLoader() {
+            document.getElementById('loader-overlay').classList.add('active');
+        }
+
+        function prepararSubida(mes, anio) {
+            document.getElementById('select_mes_upload').value = mes;
+            document.getElementById('input_anio_upload').value = anio;
+            if (window.innerWidth <= 768) {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            }
+            setTimeout(() => {
+                document.getElementById('archivoPdf').click();
+            }, 300);
+        }
+
+        // Función para inyectar datos al PHP
+        function guardarDatoOculto(name, value) {
+            const form = document.querySelector('form[action="procesar_estandar2.php"]');
+            if (!form) return;
+            let input = document.getElementById('hidden_' + name);
+            if (!input) {
+                input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.id = 'hidden_' + name;
+                form.appendChild(input);
+            }
+            input.value = value;
+        }
+
+        function extraerValorTotalPila(texto) {
+            const normalizado = texto.replace(/\s+/g, ' ');
+            const candidatos = [];
+            const regexMoneda = /(?:\$|COP)?\s*([0-9]{1,3}(?:[.,][0-9]{3})+(?:[.,][0-9]{2})?|[0-9]{5,})(?:\s*COP)?/gi;
+            let match;
+
+            while ((match = regexMoneda.exec(normalizado)) !== null) {
+                const raw = match[1];
+                const numeric = Number(raw.replace(/\./g, '').replace(/,/g, '').replace(/[^\d]/g, ''));
+                if (Number.isFinite(numeric) && numeric >= 10000) {
+                    candidatos.push(numeric);
+                }
+            }
+
+            if (candidatos.length === 0) return '';
+            return String(Math.max(...candidatos));
+        }
+
+        function detectarRiesgosPila(texto) {
+            const upper = texto.toUpperCase().replace(/\s+/g, ' ');
+            const riesgos = new Set();
+            const patrones = [
+                ['Riesgo I', /(?:RIESGO|CLASE)\s*(?:I|1)\b/],
+                ['Riesgo II', /(?:RIESGO|CLASE)\s*(?:II|2)\b/],
+                ['Riesgo III', /(?:RIESGO|CLASE)\s*(?:III|3)\b/],
+                ['Riesgo IV', /(?:RIESGO|CLASE)\s*(?:IV|4)\b/],
+                ['Riesgo V', /(?:RIESGO|CLASE)\s*(?:V|5)\b/],
+            ];
+
+            patrones.forEach(([label, regex]) => {
+                if (regex.test(upper)) riesgos.add(label);
+            });
+
+            return Array.from(riesgos).join(', ');
+        }
+
+        // =======================================================
+        // MOTOR INTELIGENTE DE ANÁLISIS DE PDF (REGEX CON LÍMITES)
+        // =======================================================
+        async function analizarPDF(file) {
+            const panel = document.getElementById('analysisPanel');
+            const resNit = document.getElementById('resNit');
+            const resTrabajadores = document.getElementById('resTrabajadores');
+            const resNovedades = document.getElementById('resNovedades');
+
+            panel.style.display = 'flex';
+            resNit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analizando...';
+            resTrabajadores.innerHTML = '...';
+            resNovedades.innerHTML = '...';
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+
+                let textoCompleto = '';
+                let headers = { ige: null, irl: null };
+                let itemsGlobal = [];
+
+                // 1. Extraer texto y buscar coordenadas de columnas
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+
+                    content.items.forEach(item => {
+                        itemsGlobal.push(item);
+                        textoCompleto += item.str + ' ';
+
+                        let text = item.str.trim().toUpperCase();
+                        if (text === 'IGE') headers.ige = item.transform[4]; 
+                        if (text === 'IRL') headers.irl = item.transform[4]; 
+                    });
+                }
+
+                // 2. VALIDAR NIT (Usando Regex Segura)
+                const nitBase = dbNitEmpresa.split('-')[0].replace(/\D/g, '');
+                let nitCoincide = false;
+                
+                if (nitBase) {
+                    // Crea un regex que permite espacios entre los números pero exige que sean aislados
+                    let regexNitStr = "(?:^|\\D)" + nitBase.split('').join('\\s*') + "(?:\\D|$)";
+                    let regexNit = new RegExp(regexNitStr);
+                    if(regexNit.test(textoCompleto)) {
+                        nitCoincide = true;
+                    }
+                }
+
+                if (nitCoincide) {
+                    resNit.innerHTML = `<span class="status-ok"><i class="fa-solid fa-circle-check"></i> Coincide (${nitBase})</span>`;
+                } else {
+                    resNit.innerHTML = `<span class="status-err" title="No se detectó el NIT de la empresa en el documento"><i class="fa-solid fa-circle-xmark"></i> No Coincide / No legible</span>`;
+                }
+
+                // 3. VALIDACIÓN EXACTA DE TRABAJADORES (CERO FALSOS POSITIVOS)
+                let empEncontradosGlobal = [];
+                let empFaltantesGlobal = [];
+                
+                dbTrabajadores.forEach(t => {
+                    const cedulaLimpia = t.cedula.replace(/\D/g, '');
+                    if (cedulaLimpia) {
+                        // Regex perfecta: Busca la cédula como una "palabra" aislada
+                        let regexCedStr = "(?:^|\\D)" + cedulaLimpia.split('').join('\\s*') + "(?:\\D|$)";
+                        let regexCed = new RegExp(regexCedStr);
+                        
+                        if (regexCed.test(textoCompleto)) {
+                            empEncontradosGlobal.push(t);
+                        } else {
+                            empFaltantesGlobal.push(t);
+                        }
+                    }
+                });
+
+                // 4. CRUCE DE FILAS PARA NOVEDADES ("X")
+                let lines = {};
+                itemsGlobal.forEach(item => {
+                    let y = Math.round(item.transform[5]);
+                    let foundY = Object.keys(lines).find(ky => Math.abs(ky - y) <= 3);
+                    if (foundY) y = foundY;
+                    if (!lines[y]) lines[y] = [];
+                    lines[y].push(item);
+                });
+
+                let incapacidades = [];
+
+                for (let y in lines) {
+                    let lineItems = lines[y];
+                    // Mantener el texto original de la línea para usar el mismo Regex
+                    let lineText = lineItems.map(i => i.str).join(' ');
+
+                    dbTrabajadores.forEach(t => {
+                        const cedulaLimpia = t.cedula.replace(/\D/g, '');
+                        if (cedulaLimpia) {
+                            let regexCedStr = "(?:^|\\D)" + cedulaLimpia.split('').join('\\s*') + "(?:\\D|$)";
+                            let regexCed = new RegExp(regexCedStr);
+                            
+                            if (regexCed.test(lineText)) {
+                                // Encontramos al trabajador en esta línea, buscamos si hay una "X"
+                                lineItems.forEach(i => {
+                                    if (i.str.trim().toUpperCase() === 'X') {
+                                        let xCoord = i.transform[4];
+                                        if (headers.ige !== null && Math.abs(xCoord - headers.ige) < 20) {
+                                            incapacidades.push({ tipo: 'IGE', nombre: `${t.nombre} ${t.apellido}`, cedula: t.cedula });
+                                        }
+                                        if (headers.irl !== null && Math.abs(xCoord - headers.irl) < 20) {
+                                            incapacidades.push({ tipo: 'IRL', nombre: `${t.nombre} ${t.apellido}`, cedula: t.cedula });
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                    });
+                }
+
+                // 5. RESULTADOS TRABAJADORES (PANTALLA)
+                let htmlTrab = '';
+                if (dbTrabajadores.length === 0) {
+                    resTrabajadores.innerHTML = `<span class="status-warn">No tienes trabajadores registrados</span>`;
+                } else {
+                    let countOk = empEncontradosGlobal.length;
+                    let countTot = dbTrabajadores.length;
+                    
+                    htmlTrab += `<span>${countOk} de ${countTot} encontrados</span>`;
+                    htmlTrab += `<div style="font-size:0.75rem; margin-top:6px; font-weight: normal; color: #94a3b8;">`;
+                    
+                    if (empFaltantesGlobal.length > 0) {
+                        htmlTrab += `<span style="color:#ef4444; display:block; margin-bottom:2px;"><b>Faltan en PILA:</b></span>`;
+                        empFaltantesGlobal.forEach(f => {
+                            htmlTrab += `<span style="display:block; color:#fca5a5;">- ${f.nombre} ${f.apellido} (C.C. ${f.cedula})</span>`;
+                        });
+                    } else {
+                        htmlTrab += `<span style="color:#10b981;"><b>¡Todos los trabajadores están al día!</b></span>`;
+                    }
+                    htmlTrab += `</div>`;
+                    
+                    resTrabajadores.innerHTML = htmlTrab;
+                }
+
+                // 6. RESULTADOS NOVEDADES (PANTALLA)
+                if (incapacidades.length > 0) {
+                    let htmlNov = incapacidades.map(inc => {
+                        let color = inc.tipo === 'IGE' ? '#f59e0b' : '#ef4444';
+                        return `<span style="color:${color}; display:block; margin-bottom:4px;">&#8226; <b>1 ${inc.tipo}</b> - ${inc.nombre} (C.C. ${inc.cedula})</span>`;
+                    }).join('');
+                    resNovedades.innerHTML = htmlNov;
+                } else {
+                    resNovedades.innerHTML = `<span style="color:#94a3b8; font-weight: normal;">No se encontraron cruces con "X" en IGE / IRL para tus trabajadores.</span>`;
+                }
+
+                // 7. INYECTAR DATOS PARA QUE PHP LOS GUARDE (OCULTOS)
+                let nombresFaltantes = empFaltantesGlobal.map(f => f.nombre + " " + f.apellido).join(', ');
+                let valorTotalPila = extraerValorTotalPila(textoCompleto);
+                let riesgosPila = detectarRiesgosPila(textoCompleto);
+                
+                guardarDatoOculto('nit_coincide', nitCoincide ? 'SI' : 'NO');
+                guardarDatoOculto('trab_found', `${empEncontradosGlobal.length}/${dbTrabajadores.length}`);
+                guardarDatoOculto('trab_faltantes', nombresFaltantes);
+                guardarDatoOculto('incapacidades_json', JSON.stringify(incapacidades));
+                guardarDatoOculto('valor_total', valorTotalPila);
+                guardarDatoOculto('cedulas_detectadas', empEncontradosGlobal.length);
+                guardarDatoOculto('trabajadores_esperados', dbTrabajadores.length);
+                guardarDatoOculto('riesgos_detectados', riesgosPila);
+
+            } catch (error) {
+                console.error("Error analizando PDF: ", error);
+                resNit.innerHTML = '<span class="status-err"><i class="fa-solid fa-circle-xmark"></i> Error al leer PDF</span>';
+                resTrabajadores.innerHTML = '-';
+                resNovedades.innerHTML = '-';
+            }
+        }
+
+        // EVENTOS DOM
+        document.addEventListener('DOMContentLoaded', () => {
+            const dropzone = document.getElementById('dropzone');
+            const fileInput = document.getElementById('archivoPdf');
+            const previewContainer = document.getElementById('previewContainer');
+            const pdfViewer = document.getElementById('pdfViewer');
+            const btnRemovePdf = document.getElementById('btnRemovePdf');
+            const btnSubmitForm = document.getElementById('btnSubmitForm');
+            const analysisPanel = document.getElementById('analysisPanel');
+
+            if (dropzone && fileInput) {
+                dropzone.addEventListener('click', () => fileInput.click());
+                dropzone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    dropzone.classList.add('dragover');
+                });
+                dropzone.addEventListener('dragleave', () => {
+                    dropzone.classList.remove('dragover');
+                });
+                dropzone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropzone.classList.remove('dragover');
+                    if (e.dataTransfer.files.length > 0) {
+                        fileInput.files = e.dataTransfer.files;
+                        manejarArchivo();
+                    }
+                });
+
+                fileInput.addEventListener('change', manejarArchivo);
+
+                function manejarArchivo() {
+                    const file = fileInput.files[0];
+                    if (file && file.type === 'application/pdf') {
+
+                        // 1. Mostrar Preview Visual
+                        const fileURL = URL.createObjectURL(file);
+                        pdfViewer.src = fileURL;
+                        dropzone.style.display = 'none';
+                        previewContainer.style.display = 'block';
+                        btnSubmitForm.style.display = 'flex';
+
+                        // 2. Disparar Motor de Análisis IA
+                        analizarPDF(file);
+
+                    } else {
+                        alert('Error: Por favor selecciona un archivo PDF válido.');
+                        fileInput.value = '';
+                        restaurarFormulario();
+                    }
+                }
+
+                btnRemovePdf.addEventListener('click', () => {
+                    fileInput.value = '';
+                    pdfViewer.src = '';
+                    restaurarFormulario();
+                });
+
+                function restaurarFormulario() {
+                    previewContainer.style.display = 'none';
+                    btnSubmitForm.style.display = 'none';
+                    analysisPanel.style.display = 'none';
+                    dropzone.style.display = 'flex';
+                }
+            }
+
+            const alerts = document.querySelectorAll('.alert-status');
+            if (alerts.length > 0) {
+                setTimeout(() => {
+                    alerts.forEach(a => {
+                        a.style.transition = 'opacity 0.5s ease';
+                        a.style.opacity = '0';
+                        setTimeout(() => a.remove(), 500);
+                    });
+                    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.history.replaceState({
+                        path: newUrl
+                    }, '', newUrl);
+                }, 4000);
+            }
+        });
+    </script>
+</body>
+</html>

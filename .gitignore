@@ -1,0 +1,26 @@
+# Local secrets and machine-specific configuration
+.env
+.env.*
+!.env.example
+credentials.json
+!credentials.example.json
+
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Generated and local working files
+.codex-spreadsheet-work/
+outputs/
+uploads/
+
+# Dependencies are restored from lock files
+vendor/
+node_modules/
+
+# Runtime files
+*.log
+*.tmp
+

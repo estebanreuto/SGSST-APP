@@ -1,0 +1,10 @@
+﻿Cambio: Ajuste en creación de perfil de cargo.
+- Se agregó Tipo de operación: Administrativo, Operativo, Mixto.
+- Se cambió Tipo o proceso por Proceso.
+- Proceso ahora es lista desplegable con opción Crear otro proceso.
+- Al crear otro proceso, se pregunta si se conserva para futuras creaciones.
+- Los procesos conservados se guardan por empresa en estandar5_procesos_perfil.
+Base de datos:
+- Se agregó columna tipo_operacion a estandar5_perfiles_cargo.
+- Se creó tabla estandar5_procesos_perfil.
+Migración SQL: database/migrations/2026_06_29_estandar5_tipo_operacion_procesos_perfil.sql

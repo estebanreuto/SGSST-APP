@@ -1,0 +1,23 @@
+Ajuste visual de la vista ejecutiva del Representante Legal - estandar2.php
+
+Fecha: 2026-06-22
+
+Archivos modificados:
+- estandar2.php
+
+Cambios realizados:
+- Se movio la nota "Vista ejecutiva del Representante Legal" a la parte superior, justo despues del encabezado de Afiliacion al Sistema de Seguridad Social.
+- Se ajusto la grilla principal para que la tarjeta lateral y el resumen ejecutivo tengan proporciones mas equilibradas en escritorio.
+- Se redujeron tamanos, paddings y anchos minimos de la tabla resumen para evitar cortes y desplazamiento horizontal.
+- Se simplificaron las etiquetas de estado a "Al dia", "Pendiente" y "Vencida" para mejorar lectura ejecutiva.
+- Se mantuvo la tarjeta lateral "Subir Nueva Planilla" como informacion contextual, sin controles de carga para el Representante Legal.
+- Se conservaron los controles operativos solo para el rol Responsable SST.
+- Se ajusto el comportamiento responsive para que la tabla se convierta en tarjetas legibles en celular.
+
+Validaciones:
+- php -l estandar2.php: sin errores de sintaxis.
+- Vista escritorio 1280x900: sin desbordamiento horizontal.
+- Vista movil 390x844: sin desbordamiento horizontal; tabla convertida en tarjetas por periodo.
+
+Base de datos:
+- No se hicieron cambios nuevos de base de datos en este ajuste visual.

@@ -37,6 +37,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mensaje = "Contraseña actualizada exitosamente.";
             $tipo_mensaje = "success";
         }
+        elseif ($accion === 'correo_seguridad') {
+            $correo_seguridad = trim($_POST['correo_seguridad'] ?? '');
+
+            if (!filter_var($correo_seguridad, FILTER_VALIDATE_EMAIL)) {
+                $mensaje = "Ingresa un correo de seguridad valido.";
+                $tipo_mensaje = "danger";
+            } else {
+                $stmt_check = $conn->prepare("
+                    SELECT id
+                    FROM usuarios
+                    WHERE id <> ?
+                      AND (email = ? OR correo_seguridad = ?)
+                    LIMIT 1
+                ");
+                $stmt_check->execute([$usuario_id, $correo_seguridad, $correo_seguridad]);
+
+                if ($stmt_check->fetch()) {
+                    $mensaje = "Ese correo ya esta asociado a otra cuenta.";
+                    $tipo_mensaje = "danger";
+                } else {
+                    $stmt = $conn->prepare("UPDATE usuarios SET correo_seguridad = ? WHERE id = ?");
+                    $stmt->execute([$correo_seguridad, $usuario_id]);
+                    $mensaje = "Correo de seguridad actualizado. Los codigos de ingreso se enviaran a este correo.";
+                    $tipo_mensaje = "success";
+                }
+            }
+        }
         elseif ($accion === 'datos_empresa' && $usuario_rol === 'representante') {
             $nombre_empresa = trim($_POST['nombre_empresa']);
             $tipo_doc = trim($_POST['tipo_doc_empresa']);
@@ -50,6 +77,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmt = $conn->prepare("UPDATE usuarios SET nombre_empresa = ?, tipo_doc_empresa = ?, num_doc_empresa = ?, tipo_persona = ?, regimen_tributario = ?, clase_riesgo = ?, actividad_economica = ? WHERE id = ?");
             $stmt->execute([$nombre_empresa, $tipo_doc, $num_doc, $tipo_persona, $regimen, $clase_riesgo, $actividad_economica, $usuario_id]);
+
+            if (!empty($_SESSION['empresa_id'])) {
+                $stmt_sol = $conn->prepare("UPDATE solicitudes_empresas SET empresa_nombre = ?, empresa_nit = ?, empresa_clase_riesgo = ? WHERE id = ?");
+                $stmt_sol->execute([$nombre_empresa, $num_doc, $clase_riesgo, $_SESSION['empresa_id']]);
+            }
             
             $mensaje = "Información de la empresa guardada.";
             $tipo_mensaje = "success";
@@ -88,18 +120,22 @@ $user_info = $stmt->fetch(PDO::FETCH_ASSOC);
 $emp_nombre = $user_info['nombre_empresa'] ?? '';
 $emp_num_doc = $user_info['num_doc_empresa'] ?? '';
 $emp_tipo_doc = $user_info['tipo_doc_empresa'] ?? 'NIT';
+$correo_seguridad_actual = ($user_info['correo_seguridad'] ?? '') ?: ($user_info['email'] ?? '');
 
 // Si es Representante y NO ha llenado el perfil corporativo aún, 
 // jalamos la info inicial de la solicitud para que no empiece de cero.
 if ($usuario_rol === 'representante' && !empty($user_info['empresa_id'])) {
     if (empty($emp_nombre) || empty($emp_num_doc)) {
-        $stmt_sol = $conn->prepare("SELECT nombre, cedula FROM solicitudes_empresas WHERE id = ?");
+        $stmt_sol = $conn->prepare("SELECT nombre, cedula, empresa_nombre, empresa_nit, empresa_clase_riesgo FROM solicitudes_empresas WHERE id = ?");
         $stmt_sol->execute([$user_info['empresa_id']]);
         $sol_data = $stmt_sol->fetch(PDO::FETCH_ASSOC);
         
         if ($sol_data) {
-            $emp_nombre = empty($emp_nombre) ? $sol_data['nombre'] : $emp_nombre;
-            $emp_num_doc = empty($emp_num_doc) ? $sol_data['cedula'] : $emp_num_doc;
+            $emp_nombre = empty($emp_nombre) ? ($sol_data['empresa_nombre'] ?: $sol_data['nombre']) : $emp_nombre;
+            $emp_num_doc = empty($emp_num_doc) ? ($sol_data['empresa_nit'] ?: $sol_data['cedula']) : $emp_num_doc;
+            if (empty($user_info['clase_riesgo']) && !empty($sol_data['empresa_clase_riesgo'])) {
+                $user_info['clase_riesgo'] = $sol_data['empresa_clase_riesgo'];
+            }
         }
     }
 }
@@ -518,27 +554,22 @@ if ($usuario_rol === 'representante' && !empty($user_info['empresa_id'])) {
                     <div id="tab-seguridad" class="tab-pane">
                         <div class="pane-header">
                             <h2 class="pane-title">Seguridad de la Cuenta</h2>
-                            <p class="pane-desc">Modifica tu contraseña de acceso a la plataforma.</p>
+                            <p class="pane-desc">Define el correo donde recibiras los codigos de seguridad para ingresar.</p>
                         </div>
                         <form action="configuracion.php" method="POST">
-                            <input type="hidden" name="accion" value="cambiar_password">
+                            <input type="hidden" name="accion" value="correo_seguridad">
                             <div class="form-grid">
                                 <div class="form-group full">
-                                    <label>Contraseña Actual</label>
-                                    <input type="password" name="pass_actual" class="custom-input" placeholder="••••••••" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Nueva Contraseña</label>
-                                    <input type="password" name="pass_nueva" class="custom-input" placeholder="••••••••" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Confirmar Nueva Contraseña</label>
-                                    <input type="password" name="pass_confirm" class="custom-input" placeholder="••••••••" required>
+                                    <label>Correo para codigos de seguridad</label>
+                                    <input type="email" name="correo_seguridad" class="custom-input" value="<?php echo htmlspecialchars($correo_seguridad_actual); ?>" required>
+                                    <p style="margin: 8px 0 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.5;">
+                                        Este correo puede ser diferente al correo principal de la cuenta. Ahi se enviara el codigo de ingreso 2FA.
+                                    </p>
                                 </div>
                             </div>
                             <button type="submit" class="btn-primary">
-                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                                Cambiar Contraseña
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5-2v6c0 5-3.8 9.7-9 10-5.2-.3-9-5-9-10V6l9-4 9 4z"></path></svg>
+                                Guardar Correo de Seguridad
                             </button>
                         </form>
                     </div>
@@ -594,9 +625,9 @@ if ($usuario_rol === 'representante' && !empty($user_info['empresa_id'])) {
         }
 
         // Buscador General Inteligente
-        const searchInput = document.getElementById('searchConfig');
-        if (searchInput) {
-            searchInput.addEventListener('input', function() {
+        const configSearchInput = document.getElementById('searchConfig');
+        if (configSearchInput) {
+            configSearchInput.addEventListener('input', function() {
                 const filter = this.value.toLowerCase().trim();
                 const activeTab = document.querySelector('.tab-pane.active');
                 if (!activeTab) return;

@@ -1,0 +1,24 @@
+Ajuste de layout fluido y autoajuste responsive - estandar2.php
+
+Fecha: 2026-06-22
+
+Archivos modificados:
+- estandar2.php
+
+Cambios realizados:
+- Se agrego un bloque CSS especifico despues del sidebar para que esta vista no quede limitada por reglas globales.
+- El contenedor principal ahora se ajusta automaticamente al ancho disponible entre el menu lateral y el borde del navegador.
+- Se ajusto el padding horizontal con clamp() para que el espacio cambie segun el tamano de pantalla.
+- La franja de calculo PILA usa grillas fluidas con auto-fit.
+- Las tarjetas resumen usan auto-fit y minmax() para adaptarse a pantalla grande, portatil y movil.
+- La tabla anual conserva el scroll natural de pagina y evita cortes verticales.
+- En pantallas con poca altura se reducen paddings y alturas internas para mostrar mas contenido.
+
+Validaciones:
+- php -l estandar2.php: sin errores de sintaxis.
+- Pantalla grande 1915x1000: el contenido usa el ancho disponible y no hay desbordamiento horizontal.
+- Portatil 1366x768: el contenido se ajusta, no hay desbordamiento horizontal y se llega hasta diciembre.
+- Movil 390x844: no hay desbordamiento horizontal y se llega hasta diciembre.
+
+Base de datos:
+- No se hicieron cambios de base de datos en este ajuste.

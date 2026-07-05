@@ -1,0 +1,25 @@
+Cambio: Categorias dinamicas segun tipo de capacitacion SST
+Fecha: 2026-06-29
+
+Archivos modificados:
+- nueva_actividad.php
+
+Detalle:
+- Se agrego control dinamico del select Categoria segun Tipo de Capacitacion.
+- Induccion y Re Induccion muestran solo la categoria Legal y la seleccionan automaticamente.
+- Entrenamiento muestra solo:
+  - Trabajo en Alturas
+  - Trabajo en Espacio Confinados
+  - Trabajo en Caliente
+  - Trabajo con Energias Peligrosas
+  - Trabajo con Productos Quimicos
+- Charla de Seguridad y Capacitacion conservan todas las categorias existentes.
+
+Base de datos:
+- No hubo cambios de base de datos.
+- No se requiere migracion SQL para este ajuste.
+
+Validacion:
+- php -l nueva_actividad.php
+- Navegador: se verificaron las opciones para Induccion, Re Induccion, Entrenamiento, Charla de Seguridad y Capacitacion.
+- Navegador: sin errores de consola.

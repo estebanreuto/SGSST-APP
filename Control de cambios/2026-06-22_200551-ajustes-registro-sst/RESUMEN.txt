@@ -1,0 +1,16 @@
+﻿Control de cambios - ajustes registro Responsable SST
+Fecha: 2026-06-22
+
+Archivos modificados:
+- register.php
+- config/sst_license_options.php
+
+Resumen:
+- Tipo de licencia SST convertido a lista desplegable: Tecnico, Tecnologo, Profesional, Especialista SST.
+- Expedida por convertido a lista desplegable con secretarias de salud departamentales y distritales.
+- Validacion cliente y servidor para impedir registro con licencia SST vencida por 10 anos cumplidos.
+- Validacion cliente y servidor para impedir fecha futura.
+- Responsable SST debe registrar licencia SST vigente.
+
+Fuente normativa revisada:
+- Resolucion 0908 de 2025, Ministerio de Salud y Proteccion Social: vigencia de 10 anos; competencia de secretarias de salud departamentales y distritales; niveles de formacion tecnico, tecnologo, profesional y especialista SST.

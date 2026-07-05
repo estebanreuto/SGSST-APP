@@ -1,0 +1,27 @@
+Cambio: Vista inicial de submodulos del Estandar 5
+Fecha: 2026-06-29
+
+Archivos modificados:
+- components/sidebar.php
+- estandar5.php
+
+Detalle:
+- Se creo la pagina estandar5.php como vista modular inicial para Evaluaciones medicas ocupacionales.
+- Se agregaron seis submodulos navegables:
+  3.1.1 Descripcion sociodemografica - Diagnostico de condiciones de salud
+  3.1.2 Actividades de Promocion y Prevencion en Salud
+  3.1.3 Informacion al medico de los perfiles de cargo
+  3.1.4 Realizacion de Evaluaciones Medicas Ocupacionales - Peligros - Periodicidad
+  3.1.5 Custodia de Historias Clinicas
+  3.1.6 Restricciones y recomendaciones medico/laborales
+- En el menu lateral, el Estandar 5 queda como elemento desplegable dentro de Estandares PEM.
+- Los submodulos apuntan a estandar5.php?modulo=...
+- La vista es responsive y conserva el estilo visual existente del producto.
+
+Base de datos:
+- No hubo cambios de base de datos.
+- No se requiere migracion SQL para este ajuste.
+
+Validacion:
+- php -l estandar5.php
+- php -l components/sidebar.php

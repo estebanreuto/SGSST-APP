@@ -1,0 +1,24 @@
+Ajuste final de ancho y desplazamiento natural - estandar2.php
+
+Fecha: 2026-06-22
+
+Archivos modificados:
+- estandar2.php
+
+Cambios realizados:
+- Se reforzo el fondo del html y body para evitar zonas blancas en pantallas anchas.
+- Se ajusto .main-wrapper para usar el ancho real del viewport menos el menu lateral.
+- Se retiro el limite de altura y el scroll vertical interno de la tabla del Representante Legal.
+- La tabla "Planillas del Ano" vuelve a desplazarse con el scroll normal de la pagina.
+- Se mantiene el scroll horizontal solo si una pantalla estrecha lo necesita.
+- Se agrego ajuste de max-width para menu lateral colapsado y para movil.
+
+Validaciones:
+- php -l estandar2.php: sin errores de sintaxis.
+- Pantalla ancha 1915x1000: el layout usa el ancho disponible y no hay desbordamiento horizontal.
+- Portatil 1366x768: con scroll normal de pagina se llega hasta diciembre.
+- Altura baja 1280x720: con scroll normal de pagina se llega hasta diciembre.
+- Movil 390x844: se llega hasta diciembre y no hay desbordamiento horizontal.
+
+Base de datos:
+- No se hicieron cambios de base de datos en este ajuste.

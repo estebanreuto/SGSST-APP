@@ -1,0 +1,23 @@
+FECHA: 2026-06-23
+CAMBIO: Organizacion de Git y retiro de credenciales del codigo.
+
+ARCHIVOS PRINCIPALES:
+- .gitignore
+- .env.example
+- credentials.example.json
+- config/env.php
+- config/db.php
+- config/db_online.php
+
+ACCIONES:
+- .env y credentials.json permanecen en el equipo, pero se retiran del seguimiento de Git.
+- Las conexiones de base de datos ahora leen variables de entorno.
+- Se eliminan credenciales fijas de config/db_online.php.
+- Se agregan plantillas sin secretos para configurar otros ambientes.
+- Se excluyen archivos generados, cargas, dependencias y archivos locales.
+- Se corrige el conflicto JavaScript que impedia abrir Perfil Empresa y Seguridad.
+
+NOTA DE SEGURIDAD:
+No se guarda una copia "antes" de los archivos con secretos para evitar duplicar
+credenciales dentro del repositorio. Las claves que hayan estado en el historial
+de Git deben considerarse expuestas y rotarse antes de una implementacion publica.

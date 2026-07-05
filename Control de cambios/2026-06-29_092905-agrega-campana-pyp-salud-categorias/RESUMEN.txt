@@ -1,0 +1,23 @@
+Cambio: Agregar opciones Campana PyP en Salud
+Fecha: 2026-06-29
+
+Archivos modificados:
+- nueva_actividad.php
+
+Detalle:
+- Se agregaron cuatro opciones a las categorias generales usadas por Charla de Seguridad y Capacitacion:
+  - Estilos de Vida Saludable (Alimentacion, Ejercicio, Lavado de Manos)
+  - Prevencion Consumo de Sustancias (Alcohol, Drogas, Farmacos, Tabaco)
+  - Bienestar Emocional y Mental
+  - Controles Medicos Periodicos (Autocuidado)
+- Se mantienen las reglas previas:
+  - Induccion y Re Induccion solo muestran Legal.
+  - Entrenamiento solo muestra opciones de trabajos de alto riesgo definidas previamente.
+
+Base de datos:
+- No hubo cambios de base de datos.
+- No se requiere migracion SQL.
+
+Validacion:
+- php -l nueva_actividad.php
+- Navegador: se verificaron opciones en Capacitacion, Charla de Seguridad, Entrenamiento e Induccion.

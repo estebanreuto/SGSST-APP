@@ -1,0 +1,4 @@
+﻿Cambio: Submódulo 3.1.2 conectado a campañas PyP en Salud.
+Archivo modificado: estandar5.php
+Base de datos: no se crearon ni modificaron tablas; no requiere migración SQL.
+Fuente de datos: actividades_capacitacion filtrando tipo_capacitacion = Campaña PyP en Salud, con cruces a actividades_trabajadores, capacitaciones_cursos, capacitaciones_progreso y capacitaciones_actas.

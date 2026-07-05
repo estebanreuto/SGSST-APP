@@ -1,0 +1,30 @@
+Cambio: perfil de empresa, registro de empresa y correo de seguridad 2FA
+Fecha: 2026-06-22
+
+Objetivo
+- Pedir datos de empresa al registrar un representante legal.
+- Guardar nombre de empresa, NIT y nivel de riesgo ARL desde el registro.
+- Mostrar y permitir editar esos datos en Configuracion > Perfil Empresa.
+- Permitir configurar un correo de seguridad para recibir codigos 2FA.
+- Usar el correo de seguridad en login y reenvio de codigo.
+
+Archivos modificados
+- register.php
+- checkout_wompi.php
+- configuracion.php
+- login.php
+- ajax_check_empresa.php
+
+Base de datos
+- Ejecutar el archivo:
+  database/migrations/2026_06_22_empresa_registro_correo_seguridad.sql
+
+Campos agregados por la migracion
+- solicitudes_empresas.empresa_nombre
+- solicitudes_empresas.empresa_nit
+- solicitudes_empresas.empresa_clase_riesgo
+- usuarios.correo_seguridad
+
+Verificacion local realizada
+- Migracion ejecutada sobre u261346399_preventwork2.
+- php -l sin errores en register.php, checkout_wompi.php, configuracion.php, login.php y ajax_check_empresa.php.

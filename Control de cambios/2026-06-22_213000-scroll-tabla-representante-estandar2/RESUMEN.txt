@@ -1,0 +1,21 @@
+Ajuste de desplazamiento en tabla del Representante Legal - estandar2.php
+
+Fecha: 2026-06-22
+
+Archivos modificados:
+- estandar2.php
+
+Cambios realizados:
+- Se agrego scroll vertical propio a la tabla "Planillas del Ano" en la vista de Representante Legal.
+- Se mantuvo el encabezado de la tabla fijo mientras se recorren los meses.
+- Se agrego una barra de desplazamiento visible dentro de la tabla para indicar que hay mas meses.
+- En movil se conserva el comportamiento anterior: la tabla se muestra como tarjetas y el desplazamiento es el normal de la pagina.
+
+Validaciones:
+- php -l estandar2.php: sin errores de sintaxis.
+- Escritorio 1280x720: con rueda real sobre la tabla se llega hasta diciembre.
+- Escritorio 1280x720: sin desbordamiento horizontal.
+- Movil 390x844: se llega hasta diciembre con scroll normal de pagina.
+
+Base de datos:
+- No se hicieron cambios de base de datos en este ajuste.

@@ -1,0 +1,17 @@
+Cambio: Acceso directo al Estandar 5 desde el titulo del menu lateral
+Fecha: 2026-06-29
+
+Archivos modificados:
+- components/sidebar.php
+
+Detalle:
+- El titulo "Evaluaciones medicas ocupacionales" dentro del menu lateral ahora navega directamente a estandar5.php.
+- La flecha del mismo elemento queda separada para abrir y cerrar la lista plegable de submodulos.
+- Se conserva la lista de accesos directos a los seis submodulos del Estandar 5.
+
+Base de datos:
+- No hubo cambios de base de datos.
+- No se requiere migracion SQL para este ajuste.
+
+Validacion:
+- php -l components/sidebar.php

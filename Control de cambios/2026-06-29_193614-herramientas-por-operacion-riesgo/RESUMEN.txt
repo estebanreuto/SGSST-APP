@@ -1,0 +1,9 @@
+﻿Cambio: Herramientas por tipo de operación y tareas de alto riesgo en perfiles de cargo.
+- Administrativo muestra herramientas administrativas: equipos de cómputo, grapadora, sacaganchos, tijeras, bisturí y opción de otra.
+- Operativo muestra dos grupos: herramientas menores y herramientas eléctricas, cada uno con opción de otra.
+- Mixto muestra los tres grupos.
+- Se agregó selección múltiple de tareas de alto riesgo: alturas, excavaciones, caliente, energías peligrosas, productos químicos y espacios confinados.
+- El PDF del perfil incluye tareas de alto riesgo.
+Base de datos:
+- Se agregó tareas_alto_riesgo_json a estandar5_perfiles_cargo.
+Migración SQL: database/migrations/2026_06_29_estandar5_tareas_alto_riesgo_perfiles.sql

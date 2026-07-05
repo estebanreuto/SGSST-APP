@@ -1,0 +1,27 @@
+Cambio: Nuevo tipo Campana PyP en Salud
+Fecha: 2026-06-29
+
+Archivos modificados:
+- nueva_actividad.php
+
+Detalle:
+- Se agrego "Campana PyP en Salud" como nueva opcion en Tipo de Capacitacion.
+- Al seleccionar "Campana PyP en Salud", Categoria muestra solo:
+  - Estilos de Vida Saludable (Alimentacion, Ejercicio, Lavado de Manos)
+  - Prevencion Consumo de Sustancias (Alcohol, Drogas, Farmacos, Tabaco)
+  - Bienestar Emocional y Mental
+  - Controles Medicos Periodicos (Autocuidado)
+- Las opciones PyP se retiraron de las categorias generales de Charla de Seguridad y Capacitacion.
+- Se conservan las reglas anteriores:
+  - Induccion y Re Induccion solo muestran Legal.
+  - Entrenamiento solo muestra las opciones especificas de trabajo de alto riesgo.
+
+Base de datos:
+- No hubo cambios de base de datos.
+- No se requiere migracion SQL.
+
+Validacion:
+- php -l nueva_actividad.php
+- Navegador: se verifico el nuevo tipo Campana PyP en Salud y sus categorias.
+- Navegador: se verifico que Capacitacion, Entrenamiento e Induccion mantengan sus reglas.
+- Navegador: sin errores de consola.

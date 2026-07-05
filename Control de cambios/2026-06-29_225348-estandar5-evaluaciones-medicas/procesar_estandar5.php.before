@@ -1,0 +1,227 @@
+<?php
+require_once 'config/db.php';
+require_once 'config/auth.php';
+require_once 'config/estandar5_schema.php';
+
+$u = require_auth($conn);
+ensure_estandar5_schema($conn);
+
+$usuario_id = (int)($_SESSION['usuario_id'] ?? 0);
+$rol = $_SESSION['usuario_rol'] ?? '';
+$accion = $_POST['accion'] ?? '';
+
+$stmt = $conn->prepare("SELECT empresa_id FROM usuarios WHERE id = ?");
+$stmt->execute([$usuario_id]);
+$empresa_id = (int)$stmt->fetchColumn();
+
+function estandar5_redirect(string $msg, string $tipo = 'ok'): never
+{
+    header('Location: estandar5.php?modulo=perfiles-cargo&msg=' . urlencode($msg) . '&tipo=' . urlencode($tipo));
+    exit;
+}
+
+function estandar5_require_sst(string $rol): void
+{
+    if ($rol !== 'sst') {
+        estandar5_redirect('No tienes permiso para modificar esta información.', 'error');
+    }
+}
+
+function estandar5_clean_list(array $values): array
+{
+    $clean = [];
+    foreach ($values as $value) {
+        $text = trim((string)$value);
+        if ($text !== '') {
+            $clean[] = $text;
+        }
+    }
+    return array_values(array_unique($clean));
+}
+
+function estandar5_grouped_tools(array $post): array
+{
+    $groups = [
+        'Administrativo' => estandar5_clean_list($post['herramientas_administrativo'] ?? []),
+        'Herramientas menores' => estandar5_clean_list($post['herramientas_menores'] ?? []),
+        'Herramientas eléctricas' => estandar5_clean_list($post['herramientas_electricas'] ?? []),
+    ];
+
+    $others = [
+        'Administrativo' => trim((string)($post['herramienta_otra_administrativo'] ?? '')),
+        'Herramientas menores' => trim((string)($post['herramienta_otra_menores'] ?? '')),
+        'Herramientas eléctricas' => trim((string)($post['herramienta_otra_electricas'] ?? '')),
+    ];
+
+    foreach ($others as $group => $value) {
+        if ($value !== '') {
+            $groups[$group][] = $value;
+        }
+    }
+
+    $tools = [];
+    foreach ($groups as $group => $items) {
+        foreach (estandar5_clean_list($items) as $item) {
+            $tools[] = $group . ': ' . $item;
+        }
+    }
+
+    $legacy = estandar5_clean_list($post['herramientas'] ?? []);
+    foreach ($legacy as $item) {
+        $tools[] = $item;
+    }
+
+    return estandar5_clean_list($tools);
+}
+
+function estandar5_upload_file(string $field, int $empresa_id): ?string
+{
+    if (empty($_FILES[$field]) || ($_FILES[$field]['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+
+    if ($_FILES[$field]['error'] !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('No se pudo cargar uno de los documentos.');
+    }
+
+    $allowed = ['pdf', 'png', 'jpg', 'jpeg', 'webp'];
+    $original = (string)$_FILES[$field]['name'];
+    $extension = strtolower(pathinfo($original, PATHINFO_EXTENSION));
+    if (!in_array($extension, $allowed, true)) {
+        throw new RuntimeException('Solo se permiten archivos PDF o imagen para las licencias.');
+    }
+
+    if ((int)$_FILES[$field]['size'] > 8 * 1024 * 1024) {
+        throw new RuntimeException('Cada documento debe pesar máximo 8 MB.');
+    }
+
+    $base_dir = __DIR__ . '/uploads/estandar5/empresa-' . $empresa_id;
+    if (!is_dir($base_dir) && !mkdir($base_dir, 0775, true)) {
+        throw new RuntimeException('No se pudo preparar la carpeta de documentos.');
+    }
+
+    $filename = $field . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $extension;
+    $target = $base_dir . '/' . $filename;
+    if (!move_uploaded_file($_FILES[$field]['tmp_name'], $target)) {
+        throw new RuntimeException('No se pudo guardar el documento cargado.');
+    }
+
+    return 'uploads/estandar5/empresa-' . $empresa_id . '/' . $filename;
+}
+
+try {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        estandar5_redirect('Solicitud no válida.', 'error');
+    }
+
+    if (!$empresa_id || !in_array($rol, ['sst', 'representante'], true)) {
+        estandar5_redirect('Sesión no válida.', 'error');
+    }
+
+    estandar5_require_sst($rol);
+
+    if ($accion === 'guardar_centro_medico') {
+        $nombre = trim($_POST['nombre'] ?? '');
+        $nit = trim($_POST['nit'] ?? '');
+        $direccion = trim($_POST['direccion_principal'] ?? '');
+        $sedes = estandar5_clean_list($_POST['sedes'] ?? []);
+        $telefono = trim($_POST['telefono'] ?? '');
+        $correo = trim($_POST['correo'] ?? '');
+
+        if ($nombre === '' || $nit === '' || $direccion === '' || $telefono === '' || $correo === '') {
+            throw new RuntimeException('Completa los datos obligatorios del centro médico.');
+        }
+        if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+            throw new RuntimeException('El correo del centro médico no es válido.');
+        }
+
+        $licencia_funcionamiento = estandar5_upload_file('licencia_funcionamiento', $empresa_id);
+        $licencia_sst = estandar5_upload_file('licencia_sst', $empresa_id);
+
+        $stmt = $conn->prepare("
+            INSERT INTO estandar5_centros_medicos
+                (empresa_id, nombre, nit, direccion_principal, sedes_json, telefono, correo,
+                 licencia_funcionamiento_archivo, licencia_sst_archivo, creado_por)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([
+            $empresa_id,
+            $nombre,
+            $nit,
+            $direccion,
+            json_encode($sedes, JSON_UNESCAPED_UNICODE),
+            $telefono,
+            $correo,
+            $licencia_funcionamiento,
+            $licencia_sst,
+            $usuario_id,
+        ]);
+
+        estandar5_redirect('Centro médico autorizado registrado.');
+    }
+
+    if ($accion === 'guardar_perfil_cargo') {
+        $centro_medico_id = (int)($_POST['centro_medico_id'] ?? 0);
+        $nombre_cargo = trim($_POST['nombre_cargo'] ?? '');
+        $tipo_operacion = trim($_POST['tipo_operacion'] ?? '');
+        $tipo_proceso_select = trim($_POST['tipo_proceso_select'] ?? '');
+        $tipo_proceso_nuevo = trim($_POST['tipo_proceso_nuevo'] ?? '');
+        $tipo_proceso = $tipo_proceso_select === '__nuevo_proceso__' ? $tipo_proceso_nuevo : $tipo_proceso_select;
+        $guardar_proceso = ($_POST['guardar_proceso'] ?? '0') === '1';
+        $jefe_inmediato = trim($_POST['jefe_inmediato'] ?? '');
+        $tareas = estandar5_clean_list($_POST['tareas'] ?? []);
+        $tareas_alto_riesgo = estandar5_clean_list($_POST['tareas_alto_riesgo'] ?? []);
+        $herramientas = estandar5_grouped_tools($_POST);
+
+        if (!in_array($tipo_operacion, ['Administrativo', 'Operativo', 'Mixto'], true)) {
+            throw new RuntimeException('Selecciona un tipo de operación válido.');
+        }
+
+        if ($nombre_cargo === '' || $tipo_proceso === '' || $jefe_inmediato === '' || empty($tareas)) {
+            throw new RuntimeException('Completa cargo, proceso, tipo de operación, jefe inmediato y al menos una tarea.');
+        }
+
+        if ($centro_medico_id > 0) {
+            $stmt = $conn->prepare("SELECT COUNT(*) FROM estandar5_centros_medicos WHERE id = ? AND empresa_id = ? AND estado = 'activo'");
+            $stmt->execute([$centro_medico_id, $empresa_id]);
+            if ((int)$stmt->fetchColumn() === 0) {
+                throw new RuntimeException('El centro médico seleccionado no pertenece a la empresa.');
+            }
+        } else {
+            $centro_medico_id = null;
+        }
+
+        if ($guardar_proceso && $tipo_proceso !== '') {
+            $stmt = $conn->prepare("
+                INSERT IGNORE INTO estandar5_procesos_perfil (empresa_id, nombre, creado_por)
+                VALUES (?, ?, ?)
+            ");
+            $stmt->execute([$empresa_id, $tipo_proceso, $usuario_id]);
+        }
+
+        $stmt = $conn->prepare("
+            INSERT INTO estandar5_perfiles_cargo
+                (empresa_id, centro_medico_id, nombre_cargo, tipo_proceso, tipo_operacion, jefe_inmediato,
+                 tareas_json, tareas_alto_riesgo_json, herramientas_json, creado_por)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([
+            $empresa_id,
+            $centro_medico_id,
+            $nombre_cargo,
+            $tipo_proceso,
+            $tipo_operacion,
+            $jefe_inmediato,
+            json_encode($tareas, JSON_UNESCAPED_UNICODE),
+            json_encode($tareas_alto_riesgo, JSON_UNESCAPED_UNICODE),
+            json_encode($herramientas, JSON_UNESCAPED_UNICODE),
+            $usuario_id,
+        ]);
+
+        estandar5_redirect('Perfil de cargo guardado y disponible para reutilizar.');
+    }
+
+    estandar5_redirect('Acción no reconocida.', 'error');
+} catch (Throwable $e) {
+    estandar5_redirect($e->getMessage(), 'error');
+}

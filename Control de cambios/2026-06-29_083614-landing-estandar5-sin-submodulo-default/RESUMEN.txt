@@ -1,0 +1,22 @@
+Cambio: Pantalla inicial independiente para Estandar 5
+Fecha: 2026-06-29
+
+Archivos modificados:
+- estandar5.php
+
+Detalle:
+- La ruta estandar5.php ya no carga automaticamente el submodulo 3.1.1.
+- Al pulsar "Evaluaciones medicas ocupacionales" se muestra solo la pantalla inicial con los seis accesos a submodulos.
+- Los submodulos se cargan solo cuando la URL incluye modulo, por ejemplo:
+  estandar5.php?modulo=sociodemografica
+- Las vistas internas de submodulo ya no muestran la pantalla inicial ni la grilla de submodulos.
+- El encabezado del submodulo ahora muestra el codigo y titulo del modulo seleccionado.
+
+Base de datos:
+- No hubo cambios de base de datos.
+- No se requiere migracion SQL para este ajuste.
+
+Validacion:
+- php -l estandar5.php
+- Navegador: estandar5.php muestra solo pantalla inicial.
+- Navegador: estandar5.php?modulo=sociodemografica muestra vista independiente del submodulo 3.1.1.

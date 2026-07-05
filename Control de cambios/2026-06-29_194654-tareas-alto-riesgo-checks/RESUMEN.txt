@@ -1,0 +1,4 @@
+﻿Cambio: Tareas de alto riesgo ahora usan checks visibles.
+- Se reemplazó la lista múltiple por tarjetas tipo check, igual al sistema de herramientas.
+- Se agregaron: Conductor de vehículo liviano, Operario de maquinaria amarilla y Conductor de vehículo pesado.
+Base de datos: sin cambios; se mantiene tareas_alto_riesgo_json.

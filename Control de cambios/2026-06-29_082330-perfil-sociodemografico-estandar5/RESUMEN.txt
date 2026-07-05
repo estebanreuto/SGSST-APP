@@ -1,0 +1,32 @@
+Cambio: Perfil sociodemografico en Estandar 5 - Submodulo 3.1.1
+Fecha: 2026-06-29
+
+Archivos modificados:
+- estandar5.php
+
+Detalle:
+- El submodulo 3.1.1 ahora muestra una vista real del perfil sociodemografico.
+- Se toman los datos de la tabla encuesta_sociodemografica, vinculados a trabajadores de la empresa actual.
+- Se agregaron tarjetas resumen:
+  - Trabajadores encuestados
+  - Preguntas del perfil
+  - Preguntas con datos
+  - Vista del rol
+- Se agregaron graficos de barras por pregunta con porcentajes.
+- Se agrego listado de respuestas por pregunta, siguiendo el orden del formulario de registro del trabajador.
+- Se agregaron filtros por pregunta y busqueda de respuesta.
+- Se agregaron descargas de informe en Excel y PDF.
+- El informe exportado se genera por pregunta con resumen, porcentajes y grafica de barras.
+
+Base de datos:
+- No hubo cambios de base de datos.
+- No se requiere migracion SQL para este ajuste.
+
+Validacion:
+- php -l estandar5.php
+- Se verifico que Dompdf genera PDF correctamente.
+- Se verifico la vista en Navegador integrado.
+
+Nota:
+- En la sesion del usuario 123456 no aparecen graficas porque su empresa actual no tiene encuestas sociodemograficas asociadas.
+- Existe una encuesta local asociada a otra empresa, por lo que la consulta esta funcionando por aislamiento de empresa.
