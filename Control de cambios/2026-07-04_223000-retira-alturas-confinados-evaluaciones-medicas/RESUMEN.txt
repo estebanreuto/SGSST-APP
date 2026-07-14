@@ -1,0 +1,7 @@
+﻿Cambio: Retiro de trabajo seguro en alturas y espacios confinados del subestandar 3.1.4.
+- Se eliminaron del formulario de carga de examen recibido las secciones de alturas y espacios confinados.
+- La matriz de control medico del personal queda solo con examen medico laboral y alerta/soporte.
+- Las alertas de este subestandar ahora solo toman la fecha de vencimiento del examen medico laboral.
+- Se mantuvieron las columnas existentes en base de datos por compatibilidad; no se borraron datos.
+Base de datos:
+- No se hicieron cambios de base de datos.

@@ -1,0 +1,30 @@
+Fecha: 2026-07-12
+Modulo: Registro de trabajador - encuesta sociodemografica
+
+Archivo modificado:
+- register.php
+
+Cambios aplicados:
+- Campo jornada o turno habitual:
+  - Se elimino la opcion "Sala de Ventas 09:00 am - 05:00 pm".
+  - Se reemplazo "Proyecto 07:00 am - 04:00 pm / Sabado medio dia" por
+    "Operativo 07:00 am - 04:00 pm / Sabado medio dia".
+  - Se agrego la opcion "Otro horario".
+  - Al seleccionar "Otro horario" se despliega:
+    - Seleccion de dias: Lunes a Domingo.
+    - Hora de inicio.
+    - Hora de salida.
+  - Si se selecciona "Otro horario", el sistema valida que tenga dias y horas antes de enviar.
+  - Al guardar, el turno se consolida como texto:
+    "Otro horario: dias hora_inicio - hora_salida".
+
+Base de datos:
+- No requiere migracion SQL.
+- El campo encuesta_sociodemografica.turno ya guarda texto.
+
+Validacion:
+- php -l register.php: sin errores de sintaxis.
+- Navegador integrado:
+  - Solo aparecen Oficina, Operativo y Otro horario.
+  - Otro horario despliega dias y horas.
+  - Hora de inicio y hora de salida quedan obligatorias cuando aplica.

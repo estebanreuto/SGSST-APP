@@ -1,0 +1,63 @@
+Cambio: WhatsApp CRM manual para PreventWork
+Fecha: 2026-07-09
+
+Objetivo
+- Crear un primer modulo sin costos adicionales para gestionar prospectos que llegan por WhatsApp Business gratis.
+- Mantener el flujo manual, con apoyo de ChatGPT, sin usar WhatsApp Cloud API, n8n ni Copilot Studio.
+- Centralizar este flujo en el Super Administrador, separado de los roles cliente.
+
+Archivos principales
+- admin/whatsapp_crm.php
+- config/whatsapp_crm_schema.php
+- database/migrations/2026_07_09_whatsapp_crm_prospectos.sql
+- components/sidebar.php
+- marketing-publicidad/whatsapp-crm/README.md
+- marketing-publicidad/whatsapp-crm/flujo-comercial.md
+- marketing-publicidad/whatsapp-crm/prompts-chatgpt.md
+- marketing-publicidad/whatsapp-crm/mensajes-whatsapp-business.txt
+
+Implementacion
+- Se agrego una tabla nueva: whatsapp_prospectos.
+- Se agrego una pantalla de super admin: admin/whatsapp_crm.php.
+- Se agrego acceso en el menu lateral del super admin: WhatsApp CRM.
+- El modulo permite crear, editar, eliminar, filtrar y dar seguimiento a prospectos.
+- Cada prospecto puede abrir WhatsApp con mensaje prellenado.
+- Cada prospecto puede copiar un prompt para pegar en ChatGPT.
+- Se agrego documentacion comercial y mensajes rapidos sugeridos para WhatsApp Business.
+
+Pruebas realizadas
+- php -l admin/whatsapp_crm.php: sin errores.
+- php -l config/whatsapp_crm_schema.php: sin errores.
+- php -l components/sidebar.php: sin errores.
+- Creacion/verificacion de tabla local: whatsapp_prospectos OK.
+- Navegacion a admin/whatsapp_crm.php redirige a login si no existe sesion de super admin.
+- Login de Super Administrador en entorno local: OK.
+- Carga visual del modulo WhatsApp CRM en admin: OK.
+- Creacion de prospecto de prueba: OK.
+- Edicion de prospecto y cambio de etapa a cotizado: OK.
+- Enlace wa.me generado con telefono normalizado a Colombia: OK.
+- Boton Prompt muestra el texto en pantalla cuando el navegador no permite copiar automaticamente: OK.
+- Filtros por etapa cotizado/ganado: OK.
+- Boton WhatsApp Web apunta a web.whatsapp.com/send con telefono y mensaje prellenado: OK.
+- Boton Mensaje muestra la respuesta sugerida en pantalla antes de abrir/enviar por WhatsApp: OK.
+- Prompts ajustados con dos escenarios: cliente contacta primero y PreventWork inicia contacto: OK.
+- Mensajes rapidos existentes incorporados como base de bienvenida, datos, diagnostico, precio, llamada y seguimiento: OK.
+- CRM ajustado con interes Contacto saliente y generacion de mensajes diferenciada por etapa: OK.
+- Prompt del boton Prompt enriquecido con tono humano/tecnico, planes, valores y reglas de atencion: OK.
+- Prompt enriquecido con conexion humana antes de vender: necesidad del cliente, orden documental, evidencias, auditorias, falta de tiempo y seguimiento claro: OK.
+- Mensajes rapidos agregados para contacto saliente humano, dolor por auditoria y falta de tiempo: OK.
+- Formato WhatsApp ajustado con parrafos cortos, listas numeradas para datos, vinietas para beneficios y emojis funcionales moderados: OK.
+- Archivo original marketing-publicidad/whatsapp/respuestas-rapidas-whatsapp.txt actualizado con estructura profesional para WhatsApp Business: OK.
+- Generador del CRM ajustado para mensajes prellenados con saltos, listas y vinietas: OK.
+- Revision de consistencia entre prompt, respuestas rapidas y flujo comercial: OK.
+- Se definieron 2 niveles de datos: 5 datos minimos para diagnostico inicial y 8 datos completos para propuesta/CRM: OK.
+- CRM ajustado para no recomendar plan Mediana/Grande si el numero de trabajadores esta vacio: OK.
+- Prompt del boton Prompt actualizado con cargo, niveles de datos y correccion gramatical "no prometas": OK.
+
+Notas
+- Este modulo no automatiza respuestas ni lee chats de WhatsApp.
+- Para bot automatico oficial se necesitara WhatsApp Business Platform / Cloud API.
+- El alcance actual esta pensado para trabajar con WhatsApp Business gratis y registro manual.
+- Los roles representante, sst y trabajador son cuentas cliente; no deben controlar este CRM comercial global.
+- Quedo un prospecto de prueba visible para revision: Vertix / Arturo 00.
+- Se realizaron mensajes de prueba autorizados por el usuario en el chat Arturo 00 para validar el flujo manual.

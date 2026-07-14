@@ -1,0 +1,7 @@
+﻿Cambio: Vista horizontal tipo matriz para control de examenes medicos.
+- Se agrego filtro por numero de identificacion/documento del trabajador.
+- La captura de datos queda como fila horizontal desplazable tipo tabla.
+- Se mantiene la opcion de modificar manualmente los campos extraidos del PDF.
+- La lectura del PDF ahora intenta seleccionar tipo de examen, resultado y aptitud por palabras clave.
+Base de datos:
+- No se hicieron cambios de base de datos.

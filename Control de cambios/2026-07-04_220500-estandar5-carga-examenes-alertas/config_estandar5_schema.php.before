@@ -1,0 +1,97 @@
+<?php
+
+function ensure_estandar5_schema(PDO $conn): void
+{
+    $conn->exec("
+        CREATE TABLE IF NOT EXISTS estandar5_centros_medicos (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            empresa_id INT NOT NULL,
+            nombre VARCHAR(180) NOT NULL,
+            nit VARCHAR(40) NOT NULL,
+            direccion_principal VARCHAR(220) NOT NULL,
+            sedes_json LONGTEXT DEFAULT NULL,
+            telefono VARCHAR(60) NOT NULL,
+            correo VARCHAR(160) NOT NULL,
+            licencia_funcionamiento_archivo VARCHAR(500) DEFAULT NULL,
+            licencia_sst_archivo VARCHAR(500) DEFAULT NULL,
+            estado ENUM('activo','inactivo') NOT NULL DEFAULT 'activo',
+            creado_por INT DEFAULT NULL,
+            creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            KEY idx_estandar5_centro_empresa (empresa_id),
+            KEY idx_estandar5_centro_estado (estado),
+            CONSTRAINT fk_estandar5_centro_creador FOREIGN KEY (creado_por)
+                REFERENCES usuarios(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+
+    $conn->exec("
+        CREATE TABLE IF NOT EXISTS estandar5_perfiles_cargo (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            empresa_id INT NOT NULL,
+            centro_medico_id INT DEFAULT NULL,
+            nombre_cargo VARCHAR(180) NOT NULL,
+            tipo_proceso VARCHAR(140) NOT NULL,
+            tipo_operacion ENUM('Administrativo','Operativo','Mixto') NOT NULL DEFAULT 'Mixto',
+            jefe_inmediato VARCHAR(180) NOT NULL,
+            tareas_json LONGTEXT NOT NULL,
+            tareas_alto_riesgo_json LONGTEXT DEFAULT NULL,
+            herramientas_json LONGTEXT DEFAULT NULL,
+            estado ENUM('activo','inactivo') NOT NULL DEFAULT 'activo',
+            creado_por INT DEFAULT NULL,
+            creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            KEY idx_estandar5_perfil_empresa (empresa_id),
+            KEY idx_estandar5_perfil_centro (centro_medico_id),
+            KEY idx_estandar5_perfil_estado (estado),
+            CONSTRAINT fk_estandar5_perfil_centro FOREIGN KEY (centro_medico_id)
+                REFERENCES estandar5_centros_medicos(id) ON DELETE SET NULL,
+            CONSTRAINT fk_estandar5_perfil_creador FOREIGN KEY (creado_por)
+                REFERENCES usuarios(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+
+    $conn->exec("
+        CREATE TABLE IF NOT EXISTS estandar5_procesos_perfil (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            empresa_id INT NOT NULL,
+            nombre VARCHAR(140) NOT NULL,
+            creado_por INT DEFAULT NULL,
+            creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_estandar5_proceso_empresa_nombre (empresa_id, nombre),
+            KEY idx_estandar5_proceso_empresa (empresa_id),
+            CONSTRAINT fk_estandar5_proceso_creador FOREIGN KEY (creado_por)
+                REFERENCES usuarios(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+
+    $conn->exec("
+        CREATE TABLE IF NOT EXISTS estandar5_evaluaciones_medicas (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            empresa_id INT NOT NULL,
+            trabajador_id INT NOT NULL,
+            perfil_cargo_id INT NOT NULL,
+            centro_medico_id INT NOT NULL,
+            tipo_examen ENUM('Ingreso','Periodico','Egreso','Post incapacidad','Reubicacion') NOT NULL DEFAULT 'Periodico',
+            estado ENUM('solicitada','programada','realizada','cancelada') NOT NULL DEFAULT 'solicitada',
+            correo_destino VARCHAR(160) NOT NULL,
+            observaciones TEXT DEFAULT NULL,
+            creado_por INT DEFAULT NULL,
+            creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            KEY idx_estandar5_eval_empresa (empresa_id),
+            KEY idx_estandar5_eval_trabajador (trabajador_id),
+            KEY idx_estandar5_eval_perfil (perfil_cargo_id),
+            KEY idx_estandar5_eval_centro (centro_medico_id),
+            KEY idx_estandar5_eval_estado (estado),
+            CONSTRAINT fk_estandar5_eval_trabajador FOREIGN KEY (trabajador_id)
+                REFERENCES usuarios(id) ON DELETE CASCADE,
+            CONSTRAINT fk_estandar5_eval_perfil FOREIGN KEY (perfil_cargo_id)
+                REFERENCES estandar5_perfiles_cargo(id) ON DELETE CASCADE,
+            CONSTRAINT fk_estandar5_eval_centro FOREIGN KEY (centro_medico_id)
+                REFERENCES estandar5_centros_medicos(id) ON DELETE CASCADE,
+            CONSTRAINT fk_estandar5_eval_creador FOREIGN KEY (creado_por)
+                REFERENCES usuarios(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+}

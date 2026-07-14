@@ -1,0 +1,7 @@
+﻿Cambio: Reorden visual del subestandar 3.1.4 evaluaciones medicas.
+- El flujo visual queda: trabajadores para programacion, solicitudes recientes, carga del examen, control medico del personal y alertas.
+- La matriz ahora se basa en el personal registrado con rol trabajador, no solo en soportes cargados.
+- La matriz muestra columnas horizontales para examen medico laboral, trabajo en alturas y espacios confinados.
+- Se agrega notificacion visible para el responsable SST cuando existan alertas de vencimiento.
+Base de datos:
+- No se hicieron cambios de base de datos.

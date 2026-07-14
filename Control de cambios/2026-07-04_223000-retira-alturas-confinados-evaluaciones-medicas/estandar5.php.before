@@ -1,0 +1,2335 @@
+<?php
+require_once 'config/db.php';
+require_once 'config/auth.php';
+require_once 'config/estandar5_schema.php';
+
+date_default_timezone_set('America/Bogota');
+$u = require_auth($conn);
+ensure_estandar5_schema($conn);
+
+$usuario_rol = $_SESSION['usuario_rol'] ?? '';
+if (!in_array($usuario_rol, ['sst', 'representante'], true)) {
+    header('Location: dashboard.php');
+    exit;
+}
+
+$submodulos = [
+    'sociodemografica' => [
+        'codigo' => '3.1.1',
+        'titulo' => 'Descripción sociodemográfica - Diagnóstico de condiciones de salud',
+        'descripcion' => 'Base para consolidar información poblacional y hallazgos generales de salud.',
+        'icono' => 'fa-users-viewfinder',
+    ],
+    'promocion-prevencion' => [
+        'codigo' => '3.1.2',
+        'titulo' => 'Actividades de Promoción y Prevención en Salud',
+        'descripcion' => 'Planificación y seguimiento de acciones preventivas derivadas del diagnóstico.',
+        'icono' => 'fa-heart-pulse',
+    ],
+    'perfiles-cargo' => [
+        'codigo' => '3.1.3',
+        'titulo' => 'Información al médico de los perfiles de cargo',
+        'descripcion' => 'Insumos del cargo, peligros y funciones para orientar los exámenes médicos.',
+        'icono' => 'fa-user-doctor',
+    ],
+    'evaluaciones-medicas' => [
+        'codigo' => '3.1.4',
+        'titulo' => 'Realización de Evaluaciones Médicas Ocupacionales - Peligros - Periodicidad',
+        'descripcion' => 'Control de ingreso, periódicos, egreso y periodicidad según exposición.',
+        'icono' => 'fa-notes-medical',
+    ],
+    'historias-clinicas' => [
+        'codigo' => '3.1.5',
+        'titulo' => 'Custodia de Historias Clínicas',
+        'descripcion' => 'Gestión de soporte y evidencia de custodia por entidad competente.',
+        'icono' => 'fa-folder-lock',
+    ],
+    'restricciones' => [
+        'codigo' => '3.1.6',
+        'titulo' => 'Restricciones y recomendaciones médico/laborales',
+        'descripcion' => 'Seguimiento ejecutivo de restricciones, recomendaciones y cierre de acciones.',
+        'icono' => 'fa-clipboard-list',
+    ],
+];
+
+$modulo_actual = $_GET['modulo'] ?? '';
+if ($modulo_actual !== '' && !isset($submodulos[$modulo_actual])) {
+    $modulo_actual = '';
+}
+$modulo = $modulo_actual !== '' ? $submodulos[$modulo_actual] : null;
+
+$usuario_id = (int)($_SESSION['usuario_id'] ?? 0);
+$stmt_empresa = $conn->prepare("SELECT empresa_id, nombre_empresa FROM usuarios WHERE id = ?");
+$stmt_empresa->execute([$usuario_id]);
+$usuario_empresa = $stmt_empresa->fetch(PDO::FETCH_ASSOC) ?: [];
+$empresa_id = (int)($usuario_empresa['empresa_id'] ?? 0);
+$empresa_nombre = $usuario_empresa['nombre_empresa'] ?? 'Empresa';
+
+function estandar5_socio_preguntas(): array
+{
+    return [
+        'edad' => ['label' => 'Edad', 'icon' => 'fa-hourglass-half'],
+        'estado_civil' => ['label' => 'Estado civil', 'icon' => 'fa-heart'],
+        'genero' => ['label' => 'Género', 'icon' => 'fa-person-half-dress'],
+        'personas_cargo' => ['label' => 'Personas a cargo', 'icon' => 'fa-people-roof'],
+        'escolaridad' => ['label' => 'Escolaridad', 'icon' => 'fa-graduation-cap'],
+        'vivienda' => ['label' => 'Vivienda', 'icon' => 'fa-house'],
+        'tiempo_libre' => ['label' => 'Tiempo libre', 'icon' => 'fa-clock'],
+        'experiencia' => ['label' => 'Experiencia', 'icon' => 'fa-briefcase'],
+        'estrato' => ['label' => 'Estrato', 'icon' => 'fa-layer-group'],
+        'convive_con' => ['label' => 'Convive con', 'icon' => 'fa-users'],
+        'raza' => ['label' => 'Raza', 'icon' => 'fa-earth-americas'],
+        'tipo_contrato' => ['label' => 'Tipo de contrato', 'icon' => 'fa-file-signature'],
+        'turno' => ['label' => 'Turno', 'icon' => 'fa-calendar-days'],
+        'antiguedad' => ['label' => 'Antigüedad', 'icon' => 'fa-chart-line'],
+        'enfermedad' => ['label' => 'Enfermedad diagnosticada', 'icon' => 'fa-notes-medical'],
+        'fuma' => ['label' => 'Fuma', 'icon' => 'fa-smoking'],
+        'alcohol' => ['label' => 'Consumo de alcohol', 'icon' => 'fa-wine-glass'],
+        'deporte' => ['label' => 'Actividad física/deporte', 'icon' => 'fa-person-running'],
+        'tipo_personal' => ['label' => 'Tipo de personal', 'icon' => 'fa-id-badge'],
+    ];
+}
+
+function estandar5_socio_respuesta($valor): string
+{
+    $texto = trim((string)$valor);
+    return $texto === '' ? 'Sin respuesta' : $texto;
+}
+
+function estandar5_socio_rows(PDO $conn, int $empresa_id): array
+{
+    if ($empresa_id <= 0) {
+        return [];
+    }
+
+    $stmt = $conn->prepare("
+        SELECT e.*, u.nombre, u.apellido, u.cedula, u.email, u.activo
+        FROM encuesta_sociodemografica e
+        INNER JOIN usuarios u ON u.id = e.usuario_id
+        WHERE u.empresa_id = ? AND u.rol = 'trabajador'
+        ORDER BY u.nombre ASC, u.apellido ASC
+    ");
+    $stmt->execute([$empresa_id]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function estandar5_socio_stats(array $rows, array $preguntas): array
+{
+    $stats = [];
+    $total = count($rows);
+    foreach ($preguntas as $campo => $meta) {
+        $conteos = [];
+        foreach ($rows as $row) {
+            $respuesta = estandar5_socio_respuesta($row[$campo] ?? '');
+            $conteos[$respuesta] = ($conteos[$respuesta] ?? 0) + 1;
+        }
+        arsort($conteos);
+        $items = [];
+        foreach ($conteos as $respuesta => $cantidad) {
+            $items[] = [
+                'respuesta' => $respuesta,
+                'cantidad' => $cantidad,
+                'porcentaje' => $total > 0 ? round(($cantidad / $total) * 100, 1) : 0,
+            ];
+        }
+        $stats[$campo] = [
+            'label' => $meta['label'],
+            'icon' => $meta['icon'],
+            'total' => $total,
+            'items' => $items,
+            'principal' => $items[0] ?? ['respuesta' => 'Sin datos', 'cantidad' => 0, 'porcentaje' => 0],
+        ];
+    }
+    return $stats;
+}
+
+function estandar5_socio_export_html(array $stats, array $preguntas, string $empresa_nombre, ?string $pregunta_filtro = null, string $buscar_filtro = ''): string
+{
+    $fecha = date('d/m/Y H:i');
+    $html = '<!doctype html><html lang="es"><head><meta charset="UTF-8"><style>
+        body{font-family:DejaVu Sans,Arial,sans-serif;color:#1f2d3d;font-size:12px}
+        h1{color:#1e3a8a;font-size:20px;margin:0 0 5px}
+        h2{color:#1e3a8a;font-size:15px;margin:22px 0 8px;border-bottom:1px solid #dbe3ec;padding-bottom:6px}
+        .meta{color:#64748b;margin-bottom:16px}.question{page-break-inside:avoid;margin-bottom:16px}
+        table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border:1px solid #dbe3ec;padding:7px;text-align:left}
+        th{background:#f8fafc;color:#334155}.bar{height:9px;background:#e2e8f0;border-radius:20px;overflow:hidden}
+        .fill{height:9px;background:#ff7a00}.summary{background:#fff7ed;border:1px solid #fed7aa;padding:8px;border-radius:6px;color:#9a3412;margin:8px 0}
+    </style></head><body>';
+    $html .= '<h1>Informe perfil sociodemográfico</h1>';
+    $html .= '<div class="meta">Empresa: ' . htmlspecialchars($empresa_nombre) . ' | Generado: ' . htmlspecialchars($fecha) . '</div>';
+
+    foreach ($preguntas as $campo => $meta) {
+        if ($pregunta_filtro && $pregunta_filtro !== $campo) {
+            continue;
+        }
+        $dato = $stats[$campo] ?? null;
+        if (!$dato) {
+            continue;
+        }
+        if ($buscar_filtro !== '' && stripos($meta['label'], $buscar_filtro) === false) {
+            $coincide = false;
+            foreach ($dato['items'] as $item_busqueda) {
+                if (stripos($item_busqueda['respuesta'], $buscar_filtro) !== false) {
+                    $coincide = true;
+                    break;
+                }
+            }
+            if (!$coincide) {
+                continue;
+            }
+        }
+        $html .= '<section class="question">';
+        $html .= '<h2>' . htmlspecialchars($meta['label']) . '</h2>';
+        $html .= '<div class="summary">Respuesta predominante: <strong>' . htmlspecialchars($dato['principal']['respuesta']) . '</strong> (' . htmlspecialchars((string)$dato['principal']['porcentaje']) . '%)</div>';
+        $html .= '<table><thead><tr><th>Respuesta</th><th>Cantidad</th><th>Porcentaje</th><th>Gráfica</th></tr></thead><tbody>';
+        foreach ($dato['items'] as $item) {
+            if ($buscar_filtro !== '' && stripos($meta['label'], $buscar_filtro) === false && stripos($item['respuesta'], $buscar_filtro) === false) {
+                continue;
+            }
+            $html .= '<tr><td>' . htmlspecialchars($item['respuesta']) . '</td><td>' . (int)$item['cantidad'] . '</td><td>' . htmlspecialchars((string)$item['porcentaje']) . '%</td><td><div class="bar"><div class="fill" style="width:' . htmlspecialchars((string)$item['porcentaje']) . '%"></div></div></td></tr>';
+        }
+        if (empty($dato['items'])) {
+            $html .= '<tr><td colspan="4">No hay respuestas registradas.</td></tr>';
+        }
+        $html .= '</tbody></table></section>';
+    }
+    return $html . '</body></html>';
+}
+
+function estandar5_pyp_categorias(): array
+{
+    return [
+        'Estilos de Vida Saludable (Alimentación, Ejercicio, Lavado de Manos)' => [
+            'titulo' => 'Estilos de vida saludable',
+            'icon' => 'fa-person-running',
+            'descripcion' => 'Alimentación, ejercicio, lavado de manos y hábitos protectores.',
+        ],
+        'Prevención Consumo de Sustancias (Alcohol, Drogas, Fármacos, Tabaco)' => [
+            'titulo' => 'Prevención consumo de sustancias',
+            'icon' => 'fa-ban-smoking',
+            'descripcion' => 'Alcohol, drogas, fármacos, tabaco y autocuidado.',
+        ],
+        'Bienestar Emocional y Mental' => [
+            'titulo' => 'Bienestar emocional y mental',
+            'icon' => 'fa-brain',
+            'descripcion' => 'Promoción de salud mental, equilibrio y manejo emocional.',
+        ],
+        'Controles Médicos Periódicos (Autocuidado)' => [
+            'titulo' => 'Controles médicos periódicos',
+            'icon' => 'fa-stethoscope',
+            'descripcion' => 'Autocuidado y seguimiento preventivo de condiciones de salud.',
+        ],
+    ];
+}
+
+function estandar5_pyp_rows(PDO $conn, int $empresa_id): array
+{
+    if ($empresa_id <= 0) {
+        return [];
+    }
+
+    $stmt = $conn->prepare("
+        SELECT
+            a.*,
+            (SELECT c.id FROM capacitaciones_cursos c WHERE c.actividad_id = a.id LIMIT 1) AS curso_id,
+            (SELECT COUNT(DISTINCT at.usuario_id) FROM actividades_trabajadores at WHERE at.actividad_id = a.id) AS trabajadores_asignados,
+            (
+                SELECT COUNT(DISTINCT cp.usuario_id)
+                FROM capacitaciones_progreso cp
+                INNER JOIN capacitaciones_cursos c2 ON c2.id = cp.curso_id
+                WHERE c2.actividad_id = a.id
+            ) AS trabajadores_con_progreso,
+            (
+                SELECT COUNT(DISTINCT cp.usuario_id)
+                FROM capacitaciones_progreso cp
+                INNER JOIN capacitaciones_cursos c3 ON c3.id = cp.curso_id
+                WHERE c3.actividad_id = a.id AND (cp.porcentaje >= 100 OR cp.completado_en IS NOT NULL)
+            ) AS trabajadores_completaron,
+            (
+                SELECT COUNT(DISTINCT ca.usuario_id)
+                FROM capacitaciones_actas ca
+                INNER JOIN capacitaciones_cursos c4 ON c4.id = ca.curso_id
+                WHERE c4.actividad_id = a.id
+            ) AS actas_firmadas
+        FROM actividades_capacitacion a
+        WHERE a.empresa_id = ? AND a.tipo_capacitacion = 'Campaña PyP en Salud'
+        ORDER BY a.fecha_inicio DESC, a.id DESC
+    ");
+    $stmt->execute([$empresa_id]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function estandar5_pyp_total_trabajadores(PDO $conn, int $empresa_id): int
+{
+    if ($empresa_id <= 0) {
+        return 0;
+    }
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM usuarios WHERE empresa_id = ? AND rol = 'trabajador' AND COALESCE(activo, 1) = 1");
+    $stmt->execute([$empresa_id]);
+    return (int)$stmt->fetchColumn();
+}
+
+function estandar5_pyp_estado(array $row): array
+{
+    $estado = strtolower((string)($row['estado'] ?? 'programada'));
+    if (in_array($estado, ['completada', 'ejecutada'], true)) {
+        return ['key' => 'ejecutada', 'label' => 'Ejecutada'];
+    }
+    if (in_array($estado, ['cancelada', 'no_ejecutada'], true)) {
+        return ['key' => 'cancelada', 'label' => $estado === 'cancelada' ? 'Cancelada' : 'No ejecutada'];
+    }
+    if ($estado === 'en_proceso') {
+        return ['key' => 'en_proceso', 'label' => 'En proceso'];
+    }
+
+    $fin = !empty($row['fecha_fin']) ? strtotime((string)$row['fecha_fin']) : false;
+    $inicio = !empty($row['fecha_inicio']) ? strtotime((string)$row['fecha_inicio']) : false;
+    $ahora = time();
+    if ($fin && $fin < $ahora) {
+        return ['key' => 'vencida', 'label' => 'Por cerrar'];
+    }
+    if ($inicio && $inicio <= $ahora && (!$fin || $fin >= $ahora)) {
+        return ['key' => 'en_proceso', 'label' => 'En proceso'];
+    }
+    return ['key' => 'programada', 'label' => 'Programada'];
+}
+
+function estandar5_pyp_fecha($fecha): string
+{
+    if (empty($fecha)) {
+        return 'Sin fecha';
+    }
+    $ts = strtotime((string)$fecha);
+    return $ts ? date('d/m/Y h:i A', $ts) : 'Sin fecha';
+}
+
+function estandar5_pyp_alcance(array $row, int $total_trabajadores): int
+{
+    $asignados = (int)($row['trabajadores_asignados'] ?? 0);
+    $dirigido = (string)($row['dirigido_a'] ?? '');
+    if ($asignados === 0 && stripos($dirigido, 'Toda la empresa') !== false) {
+        return $total_trabajadores;
+    }
+    return $asignados;
+}
+
+function estandar5_pyp_resumen(array $rows, array $categorias, int $total_trabajadores): array
+{
+    $resumen = [
+        'total' => count($rows),
+        'programadas' => 0,
+        'en_proceso' => 0,
+        'ejecutadas' => 0,
+        'vencidas' => 0,
+        'personas_alcance' => 0,
+        'con_evaluacion' => 0,
+        'categorias' => [],
+    ];
+
+    foreach ($categorias as $categoria => $meta) {
+        $resumen['categorias'][$categoria] = [
+            'meta' => $meta,
+            'total' => 0,
+            'programadas' => 0,
+            'en_proceso' => 0,
+            'ejecutadas' => 0,
+            'vencidas' => 0,
+            'personas_alcance' => 0,
+            'ultima' => null,
+            'proxima' => null,
+            'rows' => [],
+        ];
+    }
+
+    foreach ($rows as $row) {
+        $categoria = (string)($row['categoria'] ?? 'Sin categoría');
+        if (!isset($resumen['categorias'][$categoria])) {
+            $resumen['categorias'][$categoria] = [
+                'meta' => [
+                    'titulo' => $categoria,
+                    'icon' => 'fa-circle-plus',
+                    'descripcion' => 'Categoría personalizada registrada desde capacitación.',
+                ],
+                'total' => 0,
+                'programadas' => 0,
+                'en_proceso' => 0,
+                'ejecutadas' => 0,
+                'vencidas' => 0,
+                'personas_alcance' => 0,
+                'ultima' => null,
+                'proxima' => null,
+                'rows' => [],
+            ];
+        }
+
+        $estado = estandar5_pyp_estado($row);
+        $row['_estado_key'] = $estado['key'];
+        $row['_estado_label'] = $estado['label'];
+        $alcance = estandar5_pyp_alcance($row, $total_trabajadores);
+        $row['_alcance'] = $alcance;
+        $row['_avance'] = $alcance > 0 ? round(((int)($row['trabajadores_completaron'] ?? 0) / $alcance) * 100) : 0;
+        $row['_tiene_evaluacion'] = !empty($row['curso_id']);
+
+        $bucket =& $resumen['categorias'][$categoria];
+        $bucket['total']++;
+        $bucket['personas_alcance'] += $alcance;
+        $bucket['rows'][] = $row;
+
+        if (isset($bucket[$estado['key']])) {
+            $bucket[$estado['key']]++;
+        }
+        if (isset($resumen[$estado['key']])) {
+            $resumen[$estado['key']]++;
+        }
+        if ($row['_tiene_evaluacion']) {
+            $resumen['con_evaluacion']++;
+        }
+        $resumen['personas_alcance'] += $alcance;
+
+        $inicio = !empty($row['fecha_inicio']) ? strtotime((string)$row['fecha_inicio']) : false;
+        if ($inicio) {
+            if (!$bucket['ultima'] || $inicio > strtotime((string)$bucket['ultima']['fecha_inicio'])) {
+                $bucket['ultima'] = $row;
+            }
+            if ($inicio >= time() && (!$bucket['proxima'] || $inicio < strtotime((string)$bucket['proxima']['fecha_inicio']))) {
+                $bucket['proxima'] = $row;
+            }
+        }
+        unset($bucket);
+    }
+
+    return $resumen;
+}
+
+function estandar5_decode_list(?string $json): array
+{
+    $data = json_decode((string)$json, true);
+    return is_array($data) ? array_values(array_filter($data, fn($item) => trim((string)$item) !== '')) : [];
+}
+
+function estandar5_herramientas_por_grupo(): array
+{
+    return [
+        'administrativo' => [
+            'titulo' => 'Herramientas administrativas',
+            'icon' => 'fa-briefcase',
+            'items' => ['Equipos de cómputo', 'Grapadora', 'Sacaganchos', 'Tijeras', 'Bisturí'],
+        ],
+        'menores' => [
+            'titulo' => 'Herramientas menores',
+            'icon' => 'fa-hammer',
+            'items' => ['Martillo', 'Destornilladores', 'Alicates', 'Pinzas', 'Llaves de presión', 'Llaves mixtas', 'Cortafrío', 'Flexómetro'],
+        ],
+        'electricas' => [
+            'titulo' => 'Herramientas eléctricas',
+            'icon' => 'fa-plug-circle-bolt',
+            'items' => ['Taladro', 'Pulidora', 'Sierra eléctrica', 'Caladora', 'Esmeril', 'Hidrolavadora', 'Soldador eléctrico', 'Compresor', 'Extensión eléctrica', 'Multímetro'],
+        ],
+    ];
+}
+
+function estandar5_tareas_alto_riesgo(): array
+{
+    return [
+        'Trabajo en alturas',
+        'Trabajo en excavaciones',
+        'Trabajo en caliente',
+        'Trabajo con energías peligrosas',
+        'Trabajo con productos químicos',
+        'Trabajo en espacios confinados',
+        'Conductor de vehículo liviano',
+        'Operario de maquinaria amarilla',
+        'Conductor de vehículo pesado',
+    ];
+}
+
+function estandar5_centros_medicos_rows(PDO $conn, int $empresa_id): array
+{
+    if ($empresa_id <= 0) {
+        return [];
+    }
+    $stmt = $conn->prepare("
+        SELECT *
+        FROM estandar5_centros_medicos
+        WHERE empresa_id = ? AND estado = 'activo'
+        ORDER BY nombre ASC
+    ");
+    $stmt->execute([$empresa_id]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function estandar5_perfiles_cargo_rows(PDO $conn, int $empresa_id): array
+{
+    if ($empresa_id <= 0) {
+        return [];
+    }
+    $stmt = $conn->prepare("
+        SELECT p.*, c.nombre AS centro_nombre
+        FROM estandar5_perfiles_cargo p
+        LEFT JOIN estandar5_centros_medicos c ON c.id = p.centro_medico_id
+        WHERE p.empresa_id = ? AND p.estado = 'activo'
+        ORDER BY p.actualizado_en DESC, p.id DESC
+    ");
+    $stmt->execute([$empresa_id]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function estandar5_procesos_perfil_rows(PDO $conn, int $empresa_id): array
+{
+    if ($empresa_id <= 0) {
+        return [];
+    }
+    $stmt = $conn->prepare("
+        SELECT nombre
+        FROM estandar5_procesos_perfil
+        WHERE empresa_id = ?
+        ORDER BY nombre ASC
+    ");
+    $stmt->execute([$empresa_id]);
+    return array_map(fn($row) => $row['nombre'], $stmt->fetchAll(PDO::FETCH_ASSOC));
+}
+
+function estandar5_perfil_cargo_find(PDO $conn, int $empresa_id, int $perfil_id): ?array
+{
+    $stmt = $conn->prepare("
+        SELECT p.*, c.nombre AS centro_nombre, c.nit AS centro_nit, c.direccion_principal AS centro_direccion,
+               c.telefono AS centro_telefono, c.correo AS centro_correo
+        FROM estandar5_perfiles_cargo p
+        LEFT JOIN estandar5_centros_medicos c ON c.id = p.centro_medico_id
+        WHERE p.id = ? AND p.empresa_id = ? AND p.estado = 'activo'
+        LIMIT 1
+    ");
+    $stmt->execute([$perfil_id, $empresa_id]);
+    $perfil = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $perfil ?: null;
+}
+
+function estandar5_trabajadores_medicos_rows(PDO $conn, int $empresa_id): array
+{
+    if ($empresa_id <= 0) {
+        return [];
+    }
+    $stmt = $conn->prepare("
+        SELECT
+            u.id, u.nombre, u.apellido, u.cedula, u.email, u.activo,
+            g.nombre AS grupo_nombre,
+            e.tipo_personal,
+            em.estado AS ultima_eval_estado,
+            em.tipo_examen AS ultimo_tipo_examen,
+            em.creado_en AS ultima_eval_fecha
+        FROM usuarios u
+        LEFT JOIN grupos_personal g ON g.id = u.grupo_id
+        LEFT JOIN encuesta_sociodemografica e ON e.usuario_id = u.id
+        LEFT JOIN (
+            SELECT x.*
+            FROM estandar5_evaluaciones_medicas x
+            INNER JOIN (
+                SELECT trabajador_id, MAX(id) AS max_id
+                FROM estandar5_evaluaciones_medicas
+                WHERE empresa_id = ?
+                GROUP BY trabajador_id
+            ) ult ON ult.max_id = x.id
+        ) em ON em.trabajador_id = u.id
+        WHERE u.empresa_id = ? AND u.rol = 'trabajador'
+        ORDER BY u.nombre ASC, u.apellido ASC
+    ");
+    $stmt->execute([$empresa_id, $empresa_id]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function estandar5_eval_cargo_trabajador(array $trabajador): string
+{
+    $cargo = trim((string)($trabajador['grupo_nombre'] ?? ''));
+    if ($cargo === '') {
+        $cargo = trim((string)($trabajador['tipo_personal'] ?? ''));
+    }
+    return $cargo === '' ? 'Sin cargo registrado' : $cargo;
+}
+
+function estandar5_evaluaciones_medicas_rows(PDO $conn, int $empresa_id): array
+{
+    if ($empresa_id <= 0) {
+        return [];
+    }
+    $stmt = $conn->prepare("
+        SELECT em.*, u.nombre, u.apellido, u.cedula, p.nombre_cargo, c.nombre AS centro_nombre
+        FROM estandar5_evaluaciones_medicas em
+        INNER JOIN usuarios u ON u.id = em.trabajador_id
+        INNER JOIN estandar5_perfiles_cargo p ON p.id = em.perfil_cargo_id
+        INNER JOIN estandar5_centros_medicos c ON c.id = em.centro_medico_id
+        WHERE em.empresa_id = ?
+        ORDER BY em.creado_en DESC
+        LIMIT 12
+    ");
+    $stmt->execute([$empresa_id]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function estandar5_evaluaciones_soportes_rows(PDO $conn, int $empresa_id): array
+{
+    if ($empresa_id <= 0) {
+        return [];
+    }
+    $stmt = $conn->prepare("
+        SELECT s.*, p.nombre_cargo, p.tipo_operacion, c.nombre AS centro_registrado
+        FROM estandar5_evaluaciones_medicas_soportes s
+        LEFT JOIN estandar5_perfiles_cargo p ON p.id = s.perfil_cargo_id
+        LEFT JOIN estandar5_centros_medicos c ON c.id = s.centro_medico_id
+        WHERE s.empresa_id = ?
+        ORDER BY s.creado_en DESC
+        LIMIT 40
+    ");
+    $stmt->execute([$empresa_id]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function estandar5_eval_alert_status(?string $date): ?array
+{
+    if (!$date) {
+        return null;
+    }
+    $target = DateTimeImmutable::createFromFormat('Y-m-d', substr($date, 0, 10));
+    if (!$target) {
+        return null;
+    }
+    $today = new DateTimeImmutable('today');
+    $days = (int)$today->diff($target)->format('%r%a');
+    if ($days < 0) {
+        return ['estado' => 'vencido', 'dias' => $days, 'texto' => 'Vencido hace ' . abs($days) . ' dia(s)'];
+    }
+    if ($days <= 30) {
+        return ['estado' => 'critico', 'dias' => $days, 'texto' => 'Vence en ' . $days . ' dia(s)'];
+    }
+    if ($days <= 90) {
+        return ['estado' => 'alerta', 'dias' => $days, 'texto' => 'Programar en ' . $days . ' dia(s)'];
+    }
+    return ['estado' => 'vigente', 'dias' => $days, 'texto' => 'Vigente'];
+}
+
+function estandar5_eval_alertas(array $soportes): array
+{
+    $alertas = [];
+    $campos = [
+        'fecha_vencimiento' => 'Examen medico laboral',
+        'altura_fecha_vencimiento' => 'Trabajo seguro en alturas',
+        'confinado_fecha_vencimiento' => 'Trabajo en espacios confinados',
+    ];
+    foreach ($soportes as $soporte) {
+        foreach ($campos as $campo => $tipo) {
+            $status = estandar5_eval_alert_status($soporte[$campo] ?? null);
+            if (!$status || $status['estado'] === 'vigente') {
+                continue;
+            }
+            $alertas[] = [
+                'trabajador' => $soporte['nombre_trabajador'] ?? '',
+                'cedula' => $soporte['cedula'] ?? '',
+                'cargo' => $soporte['cargo'] ?: ($soporte['nombre_cargo'] ?? ''),
+                'tipo' => $tipo,
+                'fecha' => $soporte[$campo],
+                'estado' => $status['estado'],
+                'dias' => $status['dias'],
+                'texto' => $status['texto'],
+            ];
+        }
+    }
+    usort($alertas, fn($a, $b) => $a['dias'] <=> $b['dias']);
+    return $alertas;
+}
+
+function estandar5_perfil_export_html(array $perfil, string $empresa_nombre): string
+{
+    $tareas = estandar5_decode_list($perfil['tareas_json'] ?? '');
+    $herramientas = estandar5_decode_list($perfil['herramientas_json'] ?? '');
+    $tareas_alto_riesgo = estandar5_decode_list($perfil['tareas_alto_riesgo_json'] ?? '');
+    $html = '<!doctype html><html lang="es"><head><meta charset="UTF-8"><style>
+        body{font-family:DejaVu Sans,Arial,sans-serif;color:#1f2d3d;font-size:12px}
+        h1{color:#1e3a8a;font-size:20px;margin:0 0 4px} h2{color:#1e3a8a;font-size:15px;margin:20px 0 8px}
+        .meta{color:#64748b;margin-bottom:16px}.box{border:1px solid #dbe3ec;border-radius:6px;padding:10px;margin-bottom:10px}
+        table{width:100%;border-collapse:collapse}td,th{border:1px solid #dbe3ec;padding:7px;text-align:left;vertical-align:top}
+        th{background:#f8fafc;color:#334155}.pill{display:inline-block;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:20px;padding:4px 8px;margin:2px}
+    </style></head><body>';
+    $html .= '<h1>Perfil de cargo - ' . htmlspecialchars($perfil['nombre_cargo']) . '</h1>';
+    $html .= '<div class="meta">Empresa: ' . htmlspecialchars($empresa_nombre) . ' | Generado: ' . date('d/m/Y H:i') . '</div>';
+    $html .= '<table><tr><th>Proceso</th><td>' . htmlspecialchars($perfil['tipo_proceso']) . '</td></tr>';
+    $html .= '<tr><th>Tipo de operación</th><td>' . htmlspecialchars($perfil['tipo_operacion'] ?? 'Mixto') . '</td></tr>';
+    $html .= '<tr><th>Jefe inmediato</th><td>' . htmlspecialchars($perfil['jefe_inmediato']) . '</td></tr>';
+    $html .= '<tr><th>Centro médico autorizado</th><td>' . htmlspecialchars($perfil['centro_nombre'] ?: 'No asignado') . '</td></tr></table>';
+    $html .= '<h2>Tareas del cargo</h2><ol>';
+    foreach ($tareas as $tarea) {
+        $html .= '<li>' . htmlspecialchars($tarea) . '</li>';
+    }
+    $html .= '</ol><h2>Herramientas eléctricas autorizadas</h2><div class="box">';
+    if ($herramientas) {
+        foreach ($herramientas as $herramienta) {
+            $html .= '<span class="pill">' . htmlspecialchars($herramienta) . '</span>';
+        }
+    } else {
+        $html .= 'Sin herramientas registradas.';
+    }
+    $html .= '</div><h2>Tareas de alto riesgo a las que se expone</h2><div class="box">';
+    if ($tareas_alto_riesgo) {
+        foreach ($tareas_alto_riesgo as $riesgo) {
+            $html .= '<span class="pill">' . htmlspecialchars($riesgo) . '</span>';
+        }
+    } else {
+        $html .= 'Sin tareas de alto riesgo registradas.';
+    }
+    $html .= '</div><h2>Información para el médico</h2><p>Este perfil consolida tareas, herramientas autorizadas y exposición a tareas de alto riesgo como insumo para orientar evaluaciones médicas ocupacionales.</p>';
+    return $html . '</body></html>';
+}
+
+$preguntas_socio = estandar5_socio_preguntas();
+$pregunta_filtro = $_GET['pregunta'] ?? '';
+$pregunta_filtro = isset($preguntas_socio[$pregunta_filtro]) ? $pregunta_filtro : '';
+$buscar_filtro = trim((string)($_GET['buscar'] ?? ''));
+$socio_rows = $modulo_actual === 'sociodemografica' ? estandar5_socio_rows($conn, $empresa_id) : [];
+$socio_stats = $modulo_actual === 'sociodemografica' ? estandar5_socio_stats($socio_rows, $preguntas_socio) : [];
+$pyp_categorias = estandar5_pyp_categorias();
+$pyp_total_trabajadores = $modulo_actual === 'promocion-prevencion' ? estandar5_pyp_total_trabajadores($conn, $empresa_id) : 0;
+$pyp_rows = $modulo_actual === 'promocion-prevencion' ? estandar5_pyp_rows($conn, $empresa_id) : [];
+$pyp_resumen = $modulo_actual === 'promocion-prevencion' ? estandar5_pyp_resumen($pyp_rows, $pyp_categorias, $pyp_total_trabajadores) : [];
+$herramientas_grupos = estandar5_herramientas_por_grupo();
+$tareas_alto_riesgo_base = estandar5_tareas_alto_riesgo();
+$centros_medicos = $modulo_actual === 'perfiles-cargo' ? estandar5_centros_medicos_rows($conn, $empresa_id) : [];
+$perfiles_cargo = $modulo_actual === 'perfiles-cargo' ? estandar5_perfiles_cargo_rows($conn, $empresa_id) : [];
+$procesos_perfil = $modulo_actual === 'perfiles-cargo' ? estandar5_procesos_perfil_rows($conn, $empresa_id) : [];
+$eval_centros_medicos = $modulo_actual === 'evaluaciones-medicas' ? estandar5_centros_medicos_rows($conn, $empresa_id) : [];
+$eval_perfiles_cargo = $modulo_actual === 'evaluaciones-medicas' ? estandar5_perfiles_cargo_rows($conn, $empresa_id) : [];
+$eval_trabajadores = $modulo_actual === 'evaluaciones-medicas' ? estandar5_trabajadores_medicos_rows($conn, $empresa_id) : [];
+$eval_solicitudes = $modulo_actual === 'evaluaciones-medicas' ? estandar5_evaluaciones_medicas_rows($conn, $empresa_id) : [];
+$eval_soportes = $modulo_actual === 'evaluaciones-medicas' ? estandar5_evaluaciones_soportes_rows($conn, $empresa_id) : [];
+$eval_alertas = $modulo_actual === 'evaluaciones-medicas' ? estandar5_eval_alertas($eval_soportes) : [];
+$eval_soportes_por_trabajador = [];
+if ($modulo_actual === 'evaluaciones-medicas') {
+    foreach ($eval_soportes as $soporte) {
+        $trabajador_key = (int)($soporte['trabajador_id'] ?? 0);
+        if ($trabajador_key > 0 && !isset($eval_soportes_por_trabajador[$trabajador_key])) {
+            $eval_soportes_por_trabajador[$trabajador_key] = $soporte;
+        }
+    }
+}
+
+if ($modulo_actual === 'perfiles-cargo' && isset($_GET['export_perfil'])) {
+    $perfil = estandar5_perfil_cargo_find($conn, $empresa_id, (int)$_GET['export_perfil']);
+    if (!$perfil) {
+        header('Location: estandar5.php?modulo=perfiles-cargo&msg=' . urlencode('No se encontró el perfil solicitado.') . '&tipo=error');
+        exit;
+    }
+    require_once 'vendor/autoload.php';
+    $options = new Dompdf\Options();
+    $options->set('isRemoteEnabled', true);
+    $dompdf = new Dompdf\Dompdf($options);
+    $dompdf->loadHtml(estandar5_perfil_export_html($perfil, $empresa_nombre), 'UTF-8');
+    $dompdf->setPaper('A4', 'portrait');
+    $dompdf->render();
+    $filename = 'perfil_cargo_' . preg_replace('/[^A-Za-z0-9_-]+/', '_', $perfil['nombre_cargo']) . '.pdf';
+    $dompdf->stream($filename, ['Attachment' => true]);
+    exit;
+}
+
+if ($modulo_actual === 'sociodemografica' && isset($_GET['export'])) {
+    $export = $_GET['export'];
+    if ($export === 'excel') {
+        $filename = 'perfil_sociodemografico_' . date('Ymd_His') . '.xls';
+        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        echo "\xEF\xBB\xBF";
+        echo estandar5_socio_export_html($socio_stats, $preguntas_socio, $empresa_nombre, $pregunta_filtro ?: null, $buscar_filtro);
+        exit;
+    }
+    if ($export === 'pdf') {
+        require_once 'vendor/autoload.php';
+        $options = new Dompdf\Options();
+        $options->set('isRemoteEnabled', true);
+        $dompdf = new Dompdf\Dompdf($options);
+        $dompdf->loadHtml(estandar5_socio_export_html($socio_stats, $preguntas_socio, $empresa_nombre, $pregunta_filtro ?: null, $buscar_filtro), 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+        $dompdf->stream('perfil_sociodemografico_' . date('Ymd_His') . '.pdf', ['Attachment' => true]);
+        exit;
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estándar 5 | Evaluaciones médicas ocupacionales</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --primary:#ff8a1f; --primary2:#ff7a00; --blue-dark:#1e3a8a; --bg1:#edf4fb; --bg2:#f7f9fc; --card:#fff; --text:#1f2d3d; --muted:#64748b; --border:#dbe3ec; --green:#16a34a; --amber:#d97706; }
+        * { box-sizing: border-box; }
+        body { margin:0; min-height:100vh; font-family:Inter,sans-serif; background:linear-gradient(180deg,var(--bg1),var(--bg2)); color:var(--text); font-size:.82rem; }
+        .main-wrapper { margin-left:260px; width:calc(100% - 260px); min-height:100vh; }
+        .content-area { width:100%; padding:30px clamp(24px,2.5vw,44px) 60px; }
+        .page-head { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:18px; }
+        .head-copy { display:flex; align-items:center; gap:13px; min-width:0; }
+        .head-icon { width:46px; height:46px; border-radius:10px; display:grid; place-items:center; color:var(--primary); background:#fff3e8; border:1px solid #fed7aa; font-size:1.05rem; flex:none; }
+        .head-copy h1 { margin:0; color:var(--blue-dark); font-size:1.18rem; line-height:1.2; }
+        .head-copy p { margin:5px 0 0; color:var(--muted); font-size:.76rem; line-height:1.35; }
+        .status-pill { display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 12px; border-radius:999px; border:1px solid #fed7aa; background:#fff7ed; color:#c2410c; font-weight:800; font-size:.68rem; text-transform:uppercase; white-space:nowrap; }
+        .intro-panel { position:relative; overflow:hidden; background:#fff; border:1px solid var(--border); border-left:4px solid var(--primary2); border-radius:10px; padding:18px; margin-bottom:16px; box-shadow:0 8px 24px rgba(15,23,42,.05); }
+        .intro-panel::after { content:""; position:absolute; right:-52px; top:-74px; width:180px; height:180px; border-radius:50%; background:#fff3e8; opacity:.75; }
+        .intro-content { position:relative; z-index:1; display:grid; grid-template-columns:minmax(250px,.85fr) minmax(300px,1.15fr); gap:18px; align-items:center; }
+        .intro-kicker { color:var(--primary2); font-size:.68rem; font-weight:850; text-transform:uppercase; letter-spacing:.02em; }
+        .intro-content h2 { margin:5px 0 8px; color:var(--blue-dark); font-size:1.06rem; }
+        .intro-content p { margin:0; color:var(--muted); line-height:1.45; font-size:.76rem; }
+        .module-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+        .module-tab { display:flex; align-items:flex-start; gap:8px; min-width:0; padding:10px; border:1px solid var(--border); border-radius:8px; background:#f8fafc; color:#334155; text-decoration:none; transition:border-color .2s ease, background .2s ease, transform .2s ease; }
+        .module-tab:hover { border-color:#fdba74; background:#fff8f3; transform:translateY(-1px); }
+        .module-tab.active { border-color:#fdba74; background:#fff3e8; color:#c2410c; }
+        .module-tab strong { display:block; color:var(--blue-dark); font-size:.67rem; margin-bottom:2px; }
+        .module-tab span { display:block; color:inherit; font-size:.64rem; line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        .workspace-grid { display:grid; grid-template-columns:minmax(280px,.78fr) minmax(360px,1.22fr); gap:14px; align-items:start; }
+        .module-card, .detail-card { background:#fff; border:1px solid var(--border); border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.045); }
+        .module-card { overflow:hidden; }
+        .module-card-head { background:linear-gradient(135deg,#172554,#1e3a8a); color:#fff; padding:16px; min-height:145px; display:flex; flex-direction:column; justify-content:space-between; gap:18px; }
+        .module-code { align-self:flex-start; display:inline-flex; align-items:center; gap:7px; padding:6px 9px; border-radius:7px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.16); font-size:.68rem; font-weight:850; }
+        .module-card-head h2 { margin:0; font-size:1.02rem; line-height:1.25; }
+        .module-card-body { padding:15px; display:grid; gap:12px; }
+        .module-card-body p { margin:0; color:var(--muted); line-height:1.45; }
+        .state-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+        .state-box { border:1px solid #e2e8f0; background:#f8fafc; border-radius:8px; padding:10px; }
+        .state-box span { display:block; color:#64748b; font-size:.58rem; font-weight:850; text-transform:uppercase; }
+        .state-box strong { display:block; margin-top:4px; color:var(--blue-dark); font-size:.92rem; }
+        .detail-card { padding:16px; }
+        .detail-card h3 { margin:0; color:var(--blue-dark); font-size:.95rem; }
+        .detail-card p { margin:5px 0 14px; color:var(--muted); line-height:1.45; }
+        .detail-list { display:grid; gap:8px; margin:0; padding:0; list-style:none; }
+        .detail-list li { display:flex; align-items:flex-start; gap:9px; padding:11px; border:1px solid #eef2f7; border-radius:8px; background:#fbfdff; color:#475569; line-height:1.35; }
+        .detail-list i { color:var(--primary2); margin-top:2px; }
+        .notice { margin-top:14px; display:flex; align-items:flex-start; gap:9px; border:1px solid #fed7aa; background:#fff7ed; color:#9a3412; border-radius:8px; padding:11px; font-size:.72rem; line-height:1.4; }
+        .socio-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; background:#fff; border:1px solid var(--border); border-radius:10px; padding:12px; box-shadow:0 8px 24px rgba(15,23,42,.045); }
+        .socio-filters { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
+        .socio-field { height:38px; border:1px solid var(--border); border-radius:8px; background:#f8fafc; color:#334155; padding:0 11px; font:inherit; font-size:.76rem; outline:0; min-width:180px; }
+        .socio-field:focus { border-color:#fdba74; background:#fff; box-shadow:0 0 0 3px rgba(255,138,31,.12); }
+        .socio-search { flex:1; min-width:180px; }
+        .socio-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+        .socio-btn { height:38px; border:1px solid var(--border); background:#fff; color:#334155; border-radius:8px; padding:0 12px; display:inline-flex; align-items:center; gap:7px; text-decoration:none; font-weight:800; font-size:.72rem; white-space:nowrap; cursor:pointer; }
+        .socio-btn:hover { border-color:#fdba74; color:var(--primary2); background:#fff8f3; }
+        .socio-btn.primary { background:var(--primary2); border-color:var(--primary2); color:#fff; }
+        .socio-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:14px; }
+        .socio-kpi { background:#fff; border:1px solid var(--border); border-radius:10px; padding:13px; min-height:100px; box-shadow:0 8px 24px rgba(15,23,42,.04); position:relative; overflow:hidden; }
+        .socio-kpi::after { content:""; position:absolute; right:-28px; bottom:-32px; width:92px; height:92px; border-radius:50%; background:#fff3e8; }
+        .socio-kpi span { display:block; color:#64748b; font-size:.62rem; font-weight:850; text-transform:uppercase; position:relative; z-index:1; }
+        .socio-kpi strong { display:block; margin-top:9px; color:var(--blue-dark); font-size:1.45rem; line-height:1; position:relative; z-index:1; }
+        .socio-kpi small { display:block; margin-top:6px; color:#64748b; line-height:1.35; position:relative; z-index:1; }
+        .socio-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-bottom:14px; }
+        .socio-question { background:#fff; border:1px solid var(--border); border-radius:10px; padding:14px; box-shadow:0 8px 24px rgba(15,23,42,.04); min-width:0; }
+        .socio-question-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; }
+        .socio-question-title { display:flex; align-items:flex-start; gap:9px; min-width:0; }
+        .socio-question-title i { width:32px; height:32px; border-radius:8px; display:grid; place-items:center; background:#fff3e8; color:var(--primary2); flex:none; }
+        .socio-question-title h3 { margin:0; color:var(--blue-dark); font-size:.86rem; line-height:1.25; }
+        .socio-question-title p { margin:3px 0 0; color:#64748b; font-size:.65rem; }
+        .socio-main-percent { color:var(--primary2); font-size:1.3rem; font-weight:850; line-height:1; white-space:nowrap; }
+        .answer-bars { display:grid; gap:9px; }
+        .answer-row { display:grid; grid-template-columns:minmax(120px,.8fr) minmax(160px,1fr) 54px; gap:9px; align-items:center; color:#475569; font-size:.68rem; }
+        .answer-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
+        .answer-track { height:9px; background:#e2e8f0; border-radius:99px; overflow:hidden; }
+        .answer-fill { height:100%; background:linear-gradient(90deg,#ff8a1f,#1e3a8a); border-radius:inherit; min-width:2px; }
+        .answer-percent { text-align:right; color:#172554; font-weight:850; }
+        .responses-section { background:#fff; border:1px solid var(--border); border-radius:10px; overflow:hidden; box-shadow:0 8px 24px rgba(15,23,42,.04); }
+        .responses-head { padding:14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:12px; }
+        .responses-head h2 { margin:0; color:var(--blue-dark); font-size:.95rem; }
+        .responses-head p { margin:3px 0 0; color:#64748b; font-size:.68rem; }
+        .responses-list { display:grid; }
+        .response-question { padding:14px; border-bottom:1px solid #eef2f7; }
+        .response-question:last-child { border-bottom:0; }
+        .response-question h3 { margin:0 0 10px; color:#172554; font-size:.82rem; display:flex; align-items:center; gap:8px; }
+        .response-table-wrap { overflow-x:auto; }
+        .response-table { width:100%; border-collapse:collapse; min-width:560px; }
+        .response-table th { text-align:left; padding:8px; background:#f8fafc; color:#64748b; font-size:.6rem; text-transform:uppercase; border-bottom:1px solid var(--border); }
+        .response-table td { padding:8px; border-bottom:1px solid #eef2f7; color:#334155; font-size:.7rem; }
+        .response-table tr:last-child td { border-bottom:0; }
+        .empty-socio { background:#fff; border:1px dashed #cbd5e1; border-radius:10px; padding:34px 18px; text-align:center; color:#64748b; }
+        .empty-socio i { display:block; color:#cbd5e1; font-size:1.8rem; margin-bottom:10px; }
+        .pyp-hero { background:#fff; border:1px solid var(--border); border-left:4px solid var(--primary2); border-radius:10px; padding:16px; margin-bottom:14px; box-shadow:0 8px 24px rgba(15,23,42,.045); display:grid; grid-template-columns:minmax(260px,1fr) auto; gap:14px; align-items:center; }
+        .pyp-hero h2 { margin:0; color:var(--blue-dark); font-size:1rem; }
+        .pyp-hero p { margin:5px 0 0; color:var(--muted); line-height:1.45; }
+        .pyp-hero-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+        .pyp-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:14px; }
+        .pyp-kpi { background:#fff; border:1px solid var(--border); border-radius:10px; padding:13px; min-height:92px; box-shadow:0 8px 24px rgba(15,23,42,.04); }
+        .pyp-kpi span { display:block; color:#64748b; font-size:.62rem; font-weight:850; text-transform:uppercase; }
+        .pyp-kpi strong { display:block; color:var(--blue-dark); font-size:1.32rem; margin-top:8px; line-height:1; }
+        .pyp-kpi small { display:block; color:#64748b; margin-top:6px; line-height:1.35; }
+        .pyp-category-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-bottom:14px; }
+        .pyp-category-card { background:#fff; border:1px solid var(--border); border-radius:10px; padding:14px; box-shadow:0 8px 24px rgba(15,23,42,.04); min-width:0; }
+        .pyp-category-head { display:flex; align-items:flex-start; gap:10px; margin-bottom:12px; }
+        .pyp-icon { width:36px; height:36px; border-radius:9px; background:#fff3e8; color:var(--primary2); display:grid; place-items:center; flex:none; }
+        .pyp-category-head h3 { margin:0; color:var(--blue-dark); font-size:.86rem; line-height:1.25; }
+        .pyp-category-head p { margin:4px 0 0; color:#64748b; font-size:.66rem; line-height:1.35; }
+        .pyp-card-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; margin-bottom:11px; }
+        .pyp-card-metrics div { border:1px solid #eef2f7; background:#f8fafc; border-radius:8px; padding:8px; min-width:0; }
+        .pyp-card-metrics span { display:block; color:#64748b; font-size:.54rem; font-weight:850; text-transform:uppercase; }
+        .pyp-card-metrics strong { display:block; color:#172554; font-size:.88rem; margin-top:3px; }
+        .pyp-card-foot { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; color:#64748b; font-size:.66rem; }
+        .pyp-card-foot b { display:block; color:#334155; margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .pyp-table-card { background:#fff; border:1px solid var(--border); border-radius:10px; overflow:hidden; box-shadow:0 8px 24px rgba(15,23,42,.04); }
+        .pyp-table-head { padding:14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:12px; }
+        .pyp-table-head h2 { margin:0; color:var(--blue-dark); font-size:.95rem; }
+        .pyp-table-head p { margin:3px 0 0; color:#64748b; font-size:.68rem; }
+        .pyp-table-wrap { overflow-x:auto; }
+        .pyp-table { width:100%; border-collapse:collapse; min-width:880px; }
+        .pyp-table th { text-align:left; padding:10px 9px; background:#f8fafc; color:#64748b; font-size:.58rem; text-transform:uppercase; border-bottom:1px solid var(--border); }
+        .pyp-table td { padding:10px 9px; border-bottom:1px solid #eef2f7; color:#334155; font-size:.68rem; vertical-align:top; }
+        .pyp-table tr:last-child td { border-bottom:0; }
+        .pyp-activity-name { color:#172554; font-weight:850; }
+        .pyp-activity-desc { display:block; margin-top:3px; color:#64748b; font-size:.62rem; line-height:1.35; max-width:280px; }
+        .pyp-badge { display:inline-flex; align-items:center; gap:5px; border-radius:999px; padding:5px 8px; font-size:.58rem; font-weight:850; text-transform:uppercase; white-space:nowrap; }
+        .pyp-badge.programada { background:#eff6ff; color:#1d4ed8; }
+        .pyp-badge.en_proceso { background:#ecfdf5; color:#047857; }
+        .pyp-badge.ejecutada { background:#f0fdf4; color:#15803d; }
+        .pyp-badge.vencida { background:#fff7ed; color:#c2410c; }
+        .pyp-badge.cancelada { background:#fef2f2; color:#b91c1c; }
+        .pyp-progress { min-width:120px; }
+        .pyp-progress-track { height:8px; border-radius:99px; background:#e2e8f0; overflow:hidden; margin-top:5px; }
+        .pyp-progress-fill { height:100%; border-radius:inherit; background:linear-gradient(90deg,#ff8a1f,#16a34a); min-width:2px; }
+        .pyp-empty { background:#fff; border:1px dashed #cbd5e1; border-radius:10px; padding:34px 18px; text-align:center; color:#64748b; }
+        .pyp-empty i { display:block; color:#cbd5e1; font-size:1.8rem; margin-bottom:10px; }
+        .cargo-alert { margin-bottom:14px; border-radius:10px; padding:11px 13px; display:flex; align-items:flex-start; gap:9px; font-weight:700; }
+        .cargo-alert.ok { border:1px solid #bbf7d0; background:#f0fdf4; color:#15803d; }
+        .cargo-alert.error { border:1px solid #fecaca; background:#fef2f2; color:#b91c1c; }
+        .cargo-layout { display:grid; grid-template-columns:minmax(320px,.92fr) minmax(360px,1.08fr); gap:14px; align-items:start; }
+        .cargo-panel { background:#fff; border:1px solid var(--border); border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.045); overflow:hidden; }
+        .cargo-panel-head { padding:15px; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+        .cargo-panel-title { display:flex; align-items:flex-start; gap:10px; min-width:0; }
+        .cargo-panel-icon { width:36px; height:36px; border-radius:9px; display:grid; place-items:center; background:#fff3e8; color:var(--primary2); flex:none; }
+        .cargo-panel h2 { margin:0; color:var(--blue-dark); font-size:.98rem; }
+        .cargo-panel p { margin:4px 0 0; color:var(--muted); line-height:1.38; font-size:.68rem; }
+        .cargo-form { padding:15px; display:grid; gap:12px; }
+        .cargo-grid-2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+        .cargo-field { display:grid; gap:5px; }
+        .cargo-field.full { grid-column:1 / -1; }
+        .cargo-field label { color:#334155; font-size:.62rem; font-weight:850; text-transform:uppercase; letter-spacing:.02em; }
+        .cargo-field input, .cargo-field select, .cargo-field textarea { width:100%; border:1px solid var(--border); border-radius:8px; background:#f8fafc; color:#1f2d3d; padding:10px 11px; font:inherit; font-size:.74rem; outline:0; }
+        .cargo-field textarea { min-height:72px; resize:vertical; }
+        .cargo-field input:focus, .cargo-field select:focus, .cargo-field textarea:focus { border-color:#fdba74; background:#fff; box-shadow:0 0 0 3px rgba(255,138,31,.12); }
+        .cargo-file { min-height:72px; border:1px dashed #cbd5e1; border-radius:8px; background:#fbfdff; padding:10px; }
+        .cargo-file input { border:0; background:transparent; padding:0; box-shadow:none; }
+        .cargo-dynamic { display:grid; gap:8px; }
+        .cargo-dynamic-row { display:grid; grid-template-columns:1fr 36px; gap:8px; align-items:center; }
+        .tools-check-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+        .tools-groups { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+        .tool-group { display:none; border:1px solid #e2e8f0; background:#fbfdff; border-radius:9px; padding:10px; }
+        .tool-group.active { display:grid; gap:9px; align-content:start; }
+        .tool-group h3 { margin:0; color:#172554; font-size:.74rem; display:flex; align-items:center; gap:7px; }
+        .tool-group h3 i { color:var(--primary2); }
+        .tool-group .tools-check-grid { grid-template-columns:1fr; }
+        .tool-check { display:flex; align-items:flex-start; gap:8px; border:1px solid #e2e8f0; background:#f8fafc; border-radius:8px; padding:9px; color:#334155; font-size:.7rem; font-weight:750; line-height:1.25; cursor:pointer; }
+        .tool-check input { width:16px; height:16px; margin:1px 0 0; accent-color:var(--primary2); flex:none; }
+        .tool-check:has(input:checked) { border-color:#fdba74; background:#fff7ed; color:#c2410c; }
+        .risk-check-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+        .risk-check { display:flex; align-items:flex-start; gap:8px; border:1px solid #e2e8f0; background:#f8fafc; border-radius:8px; padding:9px; color:#334155; font-size:.7rem; font-weight:750; line-height:1.25; cursor:pointer; }
+        .risk-check input { width:16px; height:16px; margin:1px 0 0; accent-color:var(--primary2); flex:none; }
+        .risk-check:has(input:checked) { border-color:#fdba74; background:#fff7ed; color:#c2410c; }
+        .field-hint { color:#64748b; font-size:.62rem; line-height:1.35; margin-top:-2px; }
+        .process-new-panel { display:none; border:1px solid #fed7aa; background:#fff7ed; border-radius:8px; padding:10px; gap:9px; }
+        .process-new-panel.active { display:grid; }
+        .process-save-options { display:flex; flex-wrap:wrap; gap:8px; color:#9a3412; font-size:.68rem; font-weight:800; }
+        .process-save-options label { display:flex; align-items:center; gap:6px; text-transform:none; letter-spacing:0; color:#9a3412; }
+        .process-save-options input { width:auto; accent-color:var(--primary2); }
+        .cargo-icon-btn { width:36px; height:36px; border:1px solid var(--border); border-radius:8px; background:#fff; color:#64748b; display:grid; place-items:center; cursor:pointer; }
+        .cargo-icon-btn:hover { border-color:#fdba74; color:var(--primary2); background:#fff8f3; }
+        .cargo-add-btn { justify-self:start; height:34px; border:1px solid #fed7aa; background:#fff7ed; color:#c2410c; border-radius:8px; padding:0 11px; font-weight:850; font-size:.68rem; display:inline-flex; align-items:center; gap:7px; cursor:pointer; }
+        .cargo-submit { height:40px; border:0; border-radius:8px; background:var(--primary2); color:#fff; font-weight:850; font-size:.74rem; display:inline-flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; }
+        .cargo-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+        .cargo-summary.compact { grid-template-columns:repeat(2,minmax(0,1fr)); max-width:720px; }
+        .cargo-kpi { background:#fff; border:1px solid var(--border); border-radius:10px; padding:12px; box-shadow:0 8px 24px rgba(15,23,42,.04); }
+        .cargo-kpi span { display:block; color:#64748b; font-size:.58rem; font-weight:850; text-transform:uppercase; }
+        .cargo-kpi strong { display:block; margin-top:7px; color:var(--blue-dark); font-size:1.15rem; }
+        .cargo-list { padding:0 15px 15px; display:grid; gap:9px; }
+        .cargo-item { border:1px solid #eef2f7; border-radius:9px; background:#fbfdff; padding:11px; min-width:0; }
+        .cargo-item-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+        .cargo-item h3 { margin:0; color:#172554; font-size:.8rem; line-height:1.25; }
+        .cargo-item p { margin:4px 0 0; color:#64748b; font-size:.64rem; line-height:1.35; }
+        .cargo-tags { margin-top:8px; display:flex; flex-wrap:wrap; gap:5px; }
+        .cargo-tag { display:inline-flex; align-items:center; gap:5px; border-radius:999px; background:#f1f5f9; color:#475569; padding:4px 7px; font-size:.58rem; font-weight:800; }
+        .cargo-link { color:var(--primary2); text-decoration:none; font-weight:850; font-size:.64rem; white-space:nowrap; }
+        .cargo-empty { padding:22px 15px; text-align:center; color:#64748b; border-top:1px dashed #cbd5e1; }
+        .cargo-empty i { display:block; color:#cbd5e1; font-size:1.5rem; margin-bottom:8px; }
+        .med-alert { margin-bottom:14px; border-radius:10px; padding:11px 13px; display:flex; align-items:flex-start; gap:9px; font-weight:700; }
+        .med-alert.ok { border:1px solid #bbf7d0; background:#f0fdf4; color:#15803d; }
+        .med-alert.error { border:1px solid #fecaca; background:#fef2f2; color:#b91c1c; }
+        .med-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+        .med-kpi { background:#fff; border:1px solid var(--border); border-radius:10px; padding:12px; box-shadow:0 8px 24px rgba(15,23,42,.04); }
+        .med-kpi span { display:block; color:#64748b; font-size:.58rem; font-weight:850; text-transform:uppercase; }
+        .med-kpi strong { display:block; margin-top:7px; color:var(--blue-dark); font-size:1.15rem; }
+        .med-card { background:#fff; border:1px solid var(--border); border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.045); overflow:hidden; margin-bottom:14px; }
+        .med-card-head { padding:15px; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+        .med-card-head h2 { margin:0; color:var(--blue-dark); font-size:.98rem; }
+        .med-card-head p { margin:4px 0 0; color:var(--muted); line-height:1.38; font-size:.68rem; }
+        .med-card.program-list { order:1; }
+        .med-card.request-history { order:2; }
+        .med-card.upload-exam { order:3; }
+        .med-card.personnel-matrix { order:4; }
+        .med-card.alert-panel { order:5; }
+        .content-area:has(.med-card.program-list) { display:flex; flex-direction:column; }
+        .med-table-wrap { overflow-x:auto; }
+        .med-table { width:100%; border-collapse:collapse; min-width:980px; }
+        .med-table th { text-align:left; padding:10px 9px; background:#f8fafc; color:#64748b; font-size:.58rem; text-transform:uppercase; border-bottom:1px solid var(--border); }
+        .med-table td { padding:10px 9px; border-bottom:1px solid #eef2f7; color:#334155; font-size:.68rem; vertical-align:top; }
+        .med-table tr:last-child td { border-bottom:0; }
+        .med-worker-name { color:#172554; font-weight:850; display:block; margin-bottom:3px; }
+        .med-muted { color:#64748b; font-size:.62rem; line-height:1.35; }
+        .med-form-grid { display:grid; grid-template-columns:130px 1fr 1fr minmax(140px,.7fr) 112px; gap:8px; align-items:start; }
+        .med-field { width:100%; min-height:36px; border:1px solid var(--border); border-radius:8px; background:#f8fafc; color:#334155; padding:8px 9px; font:inherit; font-size:.66rem; outline:0; }
+        .med-field:focus { border-color:#fdba74; background:#fff; box-shadow:0 0 0 3px rgba(255,138,31,.12); }
+        .med-btn { min-height:36px; border:0; border-radius:8px; background:var(--primary2); color:#fff; font-weight:850; font-size:.66rem; display:inline-flex; align-items:center; justify-content:center; gap:6px; cursor:pointer; padding:0 10px; }
+        .med-btn:disabled { opacity:.55; cursor:not-allowed; }
+        .med-badge { display:inline-flex; align-items:center; gap:5px; border-radius:999px; padding:5px 8px; font-size:.58rem; font-weight:850; text-transform:uppercase; background:#eff6ff; color:#1d4ed8; white-space:nowrap; }
+        .med-badge.solicitada { background:#fff7ed; color:#c2410c; }
+        .med-badge.programada { background:#eff6ff; color:#1d4ed8; }
+        .med-badge.realizada { background:#f0fdf4; color:#15803d; }
+        .med-badge.cancelada { background:#fef2f2; color:#b91c1c; }
+        .med-badge.vencido { background:#fef2f2; color:#b91c1c; }
+        .med-badge.critico { background:#fff7ed; color:#c2410c; }
+        .med-badge.alerta { background:#fffbeb; color:#92400e; }
+        .med-badge.vigente { background:#f0fdf4; color:#15803d; }
+        .med-empty { padding:28px 15px; text-align:center; color:#64748b; }
+        .med-empty i { display:block; color:#cbd5e1; font-size:1.6rem; margin-bottom:8px; }
+        .med-upload-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+        .med-upload-grid .wide { grid-column:span 2; }
+        .med-upload-grid .full { grid-column:1 / -1; }
+        .med-label { display:block; color:#334155; font-size:.62rem; font-weight:850; text-transform:uppercase; margin-bottom:6px; letter-spacing:.02em; }
+        .med-file { border:1px dashed #fdba74; border-radius:10px; background:#fff7ed; padding:12px; color:#9a3412; font-size:.68rem; }
+        .med-file input { width:100%; font-size:.68rem; }
+        .med-section-title { grid-column:1 / -1; display:flex; align-items:center; gap:8px; color:#1e3a8a; font-size:.78rem; font-weight:900; border-top:1px solid #edf2f7; padding-top:12px; margin-top:4px; }
+        .med-extract-box { min-height:86px; resize:vertical; }
+        .med-note { color:#64748b; font-size:.64rem; line-height:1.45; }
+        .med-alert-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+        .med-alert-item { border:1px solid var(--border); border-radius:10px; background:#f8fafc; padding:11px; display:flex; gap:10px; align-items:flex-start; min-width:0; }
+        .med-alert-item i { margin-top:2px; }
+        .med-alert-item.vencido { border-color:#fecaca; background:#fef2f2; color:#991b1b; }
+        .med-alert-item.critico { border-color:#fed7aa; background:#fff7ed; color:#9a3412; }
+        .med-alert-item.alerta { border-color:#fde68a; background:#fffbeb; color:#92400e; }
+        .med-alert-item strong { display:block; color:#172554; font-size:.72rem; margin-bottom:2px; }
+        .med-alert-item span { display:block; font-size:.62rem; line-height:1.35; }
+        .med-notification { margin-bottom:14px; border:1px solid #fed7aa; background:#fff7ed; color:#9a3412; border-radius:10px; padding:11px 13px; display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:.7rem; font-weight:800; }
+        .med-notification strong { color:#172554; }
+        .med-notification .med-badge { background:#ffedd5; color:#c2410c; }
+        .med-actions-row { display:flex; gap:8px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
+        .med-link { color:#1d4ed8; font-weight:800; text-decoration:none; font-size:.64rem; }
+        @media (max-width: 980px) {
+            .intro-content, .workspace-grid { grid-template-columns:1fr; }
+            .module-tabs { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .socio-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .socio-grid { grid-template-columns:1fr; }
+            .pyp-hero { grid-template-columns:1fr; }
+            .pyp-hero-actions { justify-content:flex-start; }
+            .pyp-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .pyp-category-grid { grid-template-columns:1fr; }
+            .cargo-layout { grid-template-columns:1fr; }
+            .med-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .med-upload-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .med-alert-grid { grid-template-columns:1fr; }
+            .socio-toolbar { align-items:stretch; flex-direction:column; }
+            .socio-actions { justify-content:flex-start; }
+        }
+        @media (max-width: 768px) {
+            .main-wrapper { margin-left:0; width:100%; }
+            .content-area { padding:18px 14px 45px; }
+            .page-head { align-items:flex-start; flex-direction:column; }
+            .status-pill { align-self:flex-start; }
+            .socio-filters { flex-direction:column; align-items:stretch; }
+            .socio-field { width:100%; min-width:0; }
+            .socio-btn { flex:1; justify-content:center; }
+            .answer-row { grid-template-columns:1fr; gap:5px; }
+            .answer-percent { text-align:left; }
+        }
+        @media (max-width: 560px) {
+            .module-tabs, .state-row { grid-template-columns:1fr; }
+            .head-copy { align-items:flex-start; }
+            .socio-summary { grid-template-columns:1fr; }
+            .pyp-summary, .pyp-card-metrics, .pyp-card-foot { grid-template-columns:1fr; }
+            .cargo-grid-2, .cargo-summary { grid-template-columns:1fr; }
+            .tools-check-grid, .tools-groups, .risk-check-grid { grid-template-columns:1fr; }
+            .med-summary { grid-template-columns:1fr; }
+            .med-upload-grid { grid-template-columns:1fr; }
+            .med-upload-grid .wide { grid-column:auto; }
+            .cargo-panel-head, .cargo-item-head { flex-direction:column; }
+        }
+    </style>
+</head>
+<body>
+<?php include 'components/sidebar.php'; ?>
+<main class="main-wrapper">
+    <?php include 'components/header.php'; ?>
+    <div class="content-area">
+        <div class="page-head">
+            <div class="head-copy">
+                <div class="head-icon"><i class="fa-solid <?php echo $modulo ? htmlspecialchars($modulo['icono']) : 'fa-briefcase-medical'; ?>"></i></div>
+                <div>
+                    <?php if ($modulo): ?>
+                        <h1><?php echo htmlspecialchars($modulo['codigo'] . ' ' . $modulo['titulo']); ?></h1>
+                        <p>Vista independiente del submódulo seleccionado.</p>
+                    <?php else: ?>
+                        <h1>5. Evaluaciones médicas ocupacionales</h1>
+                        <p>Selecciona el submódulo que deseas consultar o gestionar.</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <span class="status-pill"><i class="fa-solid <?php echo $modulo ? 'fa-window-maximize' : 'fa-layer-group'; ?>"></i> <?php echo $modulo ? 'Submódulo' : 'Vista modular'; ?></span>
+        </div>
+
+        <?php if (!$modulo): ?>
+            <section class="intro-panel">
+                <div class="intro-content">
+                    <div>
+                        <div class="intro-kicker">Estándar 5</div>
+                        <h2>Submódulos de trabajo</h2>
+                        <p>Esta pantalla funciona como punto de entrada. El contenido de cada submódulo se abre en una vista independiente al seleccionarlo.</p>
+                    </div>
+                    <div class="module-tabs" aria-label="Submódulos del estándar 5">
+                        <?php foreach ($submodulos as $slug => $item): ?>
+                            <a class="module-tab" href="estandar5.php?modulo=<?php echo urlencode($slug); ?>">
+                                <i class="fa-solid <?php echo htmlspecialchars($item['icono']); ?>"></i>
+                                <span><strong><?php echo htmlspecialchars($item['codigo']); ?></strong><?php echo htmlspecialchars($item['titulo']); ?></span>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </section>
+        <?php endif; ?>
+
+        <?php if ($modulo_actual === 'sociodemografica'): ?>
+            <?php
+                $total_trabajadores = count($socio_rows);
+                $preguntas_con_datos = 0;
+                foreach ($socio_stats as $stat) {
+                    if (!empty($stat['items'])) {
+                        $preguntas_con_datos++;
+                    }
+                }
+                $query_export = http_build_query([
+                    'modulo' => 'sociodemografica',
+                    'pregunta' => $pregunta_filtro,
+                    'buscar' => $buscar_filtro,
+                ]);
+            ?>
+
+            <form class="socio-toolbar" method="GET" action="estandar5.php">
+                <input type="hidden" name="modulo" value="sociodemografica">
+                <div class="socio-filters">
+                    <select class="socio-field" name="pregunta" aria-label="Filtrar por pregunta">
+                        <option value="">Todas las preguntas</option>
+                        <?php foreach ($preguntas_socio as $campo => $meta): ?>
+                            <option value="<?php echo htmlspecialchars($campo); ?>" <?php echo $pregunta_filtro === $campo ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($meta['label']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <input class="socio-field socio-search" type="search" name="buscar" value="<?php echo htmlspecialchars($buscar_filtro); ?>" placeholder="Buscar respuesta o trabajador...">
+                    <button class="socio-btn primary" type="submit"><i class="fa-solid fa-filter"></i> Filtrar</button>
+                </div>
+                <div class="socio-actions">
+                    <a class="socio-btn" href="estandar5.php?modulo=sociodemografica"><i class="fa-solid fa-rotate-left"></i> Limpiar</a>
+                    <a class="socio-btn" href="estandar5.php?<?php echo htmlspecialchars($query_export . '&export=excel'); ?>"><i class="fa-solid fa-file-excel"></i> Excel</a>
+                    <a class="socio-btn" href="estandar5.php?<?php echo htmlspecialchars($query_export . '&export=pdf'); ?>"><i class="fa-solid fa-file-pdf"></i> PDF</a>
+                </div>
+            </form>
+
+            <section class="socio-summary">
+                <article class="socio-kpi">
+                    <span>Trabajadores encuestados</span>
+                    <strong><?php echo $total_trabajadores; ?></strong>
+                    <small>Registros vinculados a la empresa actual.</small>
+                </article>
+                <article class="socio-kpi">
+                    <span>Preguntas del perfil</span>
+                    <strong><?php echo count($preguntas_socio); ?></strong>
+                    <small>Campos del formulario de registro del trabajador.</small>
+                </article>
+                <article class="socio-kpi">
+                    <span>Preguntas con datos</span>
+                    <strong><?php echo $preguntas_con_datos; ?></strong>
+                    <small>Se calculan porcentajes sobre trabajadores encuestados.</small>
+                </article>
+                <article class="socio-kpi">
+                    <span>Vista del rol</span>
+                    <strong><?php echo $usuario_rol === 'sst' ? 'Gestión' : 'Resumen'; ?></strong>
+                    <small>Información lista para análisis e informe.</small>
+                </article>
+            </section>
+
+            <?php if ($total_trabajadores === 0): ?>
+                <div class="empty-socio">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <strong>No hay encuestas sociodemográficas registradas.</strong>
+                    <p>Cuando los trabajadores completen el registro, aquí aparecerán los porcentajes por pregunta.</p>
+                </div>
+            <?php else: ?>
+                <section class="socio-grid" aria-label="Gráficos del perfil sociodemográfico">
+                    <?php foreach ($socio_stats as $campo => $stat): ?>
+                        <?php
+                            if ($pregunta_filtro && $pregunta_filtro !== $campo) {
+                                continue;
+                            }
+                            if ($buscar_filtro !== '') {
+                                $hay_busqueda = stripos($stat['label'], $buscar_filtro) !== false;
+                                foreach ($stat['items'] as $item) {
+                                    if (stripos($item['respuesta'], $buscar_filtro) !== false) {
+                                        $hay_busqueda = true;
+                                        break;
+                                    }
+                                }
+                                if (!$hay_busqueda) {
+                                    continue;
+                                }
+                            }
+                            $items_grafica = array_slice($stat['items'], 0, 5);
+                        ?>
+                        <article class="socio-question" data-question="<?php echo htmlspecialchars($campo); ?>">
+                            <div class="socio-question-head">
+                                <div class="socio-question-title">
+                                    <i class="fa-solid <?php echo htmlspecialchars($stat['icon']); ?>"></i>
+                                    <div>
+                                        <h3><?php echo htmlspecialchars($stat['label']); ?></h3>
+                                        <p><?php echo $stat['total']; ?> respuesta(s) analizadas</p>
+                                    </div>
+                                </div>
+                                <div class="socio-main-percent"><?php echo htmlspecialchars((string)$stat['principal']['porcentaje']); ?>%</div>
+                            </div>
+                            <div class="answer-bars">
+                                <?php foreach ($items_grafica as $item): ?>
+                                    <div class="answer-row">
+                                        <div class="answer-name" title="<?php echo htmlspecialchars($item['respuesta']); ?>"><?php echo htmlspecialchars($item['respuesta']); ?></div>
+                                        <div class="answer-track"><div class="answer-fill" style="width: <?php echo htmlspecialchars((string)$item['porcentaje']); ?>%;"></div></div>
+                                        <div class="answer-percent"><?php echo htmlspecialchars((string)$item['porcentaje']); ?>%</div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </article>
+                    <?php endforeach; ?>
+                </section>
+
+                <section class="responses-section">
+                    <div class="responses-head">
+                        <div>
+                            <h2>Listado de respuestas por pregunta</h2>
+                            <p>Ordenado según el formulario de registro del trabajador.</p>
+                        </div>
+                        <i class="fa-solid fa-table-list" style="color:var(--primary2);"></i>
+                    </div>
+                    <div class="responses-list">
+                        <?php foreach ($socio_stats as $campo => $stat): ?>
+                            <?php
+                                if ($pregunta_filtro && $pregunta_filtro !== $campo) {
+                                    continue;
+                                }
+                                $items_tabla = $stat['items'];
+                                if ($buscar_filtro !== '') {
+                                    $items_tabla = array_values(array_filter($items_tabla, function ($item) use ($buscar_filtro, $stat) {
+                                        return stripos($item['respuesta'], $buscar_filtro) !== false || stripos($stat['label'], $buscar_filtro) !== false;
+                                    }));
+                                    if (empty($items_tabla)) {
+                                        continue;
+                                    }
+                                }
+                            ?>
+                            <article class="response-question">
+                                <h3><i class="fa-solid <?php echo htmlspecialchars($stat['icon']); ?>"></i> <?php echo htmlspecialchars($stat['label']); ?></h3>
+                                <div class="response-table-wrap">
+                                    <table class="response-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Respuesta</th>
+                                                <th>Cantidad</th>
+                                                <th>Porcentaje</th>
+                                                <th>Lectura rápida</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($items_tabla as $item): ?>
+                                                <tr>
+                                                    <td><?php echo htmlspecialchars($item['respuesta']); ?></td>
+                                                    <td><?php echo (int)$item['cantidad']; ?></td>
+                                                    <td><?php echo htmlspecialchars((string)$item['porcentaje']); ?>%</td>
+                                                    <td><?php echo (int)$item['cantidad']; ?> de <?php echo $stat['total']; ?> trabajador(es)</td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
+                </section>
+            <?php endif; ?>
+        <?php elseif ($modulo_actual === 'promocion-prevencion'): ?>
+            <section class="pyp-hero">
+                <div>
+                    <h2>Resumen conectado de campañas PyP en salud</h2>
+                    <p>Esta vista lee las actividades creadas en Capacitación SST como <strong>Campaña PyP en Salud</strong> y consolida estado, alcance, evaluación y evidencias por categoría.</p>
+                </div>
+                <div class="pyp-hero-actions">
+                    <a class="socio-btn" href="estandar3.php"><i class="fa-solid fa-list-check"></i> Ver capacitación</a>
+                    <?php if ($usuario_rol === 'sst'): ?>
+                        <a class="socio-btn primary" href="nueva_actividad.php"><i class="fa-solid fa-plus"></i> Nueva campaña</a>
+                    <?php endif; ?>
+                </div>
+            </section>
+
+            <section class="pyp-summary">
+                <article class="pyp-kpi">
+                    <span>Campañas PyP</span>
+                    <strong><?php echo (int)($pyp_resumen['total'] ?? 0); ?></strong>
+                    <small>Registros sincronizados desde actividades de capacitación.</small>
+                </article>
+                <article class="pyp-kpi">
+                    <span>Programadas / proceso</span>
+                    <strong><?php echo (int)(($pyp_resumen['programadas'] ?? 0) + ($pyp_resumen['en_proceso'] ?? 0)); ?></strong>
+                    <small>Acciones abiertas para seguimiento del Responsable SST.</small>
+                </article>
+                <article class="pyp-kpi">
+                    <span>Ejecutadas</span>
+                    <strong><?php echo (int)($pyp_resumen['ejecutadas'] ?? 0); ?></strong>
+                    <small>Actividades cerradas o marcadas como completadas.</small>
+                </article>
+                <article class="pyp-kpi">
+                    <span>Alcance estimado</span>
+                    <strong><?php echo (int)($pyp_resumen['personas_alcance'] ?? 0); ?></strong>
+                    <small>Personas asignadas o trabajadores activos si aplica a toda la empresa.</small>
+                </article>
+            </section>
+
+            <?php if (empty($pyp_rows)): ?>
+                <div class="pyp-empty">
+                    <i class="fa-solid fa-heart-pulse"></i>
+                    <strong>No hay campañas PyP registradas todavía.</strong>
+                    <p>Cuando programes una actividad con tipo <strong>Campaña PyP en Salud</strong>, aparecerá aquí agrupada por categoría.</p>
+                </div>
+            <?php else: ?>
+                <section class="pyp-category-grid" aria-label="Resumen por categoría PyP">
+                    <?php foreach (($pyp_resumen['categorias'] ?? []) as $categoria => $info): ?>
+                        <?php
+                            $meta = $info['meta'];
+                            $ultima = $info['ultima'];
+                            $proxima = $info['proxima'];
+                        ?>
+                        <article class="pyp-category-card">
+                            <div class="pyp-category-head">
+                                <div class="pyp-icon"><i class="fa-solid <?php echo htmlspecialchars($meta['icon']); ?>"></i></div>
+                                <div>
+                                    <h3><?php echo htmlspecialchars($meta['titulo']); ?></h3>
+                                    <p><?php echo htmlspecialchars($meta['descripcion']); ?></p>
+                                </div>
+                            </div>
+                            <div class="pyp-card-metrics">
+                                <div><span>Total</span><strong><?php echo (int)$info['total']; ?></strong></div>
+                                <div><span>Abiertas</span><strong><?php echo (int)($info['programadas'] + $info['en_proceso']); ?></strong></div>
+                                <div><span>Ejecutadas</span><strong><?php echo (int)$info['ejecutadas']; ?></strong></div>
+                                <div><span>Alcance</span><strong><?php echo (int)$info['personas_alcance']; ?></strong></div>
+                            </div>
+                            <div class="pyp-card-foot">
+                                <div>
+                                    <b><?php echo $ultima ? htmlspecialchars($ultima['nombre_actividad']) : 'Sin actividad'; ?></b>
+                                    Última: <?php echo $ultima ? htmlspecialchars(estandar5_pyp_fecha($ultima['fecha_inicio'])) : 'Sin fecha'; ?>
+                                </div>
+                                <div>
+                                    <b><?php echo $proxima ? htmlspecialchars($proxima['nombre_actividad']) : 'Sin próxima'; ?></b>
+                                    Próxima: <?php echo $proxima ? htmlspecialchars(estandar5_pyp_fecha($proxima['fecha_inicio'])) : 'Sin fecha'; ?>
+                                </div>
+                            </div>
+                        </article>
+                    <?php endforeach; ?>
+                </section>
+
+                <section class="pyp-table-card">
+                    <div class="pyp-table-head">
+                        <div>
+                            <h2>Actividades PyP registradas</h2>
+                            <p>Detalle operativo tomado de la misma base usada por el módulo de capacitación.</p>
+                        </div>
+                        <i class="fa-solid fa-table-list" style="color:var(--primary2);"></i>
+                    </div>
+                    <div class="pyp-table-wrap">
+                        <table class="pyp-table">
+                            <thead>
+                                <tr>
+                                    <th>Actividad</th>
+                                    <th>Categoría</th>
+                                    <th>Fecha</th>
+                                    <th>Modalidad</th>
+                                    <th>Dirigido a</th>
+                                    <th>Estado</th>
+                                    <th>Seguimiento</th>
+                                    <th>Soporte</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($pyp_rows as $row_original): ?>
+                                    <?php
+                                        $estado = estandar5_pyp_estado($row_original);
+                                        $alcance = estandar5_pyp_alcance($row_original, $pyp_total_trabajadores);
+                                        $completaron = (int)($row_original['trabajadores_completaron'] ?? 0);
+                                        $avance = $alcance > 0 ? round(($completaron / $alcance) * 100) : 0;
+                                        $tiene_evaluacion = !empty($row_original['curso_id']);
+                                    ?>
+                                    <tr>
+                                        <td>
+                                            <span class="pyp-activity-name"><?php echo htmlspecialchars($row_original['nombre_actividad']); ?></span>
+                                            <?php if (!empty($row_original['descripcion'])): ?>
+                                                <span class="pyp-activity-desc"><?php echo htmlspecialchars($row_original['descripcion']); ?></span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><?php echo htmlspecialchars($row_original['categoria']); ?></td>
+                                        <td>
+                                            <?php echo htmlspecialchars(estandar5_pyp_fecha($row_original['fecha_inicio'])); ?><br>
+                                            <small>Fin: <?php echo htmlspecialchars(estandar5_pyp_fecha($row_original['fecha_fin'])); ?></small>
+                                        </td>
+                                        <td><?php echo htmlspecialchars($row_original['modalidad'] ?: 'Sin dato'); ?></td>
+                                        <td>
+                                            <?php echo htmlspecialchars($row_original['dirigido_a'] ?: 'Sin dato'); ?><br>
+                                            <small><?php echo (int)$alcance; ?> persona(s) de alcance</small>
+                                        </td>
+                                        <td>
+                                            <span class="pyp-badge <?php echo htmlspecialchars($estado['key']); ?>">
+                                                <i class="fa-solid fa-circle"></i><?php echo htmlspecialchars($estado['label']); ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="pyp-progress">
+                                                <?php echo $tiene_evaluacion ? 'Curso/evaluación activa' : 'Sin evaluación'; ?><br>
+                                                <small><?php echo $completaron; ?> completado(s) / <?php echo (int)$alcance; ?></small>
+                                                <div class="pyp-progress-track"><div class="pyp-progress-fill" style="width: <?php echo (int)min(100, $avance); ?>%;"></div></div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <?php echo (int)($row_original['actas_firmadas'] ?? 0); ?> acta(s)<br>
+                                            <small><?php echo !empty($row_original['enlace_reunion']) ? 'Enlace registrado' : 'Sin enlace'; ?></small>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            <?php endif; ?>
+        <?php elseif ($modulo_actual === 'perfiles-cargo'): ?>
+            <?php
+                $msg = trim((string)($_GET['msg'] ?? ''));
+                $tipo_msg = ($_GET['tipo'] ?? 'ok') === 'error' ? 'error' : 'ok';
+            ?>
+            <?php if ($msg !== ''): ?>
+                <div class="cargo-alert <?php echo htmlspecialchars($tipo_msg); ?>">
+                    <i class="fa-solid <?php echo $tipo_msg === 'ok' ? 'fa-circle-check' : 'fa-triangle-exclamation'; ?>"></i>
+                    <span><?php echo htmlspecialchars($msg); ?></span>
+                </div>
+            <?php endif; ?>
+
+            <section class="cargo-summary compact">
+                <article class="cargo-kpi">
+                    <span>Centros autorizados</span>
+                    <strong><?php echo count($centros_medicos); ?></strong>
+                </article>
+                <article class="cargo-kpi">
+                    <span>Perfiles creados</span>
+                    <strong><?php echo count($perfiles_cargo); ?></strong>
+                </article>
+            </section>
+
+            <section class="cargo-layout">
+                <article class="cargo-panel">
+                    <div class="cargo-panel-head">
+                        <div class="cargo-panel-title">
+                            <div class="cargo-panel-icon"><i class="fa-solid fa-hospital"></i></div>
+                            <div>
+                                <h2>Centros médicos autorizados</h2>
+                                <p>Registra los proveedores donde se realizarán los exámenes médicos ocupacionales.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <?php if ($usuario_rol === 'sst'): ?>
+                        <form class="cargo-form" action="procesar_estandar5.php" method="POST" enctype="multipart/form-data">
+                            <input type="hidden" name="accion" value="guardar_centro_medico">
+                            <div class="cargo-grid-2">
+                                <div class="cargo-field">
+                                    <label>Nombre del centro médico *</label>
+                                    <input name="nombre" required placeholder="Ej. IPS Salud Ocupacional">
+                                </div>
+                                <div class="cargo-field">
+                                    <label>NIT *</label>
+                                    <input name="nit" required placeholder="900123456-7">
+                                </div>
+                                <div class="cargo-field full">
+                                    <label>Dirección principal *</label>
+                                    <input name="direccion_principal" required placeholder="Dirección principal del centro">
+                                </div>
+                                <div class="cargo-field">
+                                    <label>Teléfono de contacto *</label>
+                                    <input name="telefono" required placeholder="Teléfono o celular">
+                                </div>
+                                <div class="cargo-field">
+                                    <label>Correo *</label>
+                                    <input type="email" name="correo" required placeholder="contacto@centro.com">
+                                </div>
+                                <div class="cargo-field full">
+                                    <label>Direcciones de sedes adicionales</label>
+                                    <div class="cargo-dynamic" data-dynamic-list="sedes">
+                                        <div class="cargo-dynamic-row">
+                                            <input name="sedes[]" placeholder="Sede opcional">
+                                            <button class="cargo-icon-btn" type="button" data-remove-row aria-label="Quitar sede"><i class="fa-solid fa-xmark"></i></button>
+                                        </div>
+                                    </div>
+                                    <button class="cargo-add-btn" type="button" data-add-row="sedes"><i class="fa-solid fa-plus"></i> Agregar sede</button>
+                                </div>
+                                <div class="cargo-field">
+                                    <label>Licencia de funcionamiento</label>
+                                    <div class="cargo-file"><input type="file" name="licencia_funcionamiento" accept=".pdf,.png,.jpg,.jpeg,.webp"></div>
+                                </div>
+                                <div class="cargo-field">
+                                    <label>Licencia SST médico o centro</label>
+                                    <div class="cargo-file"><input type="file" name="licencia_sst" accept=".pdf,.png,.jpg,.jpeg,.webp"></div>
+                                </div>
+                            </div>
+                            <button class="cargo-submit" type="submit"><i class="fa-solid fa-floppy-disk"></i> Guardar centro médico</button>
+                        </form>
+                    <?php endif; ?>
+
+                    <?php if (empty($centros_medicos)): ?>
+                        <div class="cargo-empty">
+                            <i class="fa-solid fa-hospital-user"></i>
+                            <strong>No hay centros médicos registrados.</strong>
+                            <p>Cuando agregues el primero, quedará disponible para asociarlo a perfiles de cargo.</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="cargo-list">
+                            <?php foreach ($centros_medicos as $centro): ?>
+                                <?php $sedes = estandar5_decode_list($centro['sedes_json'] ?? ''); ?>
+                                <article class="cargo-item">
+                                    <div class="cargo-item-head">
+                                        <div>
+                                            <h3><?php echo htmlspecialchars($centro['nombre']); ?></h3>
+                                            <p>NIT <?php echo htmlspecialchars($centro['nit']); ?> · <?php echo htmlspecialchars($centro['direccion_principal']); ?></p>
+                                            <p><?php echo htmlspecialchars($centro['telefono']); ?> · <?php echo htmlspecialchars($centro['correo']); ?></p>
+                                        </div>
+                                    </div>
+                                    <div class="cargo-tags">
+                                        <span class="cargo-tag"><i class="fa-solid fa-location-dot"></i> <?php echo count($sedes); ?> sede(s) adicional(es)</span>
+                                        <?php if (!empty($centro['licencia_funcionamiento_archivo'])): ?>
+                                            <a class="cargo-tag" href="<?php echo htmlspecialchars($centro['licencia_funcionamiento_archivo']); ?>" target="_blank"><i class="fa-solid fa-file-shield"></i> Funcionamiento</a>
+                                        <?php endif; ?>
+                                        <?php if (!empty($centro['licencia_sst_archivo'])): ?>
+                                            <a class="cargo-tag" href="<?php echo htmlspecialchars($centro['licencia_sst_archivo']); ?>" target="_blank"><i class="fa-solid fa-id-card-clip"></i> Licencia SST</a>
+                                        <?php endif; ?>
+                                    </div>
+                                </article>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </article>
+
+                <article class="cargo-panel">
+                    <div class="cargo-panel-head">
+                        <div class="cargo-panel-title">
+                            <div class="cargo-panel-icon"><i class="fa-solid fa-user-gear"></i></div>
+                            <div>
+                                <h2>Crear perfil de cargo</h2>
+                                <p>Define tareas y herramientas autorizadas para reutilizar el perfil y entregarlo al médico.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <?php if ($usuario_rol === 'sst'): ?>
+                        <form class="cargo-form" action="procesar_estandar5.php" method="POST">
+                            <input type="hidden" name="accion" value="guardar_perfil_cargo">
+                            <div class="cargo-grid-2">
+                                <div class="cargo-field">
+                                    <label>Nombre del cargo *</label>
+                                    <input name="nombre_cargo" required placeholder="Ej. Operario de producción">
+                                </div>
+                                <div class="cargo-field">
+                                    <label>Tipo de operación *</label>
+                                    <select name="tipo_operacion" required>
+                                        <option value="">Selecciona...</option>
+                                        <option value="Administrativo">Administrativo</option>
+                                        <option value="Operativo">Operativo</option>
+                                        <option value="Mixto">Mixto</option>
+                                    </select>
+                                </div>
+                                <div class="cargo-field full">
+                                    <label>Proceso *</label>
+                                    <select name="tipo_proceso_select" id="tipoProcesoSelect" required>
+                                        <option value="">Selecciona...</option>
+                                        <?php foreach ($procesos_perfil as $proceso_guardado): ?>
+                                            <option value="<?php echo htmlspecialchars($proceso_guardado); ?>"><?php echo htmlspecialchars($proceso_guardado); ?></option>
+                                        <?php endforeach; ?>
+                                        <option value="__nuevo_proceso__" <?php echo empty($procesos_perfil) ? 'selected' : ''; ?>>Crear otro proceso...</option>
+                                    </select>
+                                    <div class="process-new-panel" id="newProcessPanel">
+                                        <input name="tipo_proceso_nuevo" id="tipoProcesoNuevo" placeholder="Escribe el nuevo proceso">
+                                        <div class="process-save-options">
+                                            <span>¿Conservar para futuras creaciones?</span>
+                                            <label><input type="radio" name="guardar_proceso" value="1" checked> Sí, dejar fijo</label>
+                                            <label><input type="radio" name="guardar_proceso" value="0"> No, solo este perfil</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="cargo-field full">
+                                    <label>Responde a / jefe inmediato *</label>
+                                    <input name="jefe_inmediato" required placeholder="Ej. Coordinador de planta">
+                                </div>
+                                <div class="cargo-field full">
+                                    <label>Tareas del cargo *</label>
+                                    <div class="cargo-dynamic" data-dynamic-list="tareas">
+                                        <div class="cargo-dynamic-row">
+                                            <input name="tareas[]" required placeholder="Tarea 1">
+                                            <button class="cargo-icon-btn" type="button" data-remove-row aria-label="Quitar tarea"><i class="fa-solid fa-xmark"></i></button>
+                                        </div>
+                                    </div>
+                                    <button class="cargo-add-btn" type="button" data-add-row="tareas"><i class="fa-solid fa-plus"></i> Agregar tarea</button>
+                                </div>
+                                <div class="cargo-field full">
+                                    <label>Herramientas autorizadas según operación</label>
+                                    <div class="tools-groups" id="toolsGroups">
+                                        <?php foreach ($herramientas_grupos as $grupo_key => $grupo): ?>
+                                            <section class="tool-group" data-tool-group="<?php echo htmlspecialchars($grupo_key); ?>">
+                                                <h3><i class="fa-solid <?php echo htmlspecialchars($grupo['icon']); ?>"></i> <?php echo htmlspecialchars($grupo['titulo']); ?></h3>
+                                                <div class="tools-check-grid">
+                                                    <?php foreach ($grupo['items'] as $herramienta): ?>
+                                                        <label class="tool-check">
+                                                            <input type="checkbox" name="herramientas_<?php echo htmlspecialchars($grupo_key); ?>[]" value="<?php echo htmlspecialchars($herramienta); ?>">
+                                                            <span><?php echo htmlspecialchars($herramienta); ?></span>
+                                                        </label>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                                <input name="herramienta_otra_<?php echo htmlspecialchars($grupo_key); ?>" placeholder="Agregar otra herramienta">
+                                            </section>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                                <div class="cargo-field full">
+                                    <label>Tareas de alto riesgo a las que se expone</label>
+                                    <div class="risk-check-grid">
+                                        <?php foreach ($tareas_alto_riesgo_base as $riesgo): ?>
+                                            <label class="risk-check">
+                                                <input type="checkbox" name="tareas_alto_riesgo[]" value="<?php echo htmlspecialchars($riesgo); ?>">
+                                                <span><?php echo htmlspecialchars($riesgo); ?></span>
+                                            </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <div class="field-hint">Marca todas las tareas de alto riesgo que apliquen para el cargo.</div>
+                                </div>
+                            </div>
+                            <button class="cargo-submit" type="submit"><i class="fa-solid fa-floppy-disk"></i> Guardar perfil predeterminado</button>
+                        </form>
+                    <?php endif; ?>
+
+                    <?php if (empty($perfiles_cargo)): ?>
+                        <div class="cargo-empty">
+                            <i class="fa-solid fa-user-doctor"></i>
+                            <strong>No hay perfiles de cargo creados.</strong>
+                            <p>Los perfiles guardados quedarán disponibles para reutilizar y descargar.</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="cargo-list">
+                            <?php foreach ($perfiles_cargo as $perfil): ?>
+                                <?php
+                                    $tareas = estandar5_decode_list($perfil['tareas_json'] ?? '');
+                                    $tareas_alto_riesgo = estandar5_decode_list($perfil['tareas_alto_riesgo_json'] ?? '');
+                                    $herramientas = estandar5_decode_list($perfil['herramientas_json'] ?? '');
+                                ?>
+                                <article class="cargo-item">
+                                    <div class="cargo-item-head">
+                                        <div>
+                                            <h3><?php echo htmlspecialchars($perfil['nombre_cargo']); ?></h3>
+                                            <p><?php echo htmlspecialchars($perfil['tipo_proceso']); ?> · <?php echo htmlspecialchars($perfil['tipo_operacion'] ?? 'Mixto'); ?> · Jefe: <?php echo htmlspecialchars($perfil['jefe_inmediato']); ?></p>
+                                            <p>Centro: <?php echo htmlspecialchars($perfil['centro_nombre'] ?: 'Sin asignar'); ?></p>
+                                        </div>
+                                        <a class="cargo-link" href="estandar5.php?modulo=perfiles-cargo&export_perfil=<?php echo (int)$perfil['id']; ?>"><i class="fa-solid fa-file-pdf"></i> PDF</a>
+                                    </div>
+                                    <div class="cargo-tags">
+                                        <span class="cargo-tag"><i class="fa-solid fa-list-check"></i> <?php echo count($tareas); ?> tarea(s)</span>
+                                        <span class="cargo-tag"><i class="fa-solid fa-triangle-exclamation"></i> <?php echo count($tareas_alto_riesgo); ?> alto riesgo</span>
+                                        <span class="cargo-tag"><i class="fa-solid fa-screwdriver-wrench"></i> <?php echo count($herramientas); ?> herramienta(s)</span>
+                                        <span class="cargo-tag"><i class="fa-solid fa-rotate"></i> Reutilizable</span>
+                                    </div>
+                                </article>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </article>
+            </section>
+        <?php elseif ($modulo_actual === 'evaluaciones-medicas'): ?>
+            <?php
+                $msg = trim((string)($_GET['msg'] ?? ''));
+                $tipo_msg = ($_GET['tipo'] ?? 'ok') === 'error' ? 'error' : 'ok';
+                $solicitadas = 0;
+                foreach ($eval_solicitudes as $sol) {
+                    if (($sol['estado'] ?? '') === 'solicitada') {
+                        $solicitadas++;
+                    }
+                }
+                $can_program = $usuario_rol === 'sst' && !empty($eval_centros_medicos) && !empty($eval_perfiles_cargo);
+            ?>
+            <?php if ($msg !== ''): ?>
+                <div class="med-alert <?php echo htmlspecialchars($tipo_msg); ?>">
+                    <i class="fa-solid <?php echo $tipo_msg === 'ok' ? 'fa-circle-check' : 'fa-triangle-exclamation'; ?>"></i>
+                    <span><?php echo htmlspecialchars($msg); ?></span>
+                </div>
+            <?php endif; ?>
+
+            <section class="med-summary">
+                <article class="med-kpi"><span>Trabajadores</span><strong><?php echo count($eval_trabajadores); ?></strong></article>
+                <article class="med-kpi"><span>Centros médicos</span><strong><?php echo count($eval_centros_medicos); ?></strong></article>
+                <article class="med-kpi"><span>Perfiles de cargo</span><strong><?php echo count($eval_perfiles_cargo); ?></strong></article>
+                <article class="med-kpi"><span>Solicitudes recientes</span><strong><?php echo count($eval_solicitudes); ?></strong></article>
+            </section>
+
+            <?php if (empty($eval_centros_medicos) || empty($eval_perfiles_cargo)): ?>
+                <div class="notice" style="margin-bottom:14px;">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span>Para programar exámenes debes tener al menos un centro médico autorizado y un perfil de cargo creado en el subestándar 3.1.3.</span>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($usuario_rol === 'sst' && !empty($eval_alertas)): ?>
+                <div class="med-notification">
+                    <span><i class="fa-solid fa-bell"></i> <strong>Notificación SST:</strong> tienes vencimientos médicos o certificaciones que requieren seguimiento.</span>
+                    <span class="med-badge critico"><?php echo count($eval_alertas); ?> alerta(s)</span>
+                </div>
+            <?php endif; ?>
+
+            <section class="med-card upload-exam">
+                <div class="med-card-head">
+                    <div>
+                        <h2>Cargar examen recibido y confirmar datos</h2>
+                        <p>Sube el PDF entregado por el centro médico. El sistema intenta leer el texto y deja los datos listos para confirmación antes de guardar vencimientos.</p>
+                    </div>
+                    <i class="fa-solid fa-file-medical" style="color:var(--primary2);"></i>
+                </div>
+                <form class="med-upload-grid" action="procesar_estandar5.php" method="POST" enctype="multipart/form-data" id="medicalSupportForm">
+                    <input type="hidden" name="accion" value="guardar_soporte_evaluacion_medica">
+                    <input type="hidden" name="texto_extraido" id="textoExtraidoInput">
+                    <div>
+                        <label class="med-label" for="supportTrabajador">Trabajador</label>
+                        <select class="med-field" name="trabajador_id" id="supportTrabajador" required>
+                            <option value="">Selecciona...</option>
+                            <?php foreach ($eval_trabajadores as $trabajador): ?>
+                                <?php $cargo_trabajador = estandar5_eval_cargo_trabajador($trabajador); ?>
+                                <option value="<?php echo (int)$trabajador['id']; ?>" data-nombre="<?php echo htmlspecialchars(trim($trabajador['nombre'] . ' ' . $trabajador['apellido'])); ?>" data-cedula="<?php echo htmlspecialchars($trabajador['cedula']); ?>" data-cargo="<?php echo htmlspecialchars($cargo_trabajador); ?>">
+                                    <?php echo htmlspecialchars(trim($trabajador['nombre'] . ' ' . $trabajador['apellido']) . ' · ' . $trabajador['cedula']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="med-label" for="supportSolicitud">Solicitud previa</label>
+                        <select class="med-field" name="evaluacion_id" id="supportSolicitud">
+                            <option value="">Sin solicitud vinculada</option>
+                            <?php foreach ($eval_solicitudes as $sol): ?>
+                                <option value="<?php echo (int)$sol['id']; ?>" data-trabajador="<?php echo (int)$sol['trabajador_id']; ?>" data-perfil="<?php echo (int)$sol['perfil_cargo_id']; ?>" data-centro="<?php echo (int)$sol['centro_medico_id']; ?>">
+                                    <?php echo htmlspecialchars(date('d/m/Y', strtotime($sol['creado_en'])) . ' · ' . $sol['cedula'] . ' · ' . $sol['tipo_examen']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="med-label" for="supportPerfil">Perfil de cargo</label>
+                        <select class="med-field" name="perfil_cargo_id" id="supportPerfil">
+                            <option value="">Sin perfil</option>
+                            <?php foreach ($eval_perfiles_cargo as $perfil): ?>
+                                <option value="<?php echo (int)$perfil['id']; ?>" data-operacion="<?php echo htmlspecialchars($perfil['tipo_operacion'] ?? 'Mixto'); ?>" data-cargo="<?php echo htmlspecialchars($perfil['nombre_cargo']); ?>">
+                                    <?php echo htmlspecialchars($perfil['nombre_cargo'] . ' · ' . ($perfil['tipo_operacion'] ?? 'Mixto')); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="med-label" for="supportCentro">Centro medico</label>
+                        <select class="med-field" name="centro_medico_id" id="supportCentro">
+                            <option value="">Sin centro vinculado</option>
+                            <?php foreach ($eval_centros_medicos as $centro): ?>
+                                <option value="<?php echo (int)$centro['id']; ?>" data-nombre="<?php echo htmlspecialchars($centro['nombre']); ?>">
+                                    <?php echo htmlspecialchars($centro['nombre'] . ' · ' . $centro['direccion_principal']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="wide">
+                        <label class="med-label" for="archivoPdfMedico">PDF del examen o certificado</label>
+                        <div class="med-file">
+                            <input type="file" name="archivo_pdf" id="archivoPdfMedico" accept="application/pdf,.pdf" required>
+                            <div class="med-note" id="extractStatus">Al cargar el PDF se intentará extraer texto para completar campos.</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="med-label" for="nombreTrabajadorMedico">Nombre del trabajador</label>
+                        <input class="med-field" name="nombre_trabajador" id="nombreTrabajadorMedico" required>
+                    </div>
+                    <div>
+                        <label class="med-label" for="cedulaTrabajadorMedico">No. identificacion</label>
+                        <input class="med-field" name="cedula" id="cedulaTrabajadorMedico" required>
+                    </div>
+                    <div>
+                        <label class="med-label" for="cargoTrabajadorMedico">Cargo</label>
+                        <input class="med-field" name="cargo" id="cargoTrabajadorMedico">
+                    </div>
+                    <div class="med-section-title"><i class="fa-solid fa-stethoscope"></i> Examenes medico laborales</div>
+                    <div><label class="med-label" for="tipoExamenMedico">Tipo de examen</label><input class="med-field" name="tipo_examen" id="tipoExamenMedico" placeholder="Periodico, ingreso..."></div>
+                    <div><label class="med-label" for="resultadoMedico">Resultado</label><input class="med-field" name="resultado" id="resultadoMedico" placeholder="Apto / No apto / Apto con restricciones"></div>
+                    <div><label class="med-label" for="aptitudMedico">Tipo de aptitud</label><input class="med-field" name="tipo_aptitud" id="aptitudMedico"></div>
+                    <div><label class="med-label" for="centroMedicoTexto">Centro medico</label><input class="med-field" name="centro_medico" id="centroMedicoTexto"></div>
+                    <div><label class="med-label" for="fechaExpedicionMedico">Fecha de expedicion</label><input class="med-field" type="date" name="fecha_expedicion" id="fechaExpedicionMedico"></div>
+                    <div><label class="med-label" for="fechaVencimientoMedico">Fecha de vencimiento</label><input class="med-field" type="date" name="fecha_vencimiento" id="fechaVencimientoMedico"></div>
+                    <div><label class="med-label" for="tiempoProgramarMedico">Tiempo para programar</label><input class="med-field" name="tiempo_para_programar" id="tiempoProgramarMedico" placeholder="30, 60, 90 dias"></div>
+                    <div><label class="med-label" for="diasAccionMedico">Dias de accion</label><input class="med-field" type="number" name="dias_accion" id="diasAccionMedico"></div>
+                    <div class="med-section-title"><i class="fa-solid fa-person-falling"></i> Trabajo seguro en alturas</div>
+                    <div><label class="med-label" for="alturaNivelCurso">Nivel del curso</label><input class="med-field" name="altura_nivel_curso" id="alturaNivelCurso"></div>
+                    <div><label class="med-label" for="alturaCentroCapacitador">Centro capacitador</label><input class="med-field" name="altura_centro_capacitador" id="alturaCentroCapacitador"></div>
+                    <div><label class="med-label" for="alturaFechaExpedicion">Fecha de expedicion</label><input class="med-field" type="date" name="altura_fecha_expedicion" id="alturaFechaExpedicion"></div>
+                    <div><label class="med-label" for="alturaFechaVencimiento">Fecha de vencimiento</label><input class="med-field" type="date" name="altura_fecha_vencimiento" id="alturaFechaVencimiento"></div>
+                    <div><label class="med-label" for="alturaProgramar">Programar</label><input class="med-field" name="altura_programar" id="alturaProgramar"></div>
+                    <div><label class="med-label" for="alturaDiasAccion">Dias de accion</label><input class="med-field" type="number" name="altura_dias_accion" id="alturaDiasAccion"></div>
+                    <div class="med-section-title"><i class="fa-solid fa-hard-hat"></i> Trabajo en espacios confinados</div>
+                    <div><label class="med-label" for="confinadoNivelCurso">Nivel del curso</label><input class="med-field" name="confinado_nivel_curso" id="confinadoNivelCurso"></div>
+                    <div><label class="med-label" for="confinadoCentroCapacitador">Centro capacitador</label><input class="med-field" name="confinado_centro_capacitador" id="confinadoCentroCapacitador"></div>
+                    <div><label class="med-label" for="confinadoFechaExpedicion">Fecha de expedicion</label><input class="med-field" type="date" name="confinado_fecha_expedicion" id="confinadoFechaExpedicion"></div>
+                    <div><label class="med-label" for="confinadoFechaVencimiento">Fecha de vencimiento</label><input class="med-field" type="date" name="confinado_fecha_vencimiento" id="confinadoFechaVencimiento"></div>
+                    <div><label class="med-label" for="confinadoProgramar">Programar</label><input class="med-field" name="confinado_programar" id="confinadoProgramar"></div>
+                    <div><label class="med-label" for="confinadoDiasAccion">Dias de accion</label><input class="med-field" type="number" name="confinado_dias_accion" id="confinadoDiasAccion"></div>
+                    <div class="full"><label class="med-label" for="observacionesSoporte">Observaciones internas</label><textarea class="med-field med-extract-box" name="observaciones" id="observacionesSoporte" placeholder="Notas del responsable SST, restricciones o recomendaciones visibles en el soporte."></textarea></div>
+                    <div class="full med-actions-row">
+                        <span class="med-note">Periodicidad sugerida: operativo/mixto 18 meses, administrativo 36 meses. Alturas 18 meses. Espacios confinados queda según fecha confirmada del certificado.</span>
+                        <button class="med-btn" type="submit" <?php echo $usuario_rol === 'sst' ? '' : 'disabled'; ?>><i class="fa-solid fa-cloud-arrow-up"></i> Guardar examen</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="med-card alert-panel">
+                <div class="med-card-head">
+                    <div>
+                        <h2>Alertas de vencimiento</h2>
+                        <p>Control visual basado en las fechas confirmadas al cargar cada soporte.</p>
+                    </div>
+                    <i class="fa-solid fa-bell" style="color:var(--primary2);"></i>
+                </div>
+                <?php if (empty($eval_alertas)): ?>
+                    <div class="med-empty"><i class="fa-solid fa-circle-check"></i><strong>No hay vencimientos cercanos o vencidos.</strong><p>Las alertas aparecerán cuando una fecha esté vencida o a 90 días de vencer.</p></div>
+                <?php else: ?>
+                    <div class="med-alert-grid">
+                        <?php foreach (array_slice($eval_alertas, 0, 9) as $alerta): ?>
+                            <article class="med-alert-item <?php echo htmlspecialchars($alerta['estado']); ?>">
+                                <i class="fa-solid <?php echo $alerta['estado'] === 'vencido' ? 'fa-triangle-exclamation' : 'fa-clock'; ?>"></i>
+                                <div>
+                                    <strong><?php echo htmlspecialchars($alerta['tipo']); ?></strong>
+                                    <span><?php echo htmlspecialchars($alerta['trabajador']); ?> · C.C. <?php echo htmlspecialchars($alerta['cedula']); ?></span>
+                                    <span><?php echo htmlspecialchars($alerta['texto']); ?> · <?php echo htmlspecialchars(date('d/m/Y', strtotime($alerta['fecha']))); ?></span>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </section>
+
+            <section class="med-card personnel-matrix">
+                <div class="med-card-head">
+                    <div>
+                        <h2>Control médico del personal</h2>
+                        <p>Listado horizontal del personal registrado con estado de examen médico, trabajo en alturas y espacios confinados.</p>
+                    </div>
+                    <i class="fa-solid fa-table-list" style="color:var(--primary2);"></i>
+                </div>
+                <?php if (empty($eval_trabajadores)): ?>
+                    <div class="med-empty"><i class="fa-solid fa-users"></i><strong>No hay trabajadores registrados.</strong></div>
+                <?php else: ?>
+                    <div class="med-table-wrap">
+                        <table class="med-table">
+                            <thead><tr><th>Trabajador</th><th>Cargo</th><th>Examen médico laboral</th><th>Trabajo en alturas</th><th>Espacios confinados</th><th>Alerta / soporte</th></tr></thead>
+                            <tbody>
+                                <?php foreach ($eval_trabajadores as $trabajador): ?>
+                                    <?php
+                                        $trabajador_id_matriz = (int)$trabajador['id'];
+                                        $soporte = $eval_soportes_por_trabajador[$trabajador_id_matriz] ?? null;
+                                        $estado_med = $soporte ? estandar5_eval_alert_status($soporte['fecha_vencimiento'] ?? null) : null;
+                                        $estado_alt = $soporte ? estandar5_eval_alert_status($soporte['altura_fecha_vencimiento'] ?? null) : null;
+                                        $estado_conf = $soporte ? estandar5_eval_alert_status($soporte['confinado_fecha_vencimiento'] ?? null) : null;
+                                        $alertas_fila = array_filter([$estado_med, $estado_alt, $estado_conf], fn($estado) => $estado && $estado['estado'] !== 'vigente');
+                                    ?>
+                                    <tr>
+                                        <td><span class="med-worker-name"><?php echo htmlspecialchars(trim($trabajador['nombre'] . ' ' . $trabajador['apellido'])); ?></span><span class="med-muted">C.C. <?php echo htmlspecialchars($trabajador['cedula']); ?><br><?php echo htmlspecialchars($trabajador['email']); ?></span></td>
+                                        <td><?php echo htmlspecialchars($soporte['cargo'] ?? estandar5_eval_cargo_trabajador($trabajador)); ?></td>
+                                        <td>
+                                            <?php if ($soporte): ?>
+                                                <strong><?php echo htmlspecialchars($soporte['tipo_examen'] ?: 'Sin tipo'); ?></strong><br>
+                                                <span class="med-muted"><?php echo htmlspecialchars($soporte['resultado'] ?: 'Sin resultado'); ?> · <?php echo htmlspecialchars($soporte['tipo_aptitud'] ?: 'Sin aptitud'); ?></span><br>
+                                                <span class="med-muted">Vence: <?php echo $soporte['fecha_vencimiento'] ? htmlspecialchars(date('d/m/Y', strtotime($soporte['fecha_vencimiento']))) : 'Sin fecha'; ?></span>
+                                                <?php if ($estado_med): ?><br><span class="med-badge <?php echo htmlspecialchars($estado_med['estado']); ?>"><?php echo htmlspecialchars($estado_med['texto']); ?></span><?php endif; ?>
+                                            <?php else: ?>
+                                                <span class="med-muted">Sin soporte cargado</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php if ($soporte && ($soporte['altura_nivel_curso'] || $soporte['altura_fecha_vencimiento'])): ?>
+                                                <strong><?php echo htmlspecialchars($soporte['altura_nivel_curso'] ?: 'Sin nivel'); ?></strong><br>
+                                                <span class="med-muted"><?php echo htmlspecialchars($soporte['altura_centro_capacitador'] ?: 'Sin centro'); ?></span><br>
+                                                <span class="med-muted">Vence: <?php echo $soporte['altura_fecha_vencimiento'] ? htmlspecialchars(date('d/m/Y', strtotime($soporte['altura_fecha_vencimiento']))) : 'Sin fecha'; ?></span>
+                                                <?php if ($estado_alt): ?><br><span class="med-badge <?php echo htmlspecialchars($estado_alt['estado']); ?>"><?php echo htmlspecialchars($estado_alt['texto']); ?></span><?php endif; ?>
+                                            <?php else: ?>
+                                                <span class="med-muted">Sin soporte cargado</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php if ($soporte && ($soporte['confinado_nivel_curso'] || $soporte['confinado_fecha_vencimiento'])): ?>
+                                                <strong><?php echo htmlspecialchars($soporte['confinado_nivel_curso'] ?: 'Sin nivel'); ?></strong><br>
+                                                <span class="med-muted"><?php echo htmlspecialchars($soporte['confinado_centro_capacitador'] ?: 'Sin centro'); ?></span><br>
+                                                <span class="med-muted">Vence: <?php echo $soporte['confinado_fecha_vencimiento'] ? htmlspecialchars(date('d/m/Y', strtotime($soporte['confinado_fecha_vencimiento']))) : 'Sin fecha'; ?></span>
+                                                <?php if ($estado_conf): ?><br><span class="med-badge <?php echo htmlspecialchars($estado_conf['estado']); ?>"><?php echo htmlspecialchars($estado_conf['texto']); ?></span><?php endif; ?>
+                                            <?php else: ?>
+                                                <span class="med-muted">Sin soporte cargado</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php if (!empty($alertas_fila)): ?>
+                                                <span class="med-badge critico"><?php echo count($alertas_fila); ?> alerta(s)</span><br>
+                                            <?php elseif ($soporte): ?>
+                                                <span class="med-badge vigente">Al día</span><br>
+                                            <?php else: ?>
+                                                <span class="med-badge solicitada">Pendiente</span><br>
+                                            <?php endif; ?>
+                                            <?php if ($soporte): ?>
+                                                <a class="med-link" href="<?php echo htmlspecialchars($soporte['archivo_pdf']); ?>" target="_blank" rel="noopener"><i class="fa-solid fa-file-pdf"></i> Ver PDF</a><br>
+                                                <span class="med-muted"><?php echo htmlspecialchars(date('d/m/Y H:i', strtotime($soporte['creado_en']))); ?></span>
+                                            <?php else: ?>
+                                                <span class="med-muted">Cargar examen cuando el centro lo entregue.</span>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </section>
+
+            <section class="med-card program-list">
+                <div class="med-card-head">
+                    <div>
+                        <h2>Trabajadores para programación de exámenes médicos</h2>
+                        <p>Selecciona perfil de cargo y centro médico. El sistema enviará la solicitud al correo registrado del centro con el PDF del perfil adjunto.</p>
+                    </div>
+                    <i class="fa-solid fa-stethoscope" style="color:var(--primary2);"></i>
+                </div>
+                <?php if (empty($eval_trabajadores)): ?>
+                    <div class="med-empty">
+                        <i class="fa-solid fa-users"></i>
+                        <strong>No hay trabajadores registrados.</strong>
+                        <p>Cuando los trabajadores se registren, aparecerán aquí para programar sus exámenes médicos.</p>
+                    </div>
+                <?php else: ?>
+                    <div class="med-table-wrap">
+                        <table class="med-table">
+                            <thead>
+                                <tr>
+                                    <th>Trabajador</th>
+                                    <th>Cargo / dato disponible</th>
+                                    <th>Última solicitud</th>
+                                    <th>Programación</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($eval_trabajadores as $trabajador): ?>
+                                    <tr>
+                                        <td>
+                                            <span class="med-worker-name"><?php echo htmlspecialchars(trim($trabajador['nombre'] . ' ' . $trabajador['apellido'])); ?></span>
+                                            <span class="med-muted">C.C. <?php echo htmlspecialchars($trabajador['cedula']); ?><br><?php echo htmlspecialchars($trabajador['email']); ?></span>
+                                        </td>
+                                        <td><?php echo htmlspecialchars(estandar5_eval_cargo_trabajador($trabajador)); ?></td>
+                                        <td>
+                                            <?php if (!empty($trabajador['ultima_eval_estado'])): ?>
+                                                <span class="med-badge <?php echo htmlspecialchars($trabajador['ultima_eval_estado']); ?>"><?php echo htmlspecialchars($trabajador['ultima_eval_estado']); ?></span><br>
+                                                <span class="med-muted"><?php echo htmlspecialchars($trabajador['ultimo_tipo_examen'] ?? ''); ?> · <?php echo htmlspecialchars(date('d/m/Y', strtotime($trabajador['ultima_eval_fecha']))); ?></span>
+                                            <?php else: ?>
+                                                <span class="med-muted">Sin solicitudes registradas</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <form class="med-form-grid" action="procesar_estandar5.php" method="POST">
+                                                <input type="hidden" name="accion" value="programar_evaluacion_medica">
+                                                <input type="hidden" name="trabajador_id" value="<?php echo (int)$trabajador['id']; ?>">
+                                                <select class="med-field" name="tipo_examen" required <?php echo $can_program ? '' : 'disabled'; ?>>
+                                                    <option value="Periodico">Periódico</option>
+                                                    <option value="Ingreso">Ingreso</option>
+                                                    <option value="Egreso">Egreso</option>
+                                                    <option value="Post incapacidad">Post incapacidad</option>
+                                                    <option value="Reubicacion">Reubicación</option>
+                                                </select>
+                                                <select class="med-field" name="perfil_cargo_id" required <?php echo $can_program ? '' : 'disabled'; ?>>
+                                                    <option value="">Perfil de cargo...</option>
+                                                    <?php foreach ($eval_perfiles_cargo as $perfil): ?>
+                                                        <option value="<?php echo (int)$perfil['id']; ?>"><?php echo htmlspecialchars($perfil['nombre_cargo'] . ' · ' . $perfil['tipo_operacion']); ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                                <select class="med-field" name="centro_medico_id" required <?php echo $can_program ? '' : 'disabled'; ?>>
+                                                    <option value="">Centro médico...</option>
+                                                    <?php foreach ($eval_centros_medicos as $centro): ?>
+                                                        <option value="<?php echo (int)$centro['id']; ?>">
+                                                            <?php echo htmlspecialchars($centro['nombre'] . ' · ' . $centro['direccion_principal'] . ' · ' . $centro['correo']); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                                <input class="med-field" name="observaciones" placeholder="Observaciones">
+                                                <button class="med-btn" type="submit" <?php echo $can_program ? '' : 'disabled'; ?>>
+                                                    <i class="fa-solid fa-paper-plane"></i> Programar
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </section>
+
+            <section class="med-card request-history">
+                <div class="med-card-head">
+                    <div>
+                        <h2>Solicitudes enviadas recientemente</h2>
+                        <p>Historial básico de correos enviados a centros médicos desde este subestándar.</p>
+                    </div>
+                </div>
+                <?php if (empty($eval_solicitudes)): ?>
+                    <div class="med-empty">
+                        <i class="fa-solid fa-envelope-open-text"></i>
+                        <strong>No hay solicitudes enviadas.</strong>
+                    </div>
+                <?php else: ?>
+                    <div class="med-table-wrap">
+                        <table class="med-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Trabajador</th>
+                                    <th>Perfil</th>
+                                    <th>Centro médico</th>
+                                    <th>Tipo</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($eval_solicitudes as $sol): ?>
+                                    <tr>
+                                        <td><?php echo htmlspecialchars(date('d/m/Y H:i', strtotime($sol['creado_en']))); ?></td>
+                                        <td><?php echo htmlspecialchars(trim($sol['nombre'] . ' ' . $sol['apellido'])); ?><br><span class="med-muted">C.C. <?php echo htmlspecialchars($sol['cedula']); ?></span></td>
+                                        <td><?php echo htmlspecialchars($sol['nombre_cargo']); ?></td>
+                                        <td><?php echo htmlspecialchars($sol['centro_nombre']); ?><br><span class="med-muted"><?php echo htmlspecialchars($sol['correo_destino']); ?></span></td>
+                                        <td><?php echo htmlspecialchars($sol['tipo_examen']); ?></td>
+                                        <td><span class="med-badge <?php echo htmlspecialchars($sol['estado']); ?>"><?php echo htmlspecialchars($sol['estado']); ?></span></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </section>
+        <?php elseif ($modulo): ?>
+            <section class="workspace-grid">
+                <article class="module-card">
+                    <div class="module-card-head">
+                        <span class="module-code"><i class="fa-solid <?php echo htmlspecialchars($modulo['icono']); ?>"></i> <?php echo htmlspecialchars($modulo['codigo']); ?></span>
+                        <h2><?php echo htmlspecialchars($modulo['titulo']); ?></h2>
+                    </div>
+                    <div class="module-card-body">
+                        <p><?php echo htmlspecialchars($modulo['descripcion']); ?></p>
+                        <div class="state-row">
+                            <div class="state-box"><span>Estado</span><strong>Diseño</strong></div>
+                            <div class="state-box"><span>Datos</span><strong>Pendiente</strong></div>
+                            <div class="state-box"><span>Rol</span><strong><?php echo $usuario_rol === 'sst' ? 'Gestión SST' : 'Resumen'; ?></strong></div>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="detail-card">
+                    <h3>Base funcional del submódulo</h3>
+                    <p>Por ahora dejamos el contenedor visual listo para conectar datos y flujos cuando definas cómo debe operar cada sección.</p>
+                    <ul class="detail-list">
+                        <li><i class="fa-solid fa-check"></i><span>Acceso desde el menú lateral y desde los botones internos del estándar 5.</span></li>
+                        <li><i class="fa-solid fa-check"></i><span>Selección del submódulo actual sin perder la estructura general de la página.</span></li>
+                        <li><i class="fa-solid fa-check"></i><span>Diseño responsive para escritorio, portátil y celular.</span></li>
+                        <li><i class="fa-solid fa-check"></i><span>Preparado para separar vista de gestión del Responsable SST y vista resumen del Representante Legal.</span></li>
+                    </ul>
+                    <div class="notice">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span>No se creó ni modificó ninguna tabla todavía. Cuando conectemos datos, dejaré el SQL correspondiente en un archivo de migración.</span>
+                    </div>
+                </article>
+            </section>
+        <?php endif; ?>
+    </div>
+</main>
+<?php if ($modulo_actual === 'perfiles-cargo'): ?>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const tipoProcesoSelect = document.getElementById('tipoProcesoSelect');
+    const newProcessPanel = document.getElementById('newProcessPanel');
+    const tipoProcesoNuevo = document.getElementById('tipoProcesoNuevo');
+    const tipoOperacionSelect = document.querySelector('select[name="tipo_operacion"]');
+    const toolGroups = document.querySelectorAll('[data-tool-group]');
+
+    function toggleNewProcessPanel() {
+        const active = tipoProcesoSelect?.value === '__nuevo_proceso__';
+        newProcessPanel?.classList.toggle('active', active);
+        if (tipoProcesoNuevo) {
+            tipoProcesoNuevo.required = active;
+            if (!active) tipoProcesoNuevo.value = '';
+        }
+    }
+
+    tipoProcesoSelect?.addEventListener('change', toggleNewProcessPanel);
+    toggleNewProcessPanel();
+
+    function updateToolGroups() {
+        const type = tipoOperacionSelect?.value || '';
+        const visibleByType = {
+            'Administrativo': ['administrativo'],
+            'Operativo': ['menores', 'electricas'],
+            'Mixto': ['administrativo', 'menores', 'electricas']
+        };
+        const visibleGroups = visibleByType[type] || [];
+        toolGroups.forEach((group) => {
+            const active = visibleGroups.includes(group.dataset.toolGroup);
+            group.classList.toggle('active', active);
+            group.querySelectorAll('input').forEach((input) => {
+                input.disabled = !active;
+                if (!active && input.type === 'checkbox') input.checked = false;
+                if (!active && input.type !== 'checkbox') input.value = '';
+            });
+        });
+    }
+
+    tipoOperacionSelect?.addEventListener('change', updateToolGroups);
+    updateToolGroups();
+
+    function refreshRemoveButtons(list) {
+        const rows = list.querySelectorAll('.cargo-dynamic-row');
+        rows.forEach((row) => {
+            const button = row.querySelector('[data-remove-row]');
+            if (button) button.disabled = rows.length === 1;
+        });
+    }
+
+    document.querySelectorAll('[data-dynamic-list]').forEach(refreshRemoveButtons);
+
+    document.querySelectorAll('[data-add-row]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const key = button.dataset.addRow;
+            const list = document.querySelector(`[data-dynamic-list="${key}"]`);
+            if (!list) return;
+            const first = list.querySelector('.cargo-dynamic-row');
+            const clone = first.cloneNode(true);
+            const input = clone.querySelector('input');
+            if (input) {
+                input.value = '';
+                input.required = key === 'tareas';
+                input.placeholder = key === 'tareas' ? `Tarea ${list.children.length + 1}` : 'Sede opcional';
+            }
+            list.appendChild(clone);
+            refreshRemoveButtons(list);
+            input?.focus();
+        });
+    });
+
+    document.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-remove-row]');
+        if (!button) return;
+        const list = button.closest('[data-dynamic-list]');
+        const row = button.closest('.cargo-dynamic-row');
+        if (!list || !row || list.querySelectorAll('.cargo-dynamic-row').length === 1) return;
+        row.remove();
+        refreshRemoveButtons(list);
+    });
+});
+</script>
+<?php endif; ?>
+<?php if ($modulo_actual === 'evaluaciones-medicas'): ?>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const trabajadorSelect = document.getElementById('supportTrabajador');
+    const solicitudSelect = document.getElementById('supportSolicitud');
+    const perfilSelect = document.getElementById('supportPerfil');
+    const centroSelect = document.getElementById('supportCentro');
+    const archivoInput = document.getElementById('archivoPdfMedico');
+    const extractStatus = document.getElementById('extractStatus');
+    const textoExtraidoInput = document.getElementById('textoExtraidoInput');
+
+    const fields = {
+        nombre: document.getElementById('nombreTrabajadorMedico'),
+        cedula: document.getElementById('cedulaTrabajadorMedico'),
+        cargo: document.getElementById('cargoTrabajadorMedico'),
+        tipoExamen: document.getElementById('tipoExamenMedico'),
+        resultado: document.getElementById('resultadoMedico'),
+        aptitud: document.getElementById('aptitudMedico'),
+        centroTexto: document.getElementById('centroMedicoTexto'),
+        fechaExp: document.getElementById('fechaExpedicionMedico'),
+        fechaVen: document.getElementById('fechaVencimientoMedico'),
+        diasAccion: document.getElementById('diasAccionMedico'),
+        tiempoProgramar: document.getElementById('tiempoProgramarMedico'),
+        alturaExp: document.getElementById('alturaFechaExpedicion'),
+        alturaVen: document.getElementById('alturaFechaVencimiento'),
+        alturaDias: document.getElementById('alturaDiasAccion'),
+        alturaProgramar: document.getElementById('alturaProgramar'),
+        confinadoExp: document.getElementById('confinadoFechaExpedicion'),
+        confinadoVen: document.getElementById('confinadoFechaVencimiento'),
+        confinadoDias: document.getElementById('confinadoDiasAccion'),
+        confinadoProgramar: document.getElementById('confinadoProgramar')
+    };
+
+    function addMonths(value, months) {
+        if (!value) return '';
+        const date = new Date(value + 'T00:00:00');
+        if (Number.isNaN(date.getTime())) return '';
+        date.setMonth(date.getMonth() + months);
+        return date.toISOString().slice(0, 10);
+    }
+
+    function daysUntil(value) {
+        if (!value) return '';
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const target = new Date(value + 'T00:00:00');
+        return Math.ceil((target - today) / 86400000);
+    }
+
+    function refreshExamExpiry() {
+        const selectedPerfil = perfilSelect?.selectedOptions?.[0];
+        const operation = selectedPerfil?.dataset?.operacion || 'Mixto';
+        const months = operation === 'Administrativo' ? 36 : 18;
+        if (fields.fechaExp?.value && !fields.fechaVen?.value) {
+            fields.fechaVen.value = addMonths(fields.fechaExp.value, months);
+        }
+        if (fields.fechaVen?.value) {
+            fields.diasAccion.value = daysUntil(fields.fechaVen.value);
+            fields.tiempoProgramar.value = daysUntil(fields.fechaVen.value) <= 90 ? 'Programar renovacion' : 'Seguimiento';
+        }
+    }
+
+    function refreshAlturaExpiry() {
+        if (fields.alturaExp?.value && !fields.alturaVen?.value) {
+            fields.alturaVen.value = addMonths(fields.alturaExp.value, 18);
+        }
+        if (fields.alturaVen?.value) {
+            fields.alturaDias.value = daysUntil(fields.alturaVen.value);
+            fields.alturaProgramar.value = daysUntil(fields.alturaVen.value) <= 90 ? 'Programar renovacion' : 'Seguimiento';
+        }
+    }
+
+    function refreshConfinadoExpiry() {
+        if (fields.confinadoVen?.value) {
+            fields.confinadoDias.value = daysUntil(fields.confinadoVen.value);
+            fields.confinadoProgramar.value = daysUntil(fields.confinadoVen.value) <= 90 ? 'Programar renovacion' : 'Seguimiento';
+        }
+    }
+
+    trabajadorSelect?.addEventListener('change', () => {
+        const opt = trabajadorSelect.selectedOptions[0];
+        fields.nombre.value = opt?.dataset?.nombre || '';
+        fields.cedula.value = opt?.dataset?.cedula || '';
+        fields.cargo.value = opt?.dataset?.cargo || '';
+    });
+
+    solicitudSelect?.addEventListener('change', () => {
+        const opt = solicitudSelect.selectedOptions[0];
+        if (!opt || !opt.value) return;
+        if (opt.dataset.trabajador) {
+            trabajadorSelect.value = opt.dataset.trabajador;
+            trabajadorSelect.dispatchEvent(new Event('change'));
+        }
+        if (opt.dataset.perfil) {
+            perfilSelect.value = opt.dataset.perfil;
+            perfilSelect.dispatchEvent(new Event('change'));
+        }
+        if (opt.dataset.centro) {
+            centroSelect.value = opt.dataset.centro;
+            centroSelect.dispatchEvent(new Event('change'));
+        }
+    });
+
+    perfilSelect?.addEventListener('change', () => {
+        const opt = perfilSelect.selectedOptions[0];
+        if (opt?.dataset?.cargo && (!fields.cargo.value || fields.cargo.value === 'Sin cargo registrado')) {
+            fields.cargo.value = opt.dataset.cargo;
+        }
+        refreshExamExpiry();
+    });
+
+    centroSelect?.addEventListener('change', () => {
+        const opt = centroSelect.selectedOptions[0];
+        if (opt?.dataset?.nombre) fields.centroTexto.value = opt.dataset.nombre;
+    });
+
+    [fields.fechaExp, fields.fechaVen].forEach((el) => el?.addEventListener('change', refreshExamExpiry));
+    [fields.alturaExp, fields.alturaVen].forEach((el) => el?.addEventListener('change', refreshAlturaExpiry));
+    [fields.confinadoExp, fields.confinadoVen].forEach((el) => el?.addEventListener('change', refreshConfinadoExpiry));
+
+    function toIsoDate(value) {
+        const clean = String(value || '').trim();
+        let m = clean.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/);
+        if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+        m = clean.match(/\b(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})\b/);
+        if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+        return '';
+    }
+
+    function valueNear(text, labels) {
+        const escaped = labels.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+        const regex = new RegExp(`(?:${escaped})\\s*[:\\-]?\\s*([^\\n\\r]{2,90})`, 'i');
+        const found = text.match(regex);
+        return found ? found[1].trim().replace(/\s{2,}/g, ' ') : '';
+    }
+
+    function fillIfEmpty(input, value) {
+        if (input && !input.value && value) input.value = value;
+    }
+
+    function applyExtractedText(text) {
+        textoExtraidoInput.value = text.slice(0, 60000);
+        fillIfEmpty(fields.nombre, valueNear(text, ['Nombre del Trabajador', 'Trabajador', 'Nombre']));
+        fillIfEmpty(fields.cedula, valueNear(text, ['No. Identificacion', 'Identificacion', 'Cedula', 'Documento']));
+        fillIfEmpty(fields.cargo, valueNear(text, ['Cargo']));
+        fillIfEmpty(fields.tipoExamen, valueNear(text, ['Tipo de Examen', 'Examen']));
+        fillIfEmpty(fields.resultado, valueNear(text, ['Resultado']));
+        fillIfEmpty(fields.aptitud, valueNear(text, ['Tipo de Aptitud', 'Aptitud']));
+        fillIfEmpty(fields.centroTexto, valueNear(text, ['Centro Medico', 'IPS', 'Entidad']));
+
+        const exp = toIsoDate(valueNear(text, ['Fecha de Expedicion', 'Fecha Expedicion', 'Expedicion']));
+        const ven = toIsoDate(valueNear(text, ['Fecha de Vencimiento', 'Fecha Vencimiento', 'Vencimiento']));
+        if (exp && !fields.fechaExp.value) fields.fechaExp.value = exp;
+        if (ven && !fields.fechaVen.value) fields.fechaVen.value = ven;
+        refreshExamExpiry();
+
+        extractStatus.textContent = 'Texto extraido. Revisa y confirma los datos antes de guardar.';
+    }
+
+    archivoInput?.addEventListener('change', async () => {
+        const file = archivoInput.files?.[0];
+        if (!file) return;
+        if (!window.pdfjsLib) {
+            extractStatus.textContent = 'PDF cargado. La lectura automatica no esta disponible; confirma los campos manualmente.';
+            return;
+        }
+        try {
+            extractStatus.textContent = 'Leyendo PDF...';
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            const buffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+            const pages = [];
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const content = await page.getTextContent();
+                pages.push(content.items.map((item) => item.str).join(' '));
+            }
+            applyExtractedText(pages.join('\n'));
+        } catch (error) {
+            extractStatus.textContent = 'No se pudo leer el PDF automaticamente. Puedes confirmar los datos manualmente.';
+        }
+    });
+});
+</script>
+<?php endif; ?>
+</body>
+</html>

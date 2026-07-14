@@ -1,0 +1,37 @@
+Fecha: 2026-07-12
+Modulo: Registro de trabajador - encuesta sociodemografica
+
+Archivo modificado:
+- register.php
+
+Cambios aplicados:
+- Se cambiaron las etiquetas mecanicas de la encuesta por preguntas mas cercanas:
+  - Edad -> ¿Cual es tu rango de edad?
+  - Estado civil -> ¿Cual es tu estado civil?
+  - Genero -> ¿Con que genero te identificas?
+  - Personas a cargo -> ¿Cuantas personas tienes a cargo?
+  - Escolaridad -> ¿Cual es tu nivel de escolaridad?
+  - Vivienda -> ¿Que tipo de vivienda tienes?
+  - Tiempo libre -> ¿Que haces en tu tiempo libre?
+  - Experiencia -> ¿Cuanta experiencia laboral tienes?
+  - Estrato -> ¿Cual es tu estrato socioeconomico?
+  - Convive con -> ¿Con quien convives actualmente?
+  - Raza -> ¿Como te reconoces etnicamente?
+  - Tipo contrato -> ¿Que tipo de contrato tienes?
+  - Turno -> ¿Cual es tu jornada o turno habitual?
+  - Antiguedad -> ¿Cuanto tiempo llevas en la empresa?
+  - Enfermedad -> ¿Sufres de alguna enfermedad diagnosticada?
+  - Fuma -> ¿Fumas?
+  - Alcohol -> ¿Con que frecuencia consumes alcohol?
+  - Deporte -> ¿Con que frecuencia haces actividad fisica?
+  - Tipo personal -> ¿Cual describe mejor tu tipo de labor?
+- Se ajusto el estilo de labels solo dentro de la seccion trabajador para que no queden forzadas en mayuscula.
+
+Base de datos:
+- No requiere migracion SQL. Solo cambia texto visible de la interfaz.
+
+Validacion:
+- php -l register.php: sin errores de sintaxis.
+- Navegador integrado:
+  - Rol trabajador visible.
+  - Las preguntas aparecen con signos de interrogacion y tono mas humano.

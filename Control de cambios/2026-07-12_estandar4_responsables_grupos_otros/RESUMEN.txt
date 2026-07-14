@@ -1,0 +1,29 @@
+Fecha: 2026-07-12
+Modulo: Estandar 4 - Plan Anual de Trabajo
+
+Archivo modificado:
+- estandar4.php
+
+Cambios aplicados:
+- El selector de Responsable en "Nueva actividad del plan" ahora usa una lista alineada con Personal:
+  - Responsable SST
+  - Representante Legal
+  - ARL
+  - Grupos creados en grupos_personal para la empresa actual
+  - Otros
+- La misma lista se usa en el modal de seguimiento:
+  - Responsable
+  - Responsable del seguimiento
+- Al seleccionar "Otros" se despliega un campo adicional para escribir el responsable temporal.
+- Si se usa "Otros", antes de guardar se consolida el texto escrito como valor real del responsable.
+- Se conserva el guardado en los campos existentes del plan.
+
+Base de datos:
+- No requiere migracion SQL.
+- Los campos estandar4_actividades.responsable y estandar4_seguimientos.responsable ya guardan texto.
+
+Validacion:
+- php -l estandar4.php: sin errores de sintaxis.
+- Navegador integrado:
+  - La lista muestra Responsable SST, Representante Legal, ARL y grupos existentes.
+  - La opcion Otros despliega el campo de escritura y queda obligatorio.

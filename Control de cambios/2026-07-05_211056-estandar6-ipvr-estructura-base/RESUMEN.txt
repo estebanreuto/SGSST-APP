@@ -1,0 +1,28 @@
+Cambio: Estandar 6 - estructura base IPVR
+Fecha: 2026-07-05
+
+Archivos modificados/creados:
+- estandar6.php
+- procesar_estandar6.php
+- config/estandar6_schema.php
+- components/header.php
+- database/migrations/2026_07_05_estandar6_ipvr_estructura_base.sql
+
+Resumen:
+- Se creo la pantalla del estandar 6 para Identificacion de peligros, evaluacion y valoracion de riesgos.
+- Se agrego una primera seccion de presentacion con metricas y graficos resumen.
+- Se agrego la seccion Peligros por actividad con formulario de registro y matriz horizontal.
+- Se implementaron listas dependientes de Peligro -> Clasificacion y Categoria -> Nivel de dano.
+- Se calcularon automaticamente total de expuestos, probabilidad, consecuencia, nivel de riesgo, aceptabilidad, riesgo residual, factor de reduccion y eficacia de controles.
+- Se creo el procesador para guardar registros IPVR en base de datos.
+- Se creo una migracion SQL controlada para copiar/aplicar en despliegue.
+- Se actualizo el titulo superior del header para estandar6.php.
+
+Verificacion:
+- php -l config/estandar6_schema.php: OK.
+- php -l procesar_estandar6.php: OK.
+- php -l estandar6.php: OK.
+- php -l components/header.php: OK.
+- Migracion SQL aplicada en MySQL local.
+- Navegador local abierto en http://127.0.0.1/SGSST-APP2/estandar6.php.
+- Validacion responsive movil: contenido en una columna y matriz con desplazamiento horizontal interno.

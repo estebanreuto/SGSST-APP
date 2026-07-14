@@ -1,0 +1,6 @@
+﻿Cambio: Ajuste de listas plegables en control de examenes medicos.
+- Tipo de examen queda con: Ingreso, Periodico, Levantamiento Restricciones, Retiro y Post-Incapacidad.
+- Resultado queda con: Restriccion, Apto y No Apto.
+- Se ajusto ligeramente el estilo de los campos para verse mas compacto y tabular.
+Base de datos:
+- No se hicieron cambios de base de datos.

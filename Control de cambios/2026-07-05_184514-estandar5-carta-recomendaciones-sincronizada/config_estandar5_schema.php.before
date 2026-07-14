@@ -1,0 +1,213 @@
+<?php
+
+function ensure_estandar5_schema(PDO $conn): void
+{
+    $conn->exec("
+        CREATE TABLE IF NOT EXISTS estandar5_centros_medicos (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            empresa_id INT NOT NULL,
+            nombre VARCHAR(180) NOT NULL,
+            nit VARCHAR(40) NOT NULL,
+            direccion_principal VARCHAR(220) NOT NULL,
+            sedes_json LONGTEXT DEFAULT NULL,
+            telefono VARCHAR(60) NOT NULL,
+            correo VARCHAR(160) NOT NULL,
+            licencia_funcionamiento_archivo VARCHAR(500) DEFAULT NULL,
+            licencia_sst_archivo VARCHAR(500) DEFAULT NULL,
+            estado ENUM('activo','inactivo') NOT NULL DEFAULT 'activo',
+            creado_por INT DEFAULT NULL,
+            creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            KEY idx_estandar5_centro_empresa (empresa_id),
+            KEY idx_estandar5_centro_estado (estado),
+            CONSTRAINT fk_estandar5_centro_creador FOREIGN KEY (creado_por)
+                REFERENCES usuarios(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+
+    $conn->exec("
+        CREATE TABLE IF NOT EXISTS estandar5_perfiles_cargo (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            empresa_id INT NOT NULL,
+            centro_medico_id INT DEFAULT NULL,
+            nombre_cargo VARCHAR(180) NOT NULL,
+            tipo_proceso VARCHAR(140) NOT NULL,
+            tipo_operacion ENUM('Administrativo','Operativo','Mixto') NOT NULL DEFAULT 'Mixto',
+            jefe_inmediato VARCHAR(180) NOT NULL,
+            tareas_json LONGTEXT NOT NULL,
+            tareas_alto_riesgo_json LONGTEXT DEFAULT NULL,
+            herramientas_json LONGTEXT DEFAULT NULL,
+            estado ENUM('activo','inactivo') NOT NULL DEFAULT 'activo',
+            creado_por INT DEFAULT NULL,
+            creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            KEY idx_estandar5_perfil_empresa (empresa_id),
+            KEY idx_estandar5_perfil_centro (centro_medico_id),
+            KEY idx_estandar5_perfil_estado (estado),
+            CONSTRAINT fk_estandar5_perfil_centro FOREIGN KEY (centro_medico_id)
+                REFERENCES estandar5_centros_medicos(id) ON DELETE SET NULL,
+            CONSTRAINT fk_estandar5_perfil_creador FOREIGN KEY (creado_por)
+                REFERENCES usuarios(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+
+    $conn->exec("
+        CREATE TABLE IF NOT EXISTS estandar5_procesos_perfil (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            empresa_id INT NOT NULL,
+            nombre VARCHAR(140) NOT NULL,
+            creado_por INT DEFAULT NULL,
+            creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_estandar5_proceso_empresa_nombre (empresa_id, nombre),
+            KEY idx_estandar5_proceso_empresa (empresa_id),
+            CONSTRAINT fk_estandar5_proceso_creador FOREIGN KEY (creado_por)
+                REFERENCES usuarios(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+
+    $conn->exec("
+        CREATE TABLE IF NOT EXISTS estandar5_evaluaciones_medicas (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            empresa_id INT NOT NULL,
+            trabajador_id INT NOT NULL,
+            perfil_cargo_id INT NOT NULL,
+            centro_medico_id INT NOT NULL,
+            tipo_examen ENUM('Ingreso','Periodico','Egreso','Post incapacidad','Reubicacion') NOT NULL DEFAULT 'Periodico',
+            estado ENUM('solicitada','programada','realizada','cancelada') NOT NULL DEFAULT 'solicitada',
+            correo_destino VARCHAR(160) NOT NULL,
+            observaciones TEXT DEFAULT NULL,
+            creado_por INT DEFAULT NULL,
+            creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            KEY idx_estandar5_eval_empresa (empresa_id),
+            KEY idx_estandar5_eval_trabajador (trabajador_id),
+            KEY idx_estandar5_eval_perfil (perfil_cargo_id),
+            KEY idx_estandar5_eval_centro (centro_medico_id),
+            KEY idx_estandar5_eval_estado (estado),
+            CONSTRAINT fk_estandar5_eval_trabajador FOREIGN KEY (trabajador_id)
+                REFERENCES usuarios(id) ON DELETE CASCADE,
+            CONSTRAINT fk_estandar5_eval_perfil FOREIGN KEY (perfil_cargo_id)
+                REFERENCES estandar5_perfiles_cargo(id) ON DELETE CASCADE,
+            CONSTRAINT fk_estandar5_eval_centro FOREIGN KEY (centro_medico_id)
+                REFERENCES estandar5_centros_medicos(id) ON DELETE CASCADE,
+            CONSTRAINT fk_estandar5_eval_creador FOREIGN KEY (creado_por)
+                REFERENCES usuarios(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+
+    $conn->exec("
+        CREATE TABLE IF NOT EXISTS estandar5_evaluaciones_medicas_soportes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            empresa_id INT NOT NULL,
+            trabajador_id INT NOT NULL,
+            evaluacion_id INT DEFAULT NULL,
+            perfil_cargo_id INT DEFAULT NULL,
+            centro_medico_id INT DEFAULT NULL,
+            nombre_trabajador VARCHAR(180) NOT NULL,
+            cedula VARCHAR(40) NOT NULL,
+            cargo VARCHAR(180) DEFAULT NULL,
+            tipo_examen VARCHAR(80) DEFAULT NULL,
+            resultado VARCHAR(120) DEFAULT NULL,
+            tipo_aptitud VARCHAR(120) DEFAULT NULL,
+            centro_medico VARCHAR(180) DEFAULT NULL,
+            fecha_expedicion DATE DEFAULT NULL,
+            fecha_vencimiento DATE DEFAULT NULL,
+            tiempo_para_programar VARCHAR(80) DEFAULT NULL,
+            dias_accion INT DEFAULT NULL,
+            altura_nivel_curso VARCHAR(120) DEFAULT NULL,
+            altura_centro_capacitador VARCHAR(180) DEFAULT NULL,
+            altura_fecha_expedicion DATE DEFAULT NULL,
+            altura_fecha_vencimiento DATE DEFAULT NULL,
+            altura_programar VARCHAR(80) DEFAULT NULL,
+            altura_dias_accion INT DEFAULT NULL,
+            confinado_nivel_curso VARCHAR(120) DEFAULT NULL,
+            confinado_centro_capacitador VARCHAR(180) DEFAULT NULL,
+            confinado_fecha_expedicion DATE DEFAULT NULL,
+            confinado_fecha_vencimiento DATE DEFAULT NULL,
+            confinado_programar VARCHAR(80) DEFAULT NULL,
+            confinado_dias_accion INT DEFAULT NULL,
+            archivo_pdf VARCHAR(500) NOT NULL,
+            texto_extraido LONGTEXT DEFAULT NULL,
+            observaciones TEXT DEFAULT NULL,
+            creado_por INT DEFAULT NULL,
+            creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            KEY idx_e5_soporte_empresa (empresa_id),
+            KEY idx_e5_soporte_trabajador (trabajador_id),
+            KEY idx_e5_soporte_eval (evaluacion_id),
+            KEY idx_e5_soporte_vencimiento (fecha_vencimiento),
+            KEY idx_e5_soporte_altura_vencimiento (altura_fecha_vencimiento),
+            KEY idx_e5_soporte_confinado_vencimiento (confinado_fecha_vencimiento),
+            CONSTRAINT fk_e5_soporte_trabajador FOREIGN KEY (trabajador_id)
+                REFERENCES usuarios(id) ON DELETE CASCADE,
+            CONSTRAINT fk_e5_soporte_eval FOREIGN KEY (evaluacion_id)
+                REFERENCES estandar5_evaluaciones_medicas(id) ON DELETE SET NULL,
+            CONSTRAINT fk_e5_soporte_perfil FOREIGN KEY (perfil_cargo_id)
+                REFERENCES estandar5_perfiles_cargo(id) ON DELETE SET NULL,
+            CONSTRAINT fk_e5_soporte_centro FOREIGN KEY (centro_medico_id)
+                REFERENCES estandar5_centros_medicos(id) ON DELETE SET NULL,
+            CONSTRAINT fk_e5_soporte_creador FOREIGN KEY (creado_por)
+                REFERENCES usuarios(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+
+    $conn->exec("
+        CREATE TABLE IF NOT EXISTS estandar5_historia_clinica_custodias (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            empresa_id INT NOT NULL,
+            centro_medico_id INT NOT NULL,
+            archivo_pdf VARCHAR(500) NOT NULL,
+            fecha_emision DATE DEFAULT NULL,
+            fecha_renovacion DATE DEFAULT NULL,
+            observaciones TEXT DEFAULT NULL,
+            texto_extraido LONGTEXT DEFAULT NULL,
+            creado_por INT DEFAULT NULL,
+            creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            KEY idx_e5_custodia_empresa (empresa_id),
+            KEY idx_e5_custodia_centro (centro_medico_id),
+            KEY idx_e5_custodia_fecha (fecha_emision),
+            KEY idx_e5_custodia_renovacion (fecha_renovacion),
+            CONSTRAINT fk_e5_custodia_centro FOREIGN KEY (centro_medico_id)
+                REFERENCES estandar5_centros_medicos(id) ON DELETE CASCADE,
+            CONSTRAINT fk_e5_custodia_creador FOREIGN KEY (creado_por)
+                REFERENCES usuarios(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+
+    $conn->exec("
+        CREATE TABLE IF NOT EXISTS estandar5_restricciones_recomendaciones (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            empresa_id INT NOT NULL,
+            trabajador_id INT NOT NULL,
+            cargo VARCHAR(180) DEFAULT NULL,
+            fecha_ingreso DATE DEFAULT NULL,
+            carta_firmada ENUM('Si','No') NOT NULL DEFAULT 'No',
+            fecha_entrega_carta DATE DEFAULT NULL,
+            recomendaciones_laborales TEXT DEFAULT NULL,
+            recomendaciones_generales TEXT DEFAULT NULL,
+            pve_json LONGTEXT DEFAULT NULL,
+            tipo_restriccion VARCHAR(140) DEFAULT NULL,
+            restriccion TEXT DEFAULT NULL,
+            sst_fecha_programada DATE DEFAULT NULL,
+            sst_fecha_real DATE DEFAULT NULL,
+            sst_responsable VARCHAR(180) DEFAULT NULL,
+            sst_estado VARCHAR(180) DEFAULT NULL,
+            sst_historial TEXT DEFAULT NULL,
+            arl_fecha_real DATE DEFAULT NULL,
+            arl_responsable VARCHAR(180) DEFAULT NULL,
+            arl_historial TEXT DEFAULT NULL,
+            creado_por INT DEFAULT NULL,
+            creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            KEY idx_e5_restr_empresa (empresa_id),
+            KEY idx_e5_restr_trabajador (trabajador_id),
+            KEY idx_e5_restr_estado (sst_estado),
+            KEY idx_e5_restr_programada (sst_fecha_programada),
+            CONSTRAINT fk_e5_restr_trabajador FOREIGN KEY (trabajador_id)
+                REFERENCES usuarios(id) ON DELETE CASCADE,
+            CONSTRAINT fk_e5_restr_creador FOREIGN KEY (creado_por)
+                REFERENCES usuarios(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+}

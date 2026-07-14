@@ -1,0 +1,25 @@
+Fecha: 2026-07-12
+Modulo: Registro de trabajador - encuesta sociodemografica
+
+Archivo modificado:
+- register.php
+
+Cambios aplicados:
+- Campo Enfermedad:
+  - Se reemplazo la lista corta por opciones generales:
+    No me han diagnosticado ninguna, Cardiovascular / hipertension, Respiratoria,
+    Diabetes / metabolica, Osteomuscular, Neurologica, Salud mental,
+    Visual o auditiva, Alergias y Otras.
+  - Al seleccionar "Otras" se despliega un campo adicional para escribir el detalle.
+  - Ese campo adicional queda obligatorio solo cuando se selecciona "Otras".
+  - Al guardar, el valor se consolida como "Otras: detalle escrito".
+
+Base de datos:
+- No se requiere migracion SQL para este ajuste.
+- El campo encuesta_sociodemografica.enfermedad ya es varchar(255).
+
+Validacion:
+- php -l register.php: sin errores de sintaxis.
+- Navegador integrado:
+  - Las nuevas opciones aparecen en el campo Enfermedad.
+  - Al elegir Otras se muestra el campo de detalle y queda obligatorio.

@@ -1,0 +1,29 @@
+Fecha: 2026-07-12
+Modulo: Registro de trabajador - encuesta sociodemografica
+
+Archivos modificados:
+- register.php
+- database/migrations/2026_07_12_registro_trabajador_fuma_opciones.sql
+
+Cambios aplicados:
+- Campo Fuma:
+  - Se retiro la opcion "Otras".
+  - Se agregaron: "Un cigarrillo al dia", "Media caja al dia", "Una caja completa al dia".
+- Campo Tipo personal:
+  - Se reemplazo la lista anterior por: Administrativo, Operativo, Operario de maquinaria, Operativo conductor, Administrativo conductor.
+- Campo Tiempo libre:
+  - Se cambio a un control desplegable con seleccion multiple.
+  - El valor se guarda consolidado en el mismo campo tiempo_libre, separado por comas.
+  - La opcion "Ninguno" funciona como opcion exclusiva.
+
+Base de datos:
+- Se creo y aplico la migracion local:
+  database/migrations/2026_07_12_registro_trabajador_fuma_opciones.sql
+- Esta migracion amplia el ENUM encuesta_sociodemografica.fuma para aceptar las nuevas opciones.
+
+Validacion:
+- php -l register.php: sin errores de sintaxis.
+- Navegador integrado:
+  - Tiempo libre permite seleccionar varias opciones.
+  - Fuma muestra las nuevas opciones.
+  - Tipo personal muestra la nueva clasificacion.

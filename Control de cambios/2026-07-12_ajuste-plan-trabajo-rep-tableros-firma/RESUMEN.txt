@@ -1,0 +1,39 @@
+Control de cambios - Ajuste vista Representante Legal en Plan de Trabajo
+Fecha: 2026-07-12
+
+Objetivo:
+Aplicar al estandar de Plan Anual de Trabajo la misma logica visual usada en Capacitacion SST para el rol Representante Legal: quitar tarjetas superiores sueltas, mostrar dos tableros ejecutivos y separar la zona de aprobacion/firma.
+
+Archivo modificado:
+- estandar4.php
+
+Cambios realizados:
+- Las tarjetas superiores de indicadores ya no se muestran al Representante Legal.
+- Se agrego un tablero ejecutivo con dos bloques:
+  - Mes actual.
+  - Avance global del plan de trabajo.
+- Cada bloque muestra:
+  - Total actividades.
+  - Programadas.
+  - Ejecutadas.
+  - Reprogramadas.
+  - No ejecutadas.
+  - Avance del mes o cumplimiento global.
+- Se mantiene separada la seccion de revision/aprobacion y la seccion de Firmas del documento.
+- La vista operativa de tarjetas del plan y seguimiento sigue oculta para el Representante Legal.
+- La vista SST conserva los controles operativos originales.
+
+Base de datos:
+- No se realizaron cambios de estructura ni datos.
+- No aplica archivo SQL para esta ronda.
+
+Validaciones realizadas:
+- php -l estandar4.php
+- Revision en navegador con usuario Yenny MM / Representante Legal:
+  - 0 tarjetas superiores visibles.
+  - 1 tablero ejecutivo visible.
+  - 0 tarjetas operativas del plan visibles.
+  - 0 tablas de seguimiento visibles.
+  - Seccion Firmas del documento visible.
+  - Sin errores PHP.
+  - Sin errores JavaScript nuevos.

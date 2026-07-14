@@ -1,0 +1,13 @@
+﻿Cambio: Subestandar 3.1.4 - carga de examen recibido y alertas de vencimiento.
+- Se agrego una seccion para cargar PDF de examen/certificado recibido.
+- El navegador intenta extraer texto del PDF con PDF.js y precarga campos editables para confirmacion.
+- Se registran datos de examen medico laboral, trabajo seguro en alturas y espacios confinados.
+- Se calculan vencimientos y alertas visuales para vencido, critico y proximo a 90 dias.
+- Se agrego matriz de soportes cargados con enlace al PDF archivado.
+Base de datos:
+- Nueva tabla estandar5_evaluaciones_medicas_soportes.
+Migracion SQL: database/migrations/2026_07_04_estandar5_soportes_evaluaciones_medicas.sql
+Nota normativa:
+- Examen medico: se deja sugerencia editable segun tipo de operacion: operativo/mixto 18 meses, administrativo 36 meses.
+- Alturas: sugerencia editable 18 meses.
+- Espacios confinados: no se fijo periodicidad automatica; alerta con fecha confirmada del certificado.

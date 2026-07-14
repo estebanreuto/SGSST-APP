@@ -1,0 +1,22 @@
+﻿Cambio: Renovacion anual de custodia de historias clinicas
+Fecha: 2026-07-05 17:44:08
+
+Archivos modificados:
+- estandar5.php
+- procesar_estandar5.php
+- config/estandar5_schema.php
+- database/migrations/2026_07_05_estandar5_custodia_renovacion_anual.sql
+
+Resumen:
+- Se agregaron fecha_renovacion y texto_extraido a estandar5_historia_clinica_custodias.
+- Al cargar un certificado PDF, la pantalla intenta extraer automaticamente una fecha del PDF.
+- La fecha queda editable para confirmacion manual si la extraccion no es clara.
+- El backend exige fecha de emision/base y calcula renovacion anual a 12 meses.
+- La vista muestra alertas de renovacion 15 dias antes o cuando ya este vencida.
+
+Verificacion:
+- php -l estandar5.php: OK
+- php -l procesar_estandar5.php: OK
+- php -l config/estandar5_schema.php: OK
+- Migracion aplicada en MySQL: OK
+- Vista recargada sin errores de consola.

@@ -1,0 +1,47 @@
+Control de cambios - Vistas ejecutivas Representante Legal
+Fecha: 2026-07-11
+
+Objetivo:
+Convertir la experiencia del rol Representante Legal en una vista informativa y ejecutiva para los estandares 2, 3, 4 y 5, evitando que vea herramientas operativas que corresponden al Responsable SST.
+
+Archivos modificados:
+- estandar2.php
+- estandar3.php
+- estandar4.php
+- estandar5.php
+
+Cambios principales:
+1. Estandar 2 - Afiliacion al Sistema de Seguridad Social Integral
+   - Se retiro la vista operativa mensual para el Representante Legal.
+   - Se agrego un panel ejecutivo con estado anual de planillas, ultima planilla cargada, trabajadores pagados, valor reportado y riesgos identificados.
+   - Se corrigio la variable de resumen de riesgos para evitar error fatal al cargar la vista.
+
+2. Estandar 3 - Capacitacion en SST
+   - El Representante Legal ahora ve graficas del mes actual y avance global del plan de capacitacion.
+   - Se oculto la agenda operativa y los botones flotantes de gestion para este rol.
+   - Se blindo el JavaScript para que no busque controles que solo existen en la vista SST.
+
+3. Estandar 4 - Plan Anual de Trabajo
+   - Se agrego una seccion ejecutiva de revision y firma del plan.
+   - Se oculto la tabla operativa de programacion y seguimiento al Representante Legal.
+   - Se mantiene visible la zona de firmas cuando corresponda aprobar el plan.
+
+4. Estandar 5 - Evaluaciones medicas ocupacionales
+   - Se agrego una vista ejecutiva informativa para el Representante Legal.
+   - Se resumen indicadores de perfil sociodemografico, promocion y prevencion, perfiles de cargo, evaluaciones medicas, custodia de historias clinicas y restricciones/recomendaciones.
+   - La vista inicial ya no muestra herramientas de gestion cuando entra el Representante Legal.
+
+Base de datos:
+- No se realizaron cambios de estructura ni datos.
+- No aplica archivo SQL para esta ronda.
+
+Validaciones realizadas:
+- php -l estandar2.php
+- php -l estandar3.php
+- php -l estandar4.php
+- php -l estandar5.php
+- Revision en navegador con usuario Yenny MM / Representante Legal:
+  - estandar2.php sin errores PHP o JavaScript nuevos.
+  - estandar3.php sin errores PHP o JavaScript nuevos.
+  - estandar4.php sin errores PHP o JavaScript nuevos.
+  - estandar5.php sin errores PHP o JavaScript nuevos.

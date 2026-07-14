@@ -1,0 +1,7 @@
+﻿Cambio: Ajuste de forma en control de examenes medicos realizados.
+- Se cambio el titulo de la seccion a Control de examenes medicos realizados.
+- Se cambio el subtitulo interno a Seguimiento a vencimiento de examenes medicos.
+- Se reorganizo el formulario en una lectura horizontal: nombres y apellidos, identificacion, cargo, tipo de examen, resultado, aptitud, centro medico y fechas.
+- Tipo de examen, resultado y tipo de aptitud quedan como listas plegables.
+Base de datos:
+- No se hicieron cambios de base de datos.

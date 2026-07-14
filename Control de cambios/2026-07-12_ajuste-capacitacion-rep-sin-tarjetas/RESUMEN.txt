@@ -1,0 +1,33 @@
+Control de cambios - Ajuste vista Representante Legal en Capacitacion SST
+Fecha: 2026-07-12
+
+Objetivo:
+Quitar las tarjetas superiores de indicadores para el rol Representante Legal en el estandar de Capacitacion SST y conservar solo las dos secciones ejecutivas: Mes actual y Avance global del plan de capacitacion.
+
+Archivo modificado:
+- estandar3.php
+
+Cambios realizados:
+- Las tarjetas superiores de Total Actividades, Programadas, Ejecutadas, Reprogramadas, No Ejecutadas y Efectividad Global ya no se muestran al Representante Legal.
+- Esos mismos datos se integraron como listado dentro de las dos graficas ejecutivas:
+  - Mes actual.
+  - Avance global del plan de capacitacion.
+- En cada bloque se muestran:
+  - Total actividades.
+  - Programadas.
+  - Ejecutadas.
+  - Reprogramadas.
+  - No ejecutadas.
+  - Efectividad del mes o efectividad global, segun corresponda.
+
+Base de datos:
+- No se realizaron cambios de estructura ni datos.
+- No aplica archivo SQL para esta ronda.
+
+Validaciones realizadas:
+- php -l estandar3.php
+- Revision en navegador con usuario Yenny MM / Representante Legal:
+  - 0 tarjetas superiores visibles.
+  - 1 dashboard ejecutivo visible.
+  - Sin errores PHP.
+  - Sin errores JavaScript nuevos.

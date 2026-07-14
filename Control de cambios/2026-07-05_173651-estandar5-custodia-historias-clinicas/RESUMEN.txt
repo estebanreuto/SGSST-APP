@@ -1,0 +1,21 @@
+﻿Cambio: Subestandar 3.1.5 Custodia de Historias Clinicas
+Fecha: 2026-07-05 17:36:52
+
+Archivos modificados:
+- estandar5.php
+- procesar_estandar5.php
+- config/estandar5_schema.php
+- database/migrations/2026_07_05_estandar5_custodia_historias_clinicas.sql
+
+Resumen:
+- Se creo tabla estandar5_historia_clinica_custodias para guardar certificados PDF de custodia por centro medico y empresa.
+- Se agrego accion guardar_custodia_historia_clinica en procesar_estandar5.php.
+- Se agrego vista real para 3.1.5 con listado de centros medicos registrados, formulario de carga PDF y consolidado de soportes cargados.
+- La carga valida que el centro medico pertenezca a la empresa y que el archivo sea PDF.
+
+Verificacion:
+- php -l estandar5.php: OK
+- php -l procesar_estandar5.php: OK
+- php -l config/estandar5_schema.php: OK
+- Migracion aplicada en MySQL: OK
+- Vista abierta en navegador: http://127.0.0.1/SGSST-APP2/estandar5.php?modulo=historias-clinicas

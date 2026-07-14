@@ -1,0 +1,26 @@
+CREATE TABLE IF NOT EXISTS estandar7_mantenimiento_equipos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    empresa_id INT NOT NULL,
+    codigo_interno VARCHAR(20) NOT NULL,
+    tipo_elemento ENUM('Maquina','Equipo','Herramienta') NOT NULL DEFAULT 'Equipo',
+    nombre_elemento VARCHAR(180) NOT NULL,
+    marca VARCHAR(120) DEFAULT NULL,
+    serie VARCHAR(120) DEFAULT NULL,
+    modelo VARCHAR(120) DEFAULT NULL,
+    tipo_energia_json LONGTEXT DEFAULT NULL,
+    ubicacion VARCHAR(180) DEFAULT NULL,
+    seccion VARCHAR(180) DEFAULT NULL,
+    tipo_combustible VARCHAR(120) DEFAULT NULL,
+    fabricante VARCHAR(180) DEFAULT NULL,
+    direccion VARCHAR(220) DEFAULT NULL,
+    telefono VARCHAR(80) DEFAULT NULL,
+    creado_por INT DEFAULT NULL,
+    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_e7_mant_codigo_empresa (empresa_id, codigo_interno),
+    KEY idx_e7_mant_empresa (empresa_id),
+    KEY idx_e7_mant_tipo (tipo_elemento),
+    KEY idx_e7_mant_creador (creado_por),
+    CONSTRAINT fk_e7_mant_creador FOREIGN KEY (creado_por)
+        REFERENCES usuarios(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

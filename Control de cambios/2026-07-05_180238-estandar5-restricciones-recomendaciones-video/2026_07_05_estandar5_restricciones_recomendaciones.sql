@@ -1,0 +1,33 @@
+CREATE TABLE IF NOT EXISTS `estandar5_restricciones_recomendaciones` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `empresa_id` INT NOT NULL,
+    `trabajador_id` INT NOT NULL,
+    `cargo` VARCHAR(180) DEFAULT NULL,
+    `fecha_ingreso` DATE DEFAULT NULL,
+    `carta_firmada` ENUM('Si','No') NOT NULL DEFAULT 'No',
+    `fecha_entrega_carta` DATE DEFAULT NULL,
+    `recomendaciones_laborales` TEXT DEFAULT NULL,
+    `recomendaciones_generales` TEXT DEFAULT NULL,
+    `pve_json` LONGTEXT DEFAULT NULL,
+    `tipo_restriccion` VARCHAR(140) DEFAULT NULL,
+    `restriccion` TEXT DEFAULT NULL,
+    `sst_fecha_programada` DATE DEFAULT NULL,
+    `sst_fecha_real` DATE DEFAULT NULL,
+    `sst_responsable` VARCHAR(180) DEFAULT NULL,
+    `sst_estado` VARCHAR(180) DEFAULT NULL,
+    `sst_historial` TEXT DEFAULT NULL,
+    `arl_fecha_real` DATE DEFAULT NULL,
+    `arl_responsable` VARCHAR(180) DEFAULT NULL,
+    `arl_historial` TEXT DEFAULT NULL,
+    `creado_por` INT DEFAULT NULL,
+    `creado_en` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `actualizado_en` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY `idx_e5_restr_empresa` (`empresa_id`),
+    KEY `idx_e5_restr_trabajador` (`trabajador_id`),
+    KEY `idx_e5_restr_estado` (`sst_estado`),
+    KEY `idx_e5_restr_programada` (`sst_fecha_programada`),
+    CONSTRAINT `fk_e5_restr_trabajador` FOREIGN KEY (`trabajador_id`)
+        REFERENCES `usuarios` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_e5_restr_creador` FOREIGN KEY (`creado_por`)
+        REFERENCES `usuarios` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

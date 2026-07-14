@@ -1,0 +1,31 @@
+Fecha: 2026-07-12
+Modulo: Registro de trabajador - encuesta sociodemografica
+
+Archivo modificado:
+- register.php
+
+Cambios aplicados:
+- Campo Enfermedad:
+  - Se reemplazo la lista general anterior por:
+    Hipertension arterial,
+    Diabetes mellitus,
+    Enfermedad pulmonar obstructiva cronica (EPOC),
+    Enfermedad renal cronica,
+    Artrosis y trastornos osteomusculares cronicos,
+    Asma,
+    Depresion clinica,
+    Hipotiroidismo,
+    Insuficiencia cardiaca,
+    Artritis reumatoide.
+  - Se mantuvo "No me han diagnosticado ninguna".
+  - Se mantuvo "Otras" con campo adicional obligatorio para detalle.
+
+Base de datos:
+- No requiere migracion SQL.
+- El campo encuesta_sociodemografica.enfermedad sigue guardando texto en varchar(255).
+
+Validacion:
+- php -l register.php: sin errores de sintaxis.
+- Navegador integrado:
+  - Rol trabajador visible.
+  - Lista Enfermedad muestra las nuevas opciones.

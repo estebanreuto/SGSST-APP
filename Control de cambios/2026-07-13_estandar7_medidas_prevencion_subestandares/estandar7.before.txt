@@ -1,0 +1,1 @@
+﻿El archivo estandar7.php no existia antes de este cambio.

@@ -1,0 +1,157 @@
+/crm_saludo
+Hola, gracias por escribir a PreventWork.
+
+Te ayudamos a organizar y digitalizar el SG-SST de tu empresa de forma clara, practica y con seguimiento.
+
+Para orientarte bien, comparteme por favor:
+
+1. Empresa
+2. Numero de trabajadores
+3. Nivel de riesgo
+4. Ciudad
+5. Correo de contacto
+
+/crm_bienvenida
+Hola, gracias por escribir a PreventWork.
+
+Te apoyamos a digitalizar y organizar el SG-SST de tu empresa con:
+
+- Diagnostico inicial
+- Asesoria por WhatsApp
+- Gestion documental
+- Seguimiento y llamada comercial
+
+Para orientarte bien, comparteme por favor:
+
+1. Empresa
+2. Numero de trabajadores
+3. Nivel de riesgo
+4. Ciudad
+5. Correo de contacto
+
+/crm_saliente
+Hola, te saluda PreventWork.
+
+Estamos contactando empresas que necesitan organizar o digitalizar su SG-SST de forma clara, practica y lista para seguimiento.
+
+Quisiera preguntarte algo puntual:
+
+Actualmente ustedes ya tienen el SG-SST organizado o les seria util una llamada corta de diagnostico?
+
+/crm_saliente_humano
+Hola, te saluda PreventWork.
+
+Muchas empresas no tienen problema por falta de voluntad, sino porque el SG-SST termina disperso entre:
+
+- Carpetas
+- Correos
+- Firmas
+- Evidencias
+- Pendientes
+
+Nosotros ayudamos a ordenar esa informacion y dejar seguimiento claro.
+
+Queria preguntarte: actualmente tienen el SG-SST organizado o les seria util una llamada corta de diagnostico?
+
+/crm_dolor_auditoria
+Te entiendo.
+
+Cuando llega una auditoria o una solicitud de documentos, lo dificil suele ser tener bien organizado:
+
+- Evidencias
+- Firmas
+- Responsables
+- Fechas
+- Actividades
+
+PreventWork ayuda a ordenar el SG-SST de forma digital y practica.
+
+Para orientarte bien, comparteme por favor:
+
+1. Empresa
+2. Numero de trabajadores
+3. Nivel de riesgo
+4. Ciudad
+5. Correo de contacto
+
+/crm_dolor_tiempo
+Claro, eso pasa mucho.
+
+El SG-SST muchas veces queda en manos de una persona que tambien tiene otras responsabilidades, y los pendientes se acumulan.
+
+La idea de PreventWork es ayudarte a tener:
+
+- Orden documental
+- Evidencias
+- Firmas
+- Notificaciones
+- Seguimiento
+
+Para orientarte bien, me compartes?
+
+1. Empresa
+2. Numero de trabajadores
+3. Nivel de riesgo
+4. Ciudad
+5. Correo de contacto
+
+/crm_datos
+Para preparar una propuesta completa necesito estos datos:
+
+1. Empresa
+2. Numero de trabajadores
+3. Nivel de riesgo
+4. Ciudad
+5. Nombre de contacto
+6. Cargo
+7. Correo de contacto
+8. Telefono
+
+Con eso revisamos el plan mas adecuado y evitamos recomendarte algo a ciegas.
+
+/crm_diagnostico_ok
+Perfecto, gracias.
+
+Con esos datos ya puedo hacer una recomendacion inicial.
+
+El plan depende de:
+
+- Numero de trabajadores
+- Nivel de riesgo
+- Alcance requerido
+- Estado actual del SG-SST
+
+Por eso conviene una llamada corta de diagnostico para ajustar bien la propuesta.
+
+/crm_precio
+Claro. Te comparto los valores base anuales:
+
+1. Pequena empresa: $2.500.000 + IVA
+2. Mediana empresa: $3.000.000 + IVA
+3. Empresa grande: $3.500.000 + IVA
+
+El plan recomendado depende del numero de trabajadores, nivel de riesgo y alcance requerido.
+
+/crm_llamada
+Podemos agendar una llamada corta de diagnostico para revisar tu caso y recomendar el plan adecuado.
+
+Por favor indicame:
+
+1. Fecha
+2. Hora
+3. Numero de contacto
+
+/crm_confirmar_llamada
+Perfecto, agendamos la llamada.
+
+En ese espacio revisamos:
+
+- Numero de trabajadores
+- Nivel de riesgo
+- Alcance del SG-SST
+- Puntos clave para dejar una propuesta ajustada
+
+/crm_seguimiento
+Hola, retomo tu solicitud sobre SG-SST con PreventWork.
+
+Quedo atento para confirmar los datos de la empresa y ayudarte a definir el plan adecuado.

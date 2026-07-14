@@ -1,0 +1,1 @@
+﻿El archivo config/estandar7_schema.php no existia antes de este cambio.

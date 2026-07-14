@@ -1,0 +1,22 @@
+﻿Cambio: Subestandar 3.1.6 restricciones y recomendaciones segun video de referencia
+Fecha: 2026-07-05 18:02:38
+
+Archivos modificados:
+- estandar5.php
+- procesar_estandar5.php
+- config/estandar5_schema.php
+- database/migrations/2026_07_05_estandar5_restricciones_recomendaciones.sql
+
+Resumen:
+- Se creo tabla estandar5_restricciones_recomendaciones.
+- Se agrego formulario para registrar recomendaciones medico laborales/generales, carta firmada, PVE, tipo de restriccion y seguimiento SST/ARL.
+- Se agrego matriz horizontal tipo Excel basada en el video.
+- Se agregaron listas de PVE, tipos de restriccion y estados de seguimiento vistas en el video.
+- Se conecta con trabajadores registrados de la empresa.
+
+Verificacion:
+- php -l estandar5.php: OK
+- php -l procesar_estandar5.php: OK
+- php -l config/estandar5_schema.php: OK
+- Migracion aplicada en MySQL: OK
+- Vista 3.1.6 recargada en navegador sin errores de consola.

@@ -1,0 +1,674 @@
+<?php
+require_once 'config/db.php';
+require_once 'config/auth.php';
+require_once 'config/estandar4_schema.php';
+
+date_default_timezone_set('America/Bogota');
+$u = require_auth($conn);
+ensure_estandar4_schema($conn);
+
+$usuario_id = (int)($_SESSION['usuario_id'] ?? 0);
+$usuario_rol = $_SESSION['usuario_rol'] ?? '';
+if (!in_array($usuario_rol, ['sst', 'representante'], true)) {
+    header('Location: dashboard.php');
+    exit;
+}
+
+$stmt = $conn->prepare("SELECT * FROM usuarios WHERE id = ?");
+$stmt->execute([$usuario_id]);
+$usuario_info = $stmt->fetch(PDO::FETCH_ASSOC);
+$empresa_id = (int)($usuario_info['empresa_id'] ?? 0);
+$anio = max(2020, min(2100, (int)($_GET['anio'] ?? date('Y'))));
+$plan = estandar4_get_or_create_plan($conn, $empresa_id, $anio);
+$editable = $usuario_rol === 'sst' && $plan['estado'] !== 'firmado';
+$capacitaciones_auto = 0;
+if ($editable) {
+    $capacitaciones_auto = estandar4_importar_capacitaciones($conn, (int)$plan['id'], $empresa_id, $anio);
+    if ($capacitaciones_auto > 0 && $plan['estado'] !== 'borrador') {
+        $stmt = $conn->prepare("
+            UPDATE estandar4_planes
+            SET estado='borrador', firma_sst=NULL, firma_representante=NULL,
+                sst_id=NULL, representante_id=NULL, fecha_envio=NULL, fecha_firma=NULL
+            WHERE id=?
+        ");
+        $stmt->execute([(int)$plan['id']]);
+        $plan = estandar4_get_or_create_plan($conn, $empresa_id, $anio);
+    }
+}
+
+$stmt = $conn->prepare("SELECT * FROM estandar4_actividades WHERE plan_id=? ORDER BY orden, id");
+$stmt->execute([$plan['id']]);
+$actividades = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$stmt = $conn->prepare("SELECT * FROM estandar4_seguimientos WHERE plan_id=? ORDER BY fecha_max_ejecucion, id");
+$stmt->execute([$plan['id']]);
+$seguimientos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$stmt = $conn->prepare("
+    SELECT id, nombre, apellido, cedula, rol FROM usuarios
+    WHERE empresa_id=? AND rol IN ('sst','representante') AND activo=1
+    ORDER BY rol DESC, nombre
+");
+$stmt->execute([$empresa_id]);
+$responsables = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$stmt = $conn->prepare("SELECT nombre, apellido, cedula FROM usuarios WHERE id=?");
+$stmt->execute([$plan['sst_id'] ?: 0]);
+$firmante_sst = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+$stmt->execute([$plan['representante_id'] ?: 0]);
+$firmante_representante = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+
+$metricas = estandar4_metricas($actividades);
+$meta = (int)$plan['meta_cumplimiento'];
+$cumple_meta = $metricas['cumplimiento'] >= $meta;
+$base_indicadores = $metricas['programadas'] + $metricas['ejecutadas'] + $metricas['reprogramadas'];
+$faltante_meta = max(0, $meta - $metricas['cumplimiento']);
+$faltante_total = max(0, 100 - $metricas['cumplimiento']);
+$avance_sobre_meta = $meta > 0 ? min(100, round(($metricas['cumplimiento'] / $meta) * 100)) : 0;
+$ejecuciones_para_meta = $base_indicadores > 0 ? max(0, (int)ceil(($meta / 100) * $base_indicadores) - $metricas['ejecutadas']) : 0;
+$base_grafica = max(1, $base_indicadores);
+$meses = [
+    1 => 'ENE', 2 => 'FEB', 3 => 'MAR', 4 => 'ABR', 5 => 'MAY', 6 => 'JUN',
+    7 => 'JUL', 8 => 'AGO', 9 => 'SEP', 10 => 'OCT', 11 => 'NOV', 12 => 'DIC'
+];
+$meses_completos = [
+    1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril', 5 => 'Mayo', 6 => 'Junio',
+    7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
+];
+$mes_indicador = (int)date('n');
+$indicador_inicial = $metricas['por_mes'][$mes_indicador];
+$total_mes_inicial = array_sum($indicador_inicial);
+$porcentaje_mes_inicial = $total_mes_inicial > 0 ? round(($indicador_inicial['E'] / $total_mes_inicial) * 100) : 0;
+$resumen_periodo = 'Resumen ' . $meses_completos[$mes_indicador] . ' ' . $anio;
+$no_ejecutadas = 0;
+$anio_actual_control = (int)date('Y');
+$mes_actual_control = (int)date('n');
+$no_ejecutadas_mes = ($anio < $anio_actual_control || ($anio === $anio_actual_control && $mes_indicador < $mes_actual_control)) ? $indicador_inicial['P'] : 0;
+foreach ($actividades as $actividad) {
+    foreach (estandar4_decode_programacion($actividad['programacion_json'] ?? '') as $mes => $dato) {
+        $estado = is_array($dato) ? ($dato['estado'] ?? '') : $dato;
+        $mes = (int)$mes;
+        if ($estado === 'P' && ($anio < $anio_actual_control || ($anio === $anio_actual_control && $mes < $mes_actual_control))) {
+            $no_ejecutadas++;
+        }
+    }
+}
+$estado_labels = [
+    'borrador' => ['Borrador', 'draft'],
+    'pendiente_firma' => ['Pendiente de gerencia', 'pending'],
+    'firmado' => ['Aprobado y firmado', 'signed'],
+];
+$estado_plan = $estado_labels[$plan['estado']] ?? $estado_labels['borrador'];
+$current_page = 'estandar4.php';
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estándar 4 | Plan Anual de Trabajo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root{--primary:#ff8a1f;--primary2:#ff7a00;--blue-dark:#1e3a8a;--bg1:#edf4fb;--bg2:#f7f9fc;--card:#fff;--text:#1f2d3d;--muted:#64748b;--border:#dbe3ec;--green:#16a34a;--red:#dc2626;--violet:#7c3aed}
+        *{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Inter,sans-serif;background:linear-gradient(180deg,var(--bg1),var(--bg2));color:var(--text);font-size:.82rem}.main-wrapper{margin-left:260px;width:calc(100% - 260px);min-height:100vh}.content-area{width:100%;padding:30px clamp(24px,2.5vw,44px) 60px}
+        button,input,textarea,select{font:inherit}.page-head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:18px}.head-copy{display:flex;align-items:center;gap:13px}.head-icon{width:44px;height:44px;border-radius:10px;display:grid;place-items:center;color:var(--primary);background:#fff3e8;border:1px solid #fed7aa;font-size:1.05rem}.head-copy h1{margin:0;color:var(--blue-dark);font-size:1.15rem}.head-copy p{margin:4px 0 0;color:var(--muted);font-size:.76rem}.head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+        .year-select,.btn{height:38px;border-radius:7px;border:1px solid var(--border);background:#fff;padding:0 12px;color:#334155;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;cursor:pointer;white-space:nowrap}.btn:hover{border-color:#fdba74;color:var(--primary2)}.btn-primary{background:var(--primary2);border-color:var(--primary2);color:#fff}.btn-primary:hover{background:#ea6b00;color:#fff}.btn-blue{background:var(--blue-dark);border-color:var(--blue-dark);color:#fff}.btn-blue:hover{color:#fff;background:#172d6b}.btn-danger{color:var(--red)}.btn[disabled]{opacity:.5;cursor:not-allowed}.year-filter{height:44px;display:flex;align-items:center;gap:10px;border:1px solid var(--border);background:#fff;border-radius:8px;padding:0 10px 0 12px;box-shadow:0 5px 16px rgba(15,23,42,.035)}.year-filter span{display:flex;align-items:center;gap:7px;color:#64748b;font-size:.62rem;font-weight:800;text-transform:uppercase}.year-filter span i{color:var(--primary2)}.year-select-wrap{position:relative}.year-filter .year-select{height:32px;border:0;background:#f8fafc;border-radius:7px;padding:0 28px 0 10px;appearance:none;color:#172554}.year-select-wrap>i{position:absolute;right:9px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.68rem;pointer-events:none}.status-plan{padding:6px 9px;border-radius:6px;font-size:.66rem;font-weight:800;text-transform:uppercase}.status-plan.draft{background:#f1f5f9;color:#475569}.status-plan.pending{background:#fff7ed;color:#c2410c}.status-plan.signed{background:#dcfce7;color:#15803d}
+        .alert{padding:11px 14px;border-radius:8px;margin-bottom:16px;display:flex;align-items:center;gap:9px;font-weight:650}.alert.ok{background:#ecfdf5;color:#166534;border:1px solid #bbf7d0}.alert.error{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}.pending-banner{padding:12px 15px;border-radius:8px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+        .summary-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:12px}.summary-card{--metric-color:#1e3a8a;--metric-soft:#eef4ff;position:relative;overflow:hidden;background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px;min-height:150px;min-width:0;display:flex;flex-direction:column;gap:8px;box-shadow:0 5px 16px rgba(15,23,42,.04);transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}.summary-card:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(15,23,42,.08);border-color:#cbd5e1}.summary-card.metric-blue{--metric-color:#1e3a8a;--metric-soft:#eef4ff}.summary-card.metric-orange{--metric-color:#f58220;--metric-soft:#fff3e8}.summary-card.metric-green{--metric-color:#16a34a;--metric-soft:#ecfdf5}.summary-card.metric-amber{--metric-color:#d97706;--metric-soft:#fff7ed}.summary-card.metric-red{--metric-color:#dc2626;--metric-soft:#fef2f2}.summary-card.metric-violet{--metric-color:#635bff;--metric-soft:#f0efff}.summary-top{position:relative;z-index:1;display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.summary-icon{width:43px;height:43px;border-radius:10px;display:grid;place-items:center;flex:none;color:var(--metric-color);background:var(--metric-soft);font-size:1rem}.summary-value{font-size:1.65rem;font-weight:850;line-height:1;color:var(--metric-color);letter-spacing:0}.summary-title{position:relative;z-index:1;margin-top:5px;color:var(--blue-dark);font-size:.84rem;line-height:1.18;font-weight:850}.summary-card p{position:relative;z-index:1;margin:0;color:var(--muted);font-size:.66rem;line-height:1.35}.summary-period{position:relative;z-index:1;margin-top:auto;display:flex;align-items:center;gap:7px;color:#94a3b8;font-size:.64rem;font-weight:800}.summary-period i{font-size:.62rem}.summary-watermark{position:absolute;right:-15px;bottom:-20px;color:var(--metric-color);font-size:4.9rem;line-height:1;opacity:.055;transform:rotate(-12deg);transition:transform .28s ease,opacity .28s ease;pointer-events:none}.summary-card:hover .summary-watermark{opacity:.11;transform:translate(3px,-4px) rotate(-8deg) scale(1.05)}
+        .control-panel{background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px;box-shadow:0 5px 16px rgba(15,23,42,.035)}.control-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px}.control-top h2{margin:0;font-size:.86rem;color:var(--blue-dark)}.meta-form{display:flex;align-items:center;gap:8px;border:1px solid var(--border);background:#f8fafc;border-radius:8px;padding:8px}.meta-label{display:flex;align-items:center;gap:7px;color:#475569;font-size:.65rem;font-weight:800;text-transform:uppercase;white-space:nowrap}.meta-label i{color:#22c55e}.meta-input-wrap{display:flex;align-items:center;height:34px;background:#fff;border:1px solid #dbe3ec;border-radius:7px;overflow:hidden}.meta-form input{width:58px;height:100%;border:0;text-align:center;font-weight:800;color:#172554;outline:0}.meta-form input:focus{box-shadow:inset 0 0 0 2px rgba(34,197,94,.18)}.meta-suffix{height:100%;display:grid;place-items:center;padding-right:10px;color:#64748b;font-weight:800}.meta-form .icon-btn{background:#fff}.progress-track{height:8px;background:#e2e8f0;border-radius:99px;overflow:hidden}.progress-fill{height:100%;background:linear-gradient(90deg,#38bdf8,#22c55e);border-radius:inherit;transition:width .3s}.indicator-layout{display:grid;grid-template-columns:minmax(260px,1fr) minmax(240px,.8fr);gap:12px;align-items:stretch;margin-top:12px}.month-indicator-card{position:relative;overflow:hidden;border:1px solid #dbeafe;border-radius:8px;background:linear-gradient(135deg,#172554,#1e3a8a);color:#fff;padding:14px;min-height:128px}.month-indicator-card::before{content:"";position:absolute;width:45%;height:140%;right:-12%;top:-18%;background:rgba(255,255,255,.08);transform:skewX(-13deg)}.month-indicator-card::after{content:"";position:absolute;width:6px;height:58%;left:14px;bottom:14px;background:#38bdf8;border-radius:4px}.month-card-content{position:relative;z-index:1;padding-left:17px}.month-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.month-card-title span{display:block;color:rgba(255,255,255,.68);font-size:.62rem;font-weight:800;text-transform:uppercase;margin-bottom:4px}.month-card-title strong{font-size:1.05rem}.month-percent{font-size:2.1rem;line-height:1;font-weight:800}.month-percent small{font-size:.7rem;color:rgba(255,255,255,.72);font-weight:700}.month-bars{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}.month-pill{background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.14);border-radius:7px;padding:8px}.month-pill span{display:block;font-size:.56rem;color:rgba(255,255,255,.68);text-transform:uppercase;font-weight:800}.month-pill strong{display:block;margin-top:2px;font-size:1rem}.month-selector-card{border:1px solid var(--border);border-radius:8px;background:#f8fafc;padding:13px;display:flex;flex-direction:column;justify-content:space-between;gap:10px}.month-select-label{display:flex;align-items:center;gap:8px;color:#334155;font-size:.68rem;font-weight:800;text-transform:uppercase}.month-select-label i{color:var(--primary2)}.month-select-wrap{position:relative}.month-select-wrap select{width:100%;height:40px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:0 34px 0 12px;color:#1e293b;font-weight:750;appearance:none;outline:0}.month-select-wrap i{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none}.month-select-wrap select:focus{border-color:#fdba74;box-shadow:0 0 0 3px rgba(251,146,60,.12)}.legend-months{display:flex;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:.65rem}.legend-dot{width:7px;height:7px;border-radius:2px;display:inline-block;margin-right:4px}.dot-p{background:#818cf8}.dot-e{background:#22c55e}.dot-r{background:#f59e0b}
+        .section{background:#fff;border:1px solid var(--border);border-radius:8px;margin-top:12px;overflow:hidden}.section-head{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px}.section-head h2{margin:0;color:var(--blue-dark);font-size:.88rem}.section-head p{margin:3px 0 0;color:var(--muted);font-size:.68rem}.cell-title{font-weight:700;color:#1e293b}.cell-muted{color:var(--muted);font-size:.65rem;margin-top:3px}.plan-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:14px;background:#f8fafc}.plan-card{--plan-bg:#1e3a8a;--plan-accent:#38bdf8;background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden;min-width:0;box-shadow:0 5px 16px rgba(15,23,42,.04);transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}.plan-card:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(15,23,42,.08);border-color:#cbd5e1}.plan-card-head{position:relative;overflow:hidden;background:var(--plan-bg);color:#fff;min-height:118px;padding:13px 13px 13px 18px;display:flex;flex-direction:column;justify-content:space-between}.plan-card-head::before{content:"";position:absolute;width:46%;height:120%;right:-14%;top:-10%;background:rgba(255,255,255,.1);transform:skewX(-13deg)}.plan-card-head::after{content:"";position:absolute;width:5px;height:58%;left:13px;bottom:13px;background:var(--plan-accent);border-radius:4px}.plan-card.theme-orange{--plan-bg:#c2410c;--plan-accent:#fed7aa}.plan-card.theme-green{--plan-bg:#166534;--plan-accent:#86efac}.plan-card.theme-violet{--plan-bg:#5b21b6;--plan-accent:#c4b5fd}.plan-card.theme-teal{--plan-bg:#0f766e;--plan-accent:#2dd4bf}.plan-card-top,.plan-card-main,.plan-card-foot{position:relative;z-index:1}.plan-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.plan-topic{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:5px 7px;font-size:.58rem;font-weight:800;text-transform:uppercase;max-width:70%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.plan-card-actions{display:flex;gap:5px}.plan-card-actions .icon-btn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.18);color:#fff}.plan-card-actions .icon-btn:hover{background:#fff;color:var(--primary2)}.plan-card-main{padding-left:14px;margin-top:12px}.plan-card-main h3{margin:0;font-size:1rem;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.plan-card-main p{margin:5px 0 0;color:rgba(255,255,255,.76);font-size:.63rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.plan-card-foot{padding-left:14px;display:flex;gap:10px;flex-wrap:wrap;color:rgba(255,255,255,.75);font-size:.6rem}.plan-card-foot span{display:inline-flex;align-items:center;gap:5px}.plan-card-body{padding:12px}.plan-mini-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:10px}.plan-mini-stat{border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc;padding:7px}.plan-mini-stat span{display:block;color:#64748b;font-size:.53rem;font-weight:800;text-transform:uppercase}.plan-mini-stat strong{display:block;margin-top:2px;color:#172554;font-size:.93rem}.plan-month-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.plan-month{border:1px solid #e2e8f0;border-radius:7px;background:#fff;padding:7px;min-width:0}.plan-month-name{display:flex;align-items:center;justify-content:space-between;gap:4px;color:#475569;font-size:.58rem;font-weight:800;margin-bottom:7px}.plan-month-state{font-size:.52rem;border-radius:5px;padding:2px 4px;background:#f1f5f9;color:#94a3b8}.plan-month-state.p{background:#e0e7ff;color:#4338ca}.plan-month-state.e{background:#dcfce7;color:#15803d}.plan-month-state.r{background:#fef3c7;color:#b45309}.month-toggle{display:flex;justify-content:center;gap:5px}.month-toggle form{width:28px;height:28px;flex:0 0 28px}.month-state{width:28px;height:28px;padding:0;border:1px solid #dbe3ec;border-radius:7px;background:#f8fafc;color:#64748b;font-size:.64rem;font-weight:850;cursor:pointer;display:grid;place-items:center;box-shadow:inset 0 -1px 0 rgba(15,23,42,.04);transition:background .18s ease,color .18s ease,border-color .18s ease,transform .18s ease,box-shadow .18s ease}.month-state:hover{background:#fff;border-color:#cbd5e1;color:#1e293b;transform:translateY(-1px);box-shadow:0 5px 12px rgba(15,23,42,.08)}.month-state.p.active{background:#4338ca;border-color:#4338ca;color:#fff;box-shadow:0 6px 14px rgba(67,56,202,.22)}.month-state.e.active{background:#15803d;border-color:#15803d;color:#fff;box-shadow:0 6px 14px rgba(21,128,61,.2)}.month-state.r.active{background:#b45309;border-color:#b45309;color:#fff;box-shadow:0 6px 14px rgba(180,83,9,.2)}.month-state:disabled{cursor:default;transform:none;box-shadow:none}.month-date{font-size:.52rem;color:#94a3b8;margin-top:6px;min-height:10px;text-align:center}.row-actions{display:flex;gap:4px}.icon-btn{width:29px;height:29px;border:1px solid var(--border);background:#fff;border-radius:6px;color:#64748b;cursor:pointer;display:grid;place-items:center}.icon-btn:hover{color:var(--primary2);border-color:#fdba74}.icon-btn.delete:hover{color:var(--red);border-color:#fca5a5}.empty-state{padding:42px 20px;text-align:center;color:var(--muted)}.empty-state i{font-size:1.7rem;color:#cbd5e1;margin-bottom:10px}
+        .tracking-scroll{overflow-x:auto}.tracking{width:100%;min-width:1180px;border-collapse:collapse}.tracking th{padding:9px;background:#f8fafc;color:#64748b;font-size:.58rem;text-transform:uppercase;border-bottom:1px solid var(--border)}.tracking td{padding:9px;border-bottom:1px solid #eef2f7;vertical-align:top}.tracking tr:last-child td{border-bottom:0}.tracking-main{font-weight:700;color:#334155}.tracking-text{color:#64748b;line-height:1.4;max-width:180px}.tracking-date{white-space:nowrap;color:#475569}.tracking-actions{display:flex;gap:5px}
+        .signatures{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px}.signature-card{border:1px solid var(--border);border-radius:8px;padding:13px;text-align:center;background:#fbfdff}.signature-card h3{margin:0 0 4px;font-size:.8rem;color:var(--blue-dark)}.signature-card p{margin:0 0 10px;color:var(--muted);font-size:.65rem}.signature-pad{height:120px;border:1px dashed #cbd5e1;border-radius:7px;background:#fff;overflow:hidden;margin-bottom:9px}.signature-pad canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}.signature-image{width:100%;height:120px;object-fit:contain;background:#fff;border:1px dashed #cbd5e1;border-radius:7px}.signature-name{margin-top:7px;font-weight:700;color:#334155}.signature-actions{display:flex;justify-content:center;gap:7px;margin-top:9px}.signature-actions .btn{height:33px;font-size:.68rem}.signature-placeholder{height:120px;border:1px dashed #cbd5e1;border-radius:7px;display:grid;place-items:center;color:#94a3b8;background:#fff}.pdf-bar{padding:12px 14px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;background:#f8fafc}
+        .modal{position:fixed;inset:0;background:rgba(15,23,42,.62);z-index:12000;display:none;align-items:center;justify-content:center;padding:20px}.modal.open{display:flex}.modal-card{width:min(680px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:10px;box-shadow:0 24px 70px rgba(15,23,42,.25)}.modal-head{padding:15px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}.modal-head h2{margin:0;font-size:.95rem;color:var(--blue-dark)}.modal-close{border:0;background:#f1f5f9;width:30px;height:30px;border-radius:6px;color:#64748b;cursor:pointer}.modal-body{padding:18px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:.67rem;font-weight:800;color:#475569;text-transform:uppercase}.field input,.field textarea,.field select{width:100%;border:1px solid #cbd5e1;border-radius:7px;padding:10px;color:#334155;outline:0}.field textarea{min-height:80px;resize:vertical}.field input:focus,.field textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(255,138,31,.1)}.months-selector{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.month-check input{display:none}.month-check span{display:flex;height:32px;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:6px;font-size:.64rem;font-weight:800;color:#64748b;cursor:pointer}.month-check input:checked+span{background:#e0e7ff;border-color:#a5b4fc;color:#3730a3}.modal-foot{padding:13px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;background:#f8fafc}
+        @media(max-width:1300px){.plan-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:1200px){.summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:1100px){.indicator-layout{grid-template-columns:1fr}.plan-cards{grid-template-columns:1fr}}@media(max-width:768px){.main-wrapper{margin-left:0;width:100%}.content-area{padding:18px 14px 45px}.page-head{align-items:flex-start;flex-direction:column}.head-actions{width:100%;justify-content:flex-start}.year-filter{width:100%;justify-content:space-between}.year-select-wrap{flex:1}.year-filter .year-select{width:100%}.summary-grid{grid-template-columns:1fr 1fr}.control-top{align-items:flex-start;flex-direction:column}.meta-form{width:100%;justify-content:space-between}.month-card-top{align-items:flex-start}.month-bars{grid-template-columns:1fr}.plan-cards{padding:12px}.signatures{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.months-selector{grid-template-columns:repeat(4,1fr)}.pending-banner{align-items:flex-start;flex-direction:column}}@media(max-width:520px){.plan-month-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:420px){.summary-grid{grid-template-columns:1fr}.head-actions .btn{flex:1}.month-card-top{flex-direction:column}.month-percent{font-size:1.8rem}.plan-card-head{min-height:128px}.plan-month-grid{grid-template-columns:1fr}}
+        button.summary-period{border:0;background:transparent;padding:0;cursor:pointer;text-align:left}.summary-period:hover{color:var(--metric-color)}.summary-period i{transition:transform .22s ease}.summary-card.is-open .summary-period i{transform:rotate(180deg)}.summary-month-panel{position:relative;z-index:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;max-height:0;opacity:0;overflow:hidden;transition:max-height .25s ease,opacity .2s ease,margin-top .2s ease}.summary-card.is-open .summary-month-panel{max-height:70px;opacity:1;margin-top:2px}.summary-month-panel span{min-width:0;border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc;padding:5px 4px;color:#64748b;font-size:.52rem;font-weight:800;text-align:center}.summary-month-panel strong{display:block;color:var(--metric-color);font-size:.82rem;line-height:1.05;margin-bottom:2px}.modal-card{width:min(1040px,calc(100vw - 32px));max-height:calc(100dvh - 32px)}.modal-body{padding:20px}.modal-foot{position:sticky;bottom:0}.field textarea{min-height:104px}@media(max-width:768px){.modal{padding:10px}.modal-card{width:calc(100vw - 20px);max-height:calc(100dvh - 20px);border-radius:9px}.modal-body{padding:14px}.summary-month-panel{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        .summary-month-panel{grid-template-columns:repeat(4,max-content);justify-content:flex-start;align-items:center;gap:12px}.summary-card.is-open .summary-month-panel{max-height:42px;margin-top:0}.summary-month-panel span{border:0;background:transparent;border-radius:0;padding:0;display:flex;align-items:baseline;gap:3px;color:#94a3b8;font-size:.58rem;text-align:left}.summary-month-panel strong{display:inline;color:var(--metric-color);font-size:.95rem;line-height:1;margin:0}.plan-month-grid{gap:0 16px}.plan-month{border:0;background:transparent;border-radius:0;padding:8px 0 10px;border-bottom:1px solid #eef2f7}.plan-month-name{margin-bottom:6px}.plan-month-state{background:transparent;padding:0;color:#94a3b8}.month-toggle{justify-content:flex-start;gap:6px}.month-toggle form{width:24px;height:24px;flex:0 0 24px}.month-state{width:24px;height:24px;border:0;background:#f8fafc;border-radius:6px;box-shadow:none;color:#64748b;font-size:.62rem}.month-state:hover{background:#fff7ed;border-color:transparent;color:var(--primary2);box-shadow:none}.month-state.p.active,.month-state.e.active,.month-state.r.active{box-shadow:none;color:#fff}.month-date{text-align:left;margin-top:5px}@media(max-width:768px){.summary-month-panel{grid-template-columns:repeat(4,max-content);gap:10px}.plan-month-grid{gap:0 12px}}
+        .compliance-grid{display:grid;grid-template-columns:260px minmax(260px,1fr) minmax(260px,.9fr);gap:12px;margin-top:12px}.compliance-card{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:8px;background:#fff;padding:14px;min-height:168px;box-shadow:0 5px 16px rgba(15,23,42,.035)}.compliance-card h3{margin:0;color:var(--blue-dark);font-size:.78rem}.compliance-card p{margin:4px 0 0;color:var(--muted);font-size:.64rem;line-height:1.35}.compliance-card::after{content:"";position:absolute;right:-24px;bottom:-28px;width:120px;height:120px;border-radius:50%;background:var(--metric-soft,#fff3e8);opacity:.55}.compliance-donut-wrap{position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin-top:14px}.compliance-donut{--value:0;width:102px;height:102px;border-radius:50%;background:conic-gradient(var(--primary2) calc(var(--value)*1%),#e2e8f0 0);display:grid;place-items:center;flex:none}.compliance-donut::before{content:"";width:72px;height:72px;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 1px #eef2f7}.donut-center{position:absolute;left:0;width:102px;text-align:center;color:var(--blue-dark);font-size:1.18rem;font-weight:850}.compliance-legend{display:grid;gap:7px;min-width:0}.legend-row{display:flex;align-items:center;gap:7px;color:#64748b;font-size:.64rem;font-weight:750}.legend-row strong{margin-left:auto;color:#172554}.legend-mark{width:8px;height:8px;border-radius:2px;background:var(--primary2);flex:none}.legend-mark.missing{background:#cbd5e1}.legend-mark.goal{background:#22c55e}.goal-track{position:relative;z-index:1;margin-top:17px}.goal-line{height:12px;border-radius:99px;background:#e2e8f0;overflow:hidden}.goal-fill{height:100%;width:var(--goal-progress);background:linear-gradient(90deg,#f97316,#22c55e);border-radius:inherit}.goal-marker{position:absolute;top:-5px;left:calc(var(--goal-target) - 1px);width:2px;height:22px;background:#172554;border-radius:2px}.goal-labels{display:flex;justify-content:space-between;margin-top:8px;color:#64748b;font-size:.6rem;font-weight:800}.goal-note{position:relative;z-index:1;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:13px}.goal-note span{border:1px solid #eef2f7;background:#f8fafc;border-radius:7px;padding:8px;color:#64748b;font-size:.58rem;font-weight:800}.goal-note strong{display:block;color:#172554;font-size:1rem;margin-bottom:2px}.mini-bars{position:relative;z-index:1;display:grid;gap:9px;margin-top:14px}.mini-bar-row{display:grid;grid-template-columns:92px 1fr 34px;gap:8px;align-items:center;color:#64748b;font-size:.62rem;font-weight:800}.mini-bar-track{height:9px;background:#edf2f7;border-radius:99px;overflow:hidden}.mini-bar-fill{height:100%;width:var(--bar-width);background:var(--bar-color);border-radius:inherit}.compliance-foot{position:relative;z-index:1;margin-top:12px;display:flex;align-items:center;gap:8px;color:#475569;font-size:.66rem;font-weight:800}.compliance-foot i{color:var(--primary2)}@media(max-width:1200px){.compliance-grid{grid-template-columns:1fr 1fr}.compliance-grid .compliance-card:first-child{grid-column:1/-1}}@media(max-width:768px){.compliance-grid{grid-template-columns:1fr}.goal-note{grid-template-columns:1fr}.mini-bar-row{grid-template-columns:82px 1fr 28px}}
+    </style>
+</head>
+<body>
+<?php include 'components/sidebar.php'; ?>
+<main class="main-wrapper">
+    <?php include 'components/header.php'; ?>
+    <div class="content-area">
+        <div class="page-head">
+            <div class="head-copy">
+                <div class="head-icon"><i class="fa-solid fa-clipboard-check"></i></div>
+                <div>
+                    <h1>4. Plan Anual de Trabajo</h1>
+                    <p>Programa, ejecuta y documenta las actividades del SG-SST durante la vigencia.</p>
+                </div>
+            </div>
+            <div class="head-actions">
+                <span class="status-plan <?php echo $estado_plan[1]; ?>"><?php echo $estado_plan[0]; ?></span>
+                <label class="year-filter">
+                    <span><i class="fa-regular fa-calendar"></i> Vigencia</span>
+                    <div class="year-select-wrap">
+                        <select class="year-select" onchange="location.href='estandar4.php?anio='+this.value" aria-label="Seleccionar vigencia">
+                            <?php for ($y = (int)date('Y') + 1; $y >= (int)date('Y') - 4; $y--): ?>
+                                <option value="<?php echo $y; ?>" <?php echo $y === $anio ? 'selected' : ''; ?>><?php echo $y; ?></option>
+                            <?php endfor; ?>
+                        </select>
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </div>
+                </label>
+                <?php if ($editable): ?>
+                    <button class="btn btn-primary" type="button" onclick="openActivityModal()"><i class="fa-solid fa-plus"></i> Nueva actividad</button>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <?php if (isset($_GET['msg'])): ?>
+            <div class="alert <?php echo ($_GET['tipo'] ?? '') === 'error' ? 'error' : 'ok'; ?>">
+                <i class="fa-solid <?php echo ($_GET['tipo'] ?? '') === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'; ?>"></i>
+                <?php echo htmlspecialchars($_GET['msg']); ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($usuario_rol === 'representante' && $plan['estado'] === 'pendiente_firma'): ?>
+            <div class="pending-banner">
+                <div><strong>El plan anual está listo para tu revisión.</strong><br>Verifica la programación y firma al final del documento.</div>
+                <i class="fa-solid fa-file-signature"></i>
+            </div>
+        <?php endif; ?>
+
+        <div class="summary-grid">
+            <article class="summary-card metric-orange">
+                <div class="summary-watermark"><i class="fa-solid fa-list-check"></i></div>
+                <div class="summary-top"><div class="summary-icon"><i class="fa-solid fa-list-check"></i></div><div class="summary-value"><?php echo count($actividades); ?></div></div>
+                <div class="summary-title">Total Actividades</div>
+                <p>Histórico global del plan SG-SST.</p>
+                <button class="summary-period" type="button" data-summary-toggle aria-expanded="false"><?php echo $resumen_periodo; ?> <i class="fa-solid fa-chevron-down"></i></button>
+                <div class="summary-month-panel" aria-hidden="true"><span><strong><?php echo $total_mes_inicial; ?></strong>Mes</span><span><strong><?php echo count($actividades); ?></strong>Total</span></div>
+            </article>
+            <article class="summary-card metric-blue">
+                <div class="summary-watermark"><i class="fa-regular fa-calendar-days"></i></div>
+                <div class="summary-top"><div class="summary-icon"><i class="fa-regular fa-calendar-days"></i></div><div class="summary-value"><?php echo $metricas['programadas']; ?></div></div>
+                <div class="summary-title">Programadas</div>
+                <p>Pendientes por realizar durante la vigencia.</p>
+                <button class="summary-period" type="button" data-summary-toggle aria-expanded="false"><?php echo $resumen_periodo; ?> <i class="fa-solid fa-chevron-down"></i></button>
+                <div class="summary-month-panel" aria-hidden="true"><span><strong><?php echo $indicador_inicial['P']; ?></strong>Mes</span><span><strong><?php echo $metricas['programadas']; ?></strong>Pend.</span></div>
+            </article>
+            <article class="summary-card metric-green">
+                <div class="summary-watermark"><i class="fa-solid fa-check-double"></i></div>
+                <div class="summary-top"><div class="summary-icon"><i class="fa-solid fa-check-double"></i></div><div class="summary-value"><?php echo $metricas['ejecutadas']; ?></div></div>
+                <div class="summary-title">Ejecutadas</div>
+                <p>Finalizadas con evidencia registrada.</p>
+                <button class="summary-period" type="button" data-summary-toggle aria-expanded="false"><?php echo $resumen_periodo; ?> <i class="fa-solid fa-chevron-down"></i></button>
+                <div class="summary-month-panel" aria-hidden="true"><span><strong><?php echo $indicador_inicial['E']; ?></strong>Mes</span><span><strong><?php echo $metricas['ejecutadas']; ?></strong>Hechas</span></div>
+            </article>
+            <article class="summary-card metric-amber">
+                <div class="summary-watermark"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                <div class="summary-top"><div class="summary-icon"><i class="fa-solid fa-clock-rotate-left"></i></div><div class="summary-value"><?php echo $metricas['reprogramadas']; ?></div></div>
+                <div class="summary-title">Reprogramadas</div>
+                <p>Actividades ajustadas de fecha.</p>
+                <button class="summary-period" type="button" data-summary-toggle aria-expanded="false"><?php echo $resumen_periodo; ?> <i class="fa-solid fa-chevron-down"></i></button>
+                <div class="summary-month-panel" aria-hidden="true"><span><strong><?php echo $indicador_inicial['R']; ?></strong>Mes</span><span><strong><?php echo $metricas['reprogramadas']; ?></strong>Ajust.</span></div>
+            </article>
+            <article class="summary-card metric-red">
+                <div class="summary-watermark"><i class="fa-regular fa-calendar-xmark"></i></div>
+                <div class="summary-top"><div class="summary-icon"><i class="fa-regular fa-calendar-xmark"></i></div><div class="summary-value"><?php echo $no_ejecutadas; ?></div></div>
+                <div class="summary-title">No Ejecutadas</div>
+                <p>Programaciones vencidas sin ejecución.</p>
+                <button class="summary-period" type="button" data-summary-toggle aria-expanded="false"><?php echo $resumen_periodo; ?> <i class="fa-solid fa-chevron-down"></i></button>
+                <div class="summary-month-panel" aria-hidden="true"><span><strong><?php echo $no_ejecutadas_mes; ?></strong>Mes</span><span><strong><?php echo $no_ejecutadas; ?></strong>Venc.</span></div>
+            </article>
+            <article class="summary-card metric-violet">
+                <div class="summary-watermark"><i class="fa-solid fa-chart-line"></i></div>
+                <div class="summary-top"><div class="summary-icon"><i class="fa-solid fa-chart-line"></i></div><div class="summary-value"><?php echo $metricas['cumplimiento']; ?>%</div></div>
+                <div class="summary-title">Efectividad Global</div>
+                <p><?php echo $cumple_meta ? 'Meta anual alcanzada.' : 'Avance frente a la meta anual.'; ?></p>
+                <button class="summary-period" type="button" data-summary-toggle aria-expanded="false"><?php echo $resumen_periodo; ?> <i class="fa-solid fa-chevron-down"></i></button>
+                <div class="summary-month-panel" aria-hidden="true"><span><strong><?php echo $porcentaje_mes_inicial; ?>%</strong>Mes</span><span><strong><?php echo $metricas['cumplimiento']; ?>%</strong>Año</span></div>
+            </article>
+        </div>
+
+        <section class="control-panel">
+            <div class="control-top">
+                <div><h2>Indicadores automáticos</h2><div class="cell-muted">Medición anual entre actividades programadas, ejecutadas y reprogramadas.</div></div>
+                <form class="meta-form" action="procesar_estandar4.php" method="post">
+                    <input type="hidden" name="accion" value="guardar_meta"><input type="hidden" name="anio" value="<?php echo $anio; ?>">
+                    <label class="meta-label" for="meta"><i class="fa-solid fa-bullseye"></i> Meta anual</label>
+                    <div class="meta-input-wrap">
+                        <input id="meta" name="meta_cumplimiento" type="number" min="1" max="100" value="<?php echo $meta; ?>" <?php echo !$editable ? 'disabled' : ''; ?>>
+                        <span class="meta-suffix">%</span>
+                    </div>
+                    <?php if ($editable): ?><button class="icon-btn" title="Guardar meta"><i class="fa-solid fa-check"></i></button><?php endif; ?>
+                </form>
+            </div>
+            <div class="progress-track"><div class="progress-fill" style="width:<?php echo min(100, $metricas['cumplimiento']); ?>%"></div></div>
+            <div class="compliance-grid">
+                <article class="compliance-card" style="--metric-soft:#fff3e8">
+                    <h3>Cumplimiento actual</h3>
+                    <p>Avance acumulado frente a las actividades del plan.</p>
+                    <div class="compliance-donut-wrap">
+                        <div class="compliance-donut" style="--value:<?php echo min(100, $metricas['cumplimiento']); ?>"></div>
+                        <div class="donut-center"><?php echo $metricas['cumplimiento']; ?>%</div>
+                        <div class="compliance-legend">
+                            <div class="legend-row"><i class="legend-mark"></i> Cumplido <strong><?php echo $metricas['cumplimiento']; ?>%</strong></div>
+                            <div class="legend-row"><i class="legend-mark missing"></i> Falta a 100% <strong><?php echo $faltante_total; ?>%</strong></div>
+                            <div class="legend-row"><i class="legend-mark goal"></i> Meta anual <strong><?php echo $meta; ?>%</strong></div>
+                        </div>
+                    </div>
+                </article>
+                <article class="compliance-card" style="--metric-soft:#ecfdf5">
+                    <h3>Camino hacia la meta</h3>
+                    <p>Lo que llevas frente a la meta definida para esta vigencia.</p>
+                    <div class="goal-track" style="--goal-progress:<?php echo $avance_sobre_meta; ?>%;--goal-target:100%">
+                        <div class="goal-line"><div class="goal-fill"></div></div>
+                        <div class="goal-marker" title="Meta <?php echo $meta; ?>%"></div>
+                        <div class="goal-labels"><span>0%</span><span>Meta <?php echo $meta; ?>%</span><span>100%</span></div>
+                    </div>
+                    <div class="goal-note">
+                        <span><strong><?php echo $avance_sobre_meta; ?>%</strong>de la meta</span>
+                        <span><strong><?php echo $faltante_meta; ?> pts</strong>faltan</span>
+                        <span><strong><?php echo $ejecuciones_para_meta; ?></strong>ejecuciones</span>
+                    </div>
+                </article>
+                <article class="compliance-card" style="--metric-soft:#eef4ff">
+                    <h3>Distribución del plan</h3>
+                    <p>Estado de las actividades que alimentan el indicador anual.</p>
+                    <div class="mini-bars">
+                        <div class="mini-bar-row"><span>Programadas</span><div class="mini-bar-track"><div class="mini-bar-fill" style="--bar-width:<?php echo round(($metricas['programadas'] / $base_grafica) * 100); ?>%;--bar-color:#1e3a8a"></div></div><strong><?php echo $metricas['programadas']; ?></strong></div>
+                        <div class="mini-bar-row"><span>Ejecutadas</span><div class="mini-bar-track"><div class="mini-bar-fill" style="--bar-width:<?php echo round(($metricas['ejecutadas'] / $base_grafica) * 100); ?>%;--bar-color:#16a34a"></div></div><strong><?php echo $metricas['ejecutadas']; ?></strong></div>
+                        <div class="mini-bar-row"><span>Reprogramadas</span><div class="mini-bar-track"><div class="mini-bar-fill" style="--bar-width:<?php echo round(($metricas['reprogramadas'] / $base_grafica) * 100); ?>%;--bar-color:#d97706"></div></div><strong><?php echo $metricas['reprogramadas']; ?></strong></div>
+                    </div>
+                    <div class="compliance-foot"><i class="fa-solid fa-circle-info"></i> <?php echo $base_indicadores; ?> registros dentro del indicador.</div>
+                </article>
+            </div>
+            <div class="indicator-layout">
+                <div class="month-indicator-card">
+                    <div class="month-card-content">
+                        <div class="month-card-top">
+                            <div class="month-card-title">
+                                <span>Indicador mensual</span>
+                                <strong id="monthIndicatorName"><?php echo $meses_completos[$mes_indicador]; ?></strong>
+                            </div>
+                            <div class="month-percent"><span id="monthIndicatorPercent"><?php echo $porcentaje_mes_inicial; ?></span><small>%</small></div>
+                        </div>
+                        <div class="month-bars">
+                            <div class="month-pill"><span>Programado</span><strong id="monthIndicatorP"><?php echo $indicador_inicial['P']; ?></strong></div>
+                            <div class="month-pill"><span>Ejecutado</span><strong id="monthIndicatorE"><?php echo $indicador_inicial['E']; ?></strong></div>
+                            <div class="month-pill"><span>Reprogramado</span><strong id="monthIndicatorR"><?php echo $indicador_inicial['R']; ?></strong></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="month-selector-card">
+                    <label class="month-select-label" for="monthIndicatorSelect"><i class="fa-solid fa-calendar-days"></i> Ver mes</label>
+                    <div class="month-select-wrap">
+                        <select id="monthIndicatorSelect">
+                            <?php foreach ($meses as $numero => $mes):
+                                $m = $metricas['por_mes'][$numero];
+                                $total_mes = array_sum($m);
+                                $porcentaje_mes = $total_mes > 0 ? round(($m['E'] / $total_mes) * 100) : 0;
+                            ?>
+                                <option value="<?php echo $numero; ?>"
+                                    data-name="<?php echo htmlspecialchars($meses_completos[$numero]); ?>"
+                                    data-p="<?php echo $m['P']; ?>"
+                                    data-e="<?php echo $m['E']; ?>"
+                                    data-r="<?php echo $m['R']; ?>"
+                                    data-percent="<?php echo $porcentaje_mes; ?>"
+                                    <?php echo $numero === $mes_indicador ? 'selected' : ''; ?>>
+                                    <?php echo $meses_completos[$numero]; ?> · <?php echo $porcentaje_mes; ?>%
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </div>
+                    <div class="legend-months">
+                        <span><i class="legend-dot dot-p"></i>Programado</span>
+                        <span><i class="legend-dot dot-e"></i>Ejecutado</span>
+                        <span><i class="legend-dot dot-r"></i>Reprogramado</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-head">
+                <div><h2>Plan de Trabajo Anual SG-SST · <?php echo $anio; ?></h2><p>Usa P para programado, E para ejecutado y R para reprogramado.</p></div>
+                <?php if ($editable): ?><button class="btn" type="button" onclick="openActivityModal()"><i class="fa-solid fa-plus"></i> Actividad</button><?php endif; ?>
+            </div>
+            <?php if (!$actividades): ?>
+                <div class="empty-state"><i class="fa-regular fa-calendar-plus"></i><h3>El plan aún no tiene actividades</h3><p>Agrega una actividad o importa las capacitaciones programadas en el Estándar 3.</p></div>
+            <?php else: ?>
+                <div class="plan-cards">
+                        <?php $plan_themes = ['', 'theme-orange', 'theme-green', 'theme-violet', 'theme-teal']; ?>
+                        <?php foreach ($actividades as $index => $actividad):
+                            $programacion = estandar4_decode_programacion($actividad['programacion_json']);
+                            $conteos_actividad = ['P' => 0, 'E' => 0, 'R' => 0];
+                            foreach ($programacion as $dato_conteo) {
+                                $estado_conteo = is_array($dato_conteo) ? ($dato_conteo['estado'] ?? '') : $dato_conteo;
+                                if (isset($conteos_actividad[$estado_conteo])) {
+                                    $conteos_actividad[$estado_conteo]++;
+                                }
+                            }
+                            $activity_payload = htmlspecialchars(json_encode([
+                                'id' => (int)$actividad['id'],
+                                'tema' => $actividad['tema'],
+                                'actividad' => $actividad['actividad'],
+                                'responsable' => $actividad['responsable'],
+                                'observaciones' => $actividad['observaciones'],
+                                'meses' => array_map('intval', array_keys($programacion)),
+                            ], JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8');
+                        ?>
+                            <article class="plan-card <?php echo $plan_themes[$index % count($plan_themes)]; ?>">
+                                <div class="plan-card-head">
+                                    <div class="plan-card-top">
+                                        <span class="plan-topic"><i class="fa-solid fa-layer-group"></i> <?php echo htmlspecialchars($actividad['tema']); ?></span>
+                                        <div class="plan-card-actions">
+                                            <?php if ($editable): ?>
+                                                <button class="icon-btn" type="button" title="Editar actividad" data-activity="<?php echo $activity_payload; ?>" onclick="editActivity(this)"><i class="fa-solid fa-pen"></i></button>
+                                                <form action="procesar_estandar4.php" method="post" onsubmit="return confirm('¿Eliminar esta actividad del plan?')">
+                                                    <input type="hidden" name="accion" value="eliminar_actividad"><input type="hidden" name="anio" value="<?php echo $anio; ?>"><input type="hidden" name="actividad_id" value="<?php echo $actividad['id']; ?>">
+                                                    <button class="icon-btn delete" title="Eliminar actividad"><i class="fa-solid fa-trash"></i></button>
+                                                </form>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <div class="plan-card-main">
+                                        <h3><?php echo htmlspecialchars($actividad['actividad']); ?></h3>
+                                        <?php if ($actividad['observaciones']): ?><p><?php echo htmlspecialchars($actividad['observaciones']); ?></p><?php endif; ?>
+                                    </div>
+                                    <div class="plan-card-foot">
+                                        <span><i class="fa-regular fa-user"></i> <?php echo htmlspecialchars($actividad['responsable']); ?></span>
+                                        <?php if ($actividad['actividad_capacitacion_id']): ?><span><i class="fa-solid fa-link"></i> Estándar 3</span><?php endif; ?>
+                                    </div>
+                                </div>
+                                <div class="plan-card-body">
+                                    <div class="plan-mini-stats">
+                                        <div class="plan-mini-stat"><span>Programado</span><strong><?php echo $conteos_actividad['P']; ?></strong></div>
+                                        <div class="plan-mini-stat"><span>Ejecutado</span><strong><?php echo $conteos_actividad['E']; ?></strong></div>
+                                        <div class="plan-mini-stat"><span>Reprogramado</span><strong><?php echo $conteos_actividad['R']; ?></strong></div>
+                                    </div>
+                                    <div class="plan-month-grid">
+                                        <?php foreach ($meses as $numero => $mes):
+                                            $dato = $programacion[(string)$numero] ?? [];
+                                            $estado = is_array($dato) ? ($dato['estado'] ?? '') : $dato;
+                                            $fecha = is_array($dato) ? ($dato['fecha'] ?? '') : '';
+                                            $estado_clase = strtolower($estado);
+                                        ?>
+                                            <div class="plan-month">
+                                                <div class="plan-month-name">
+                                                    <span><?php echo $mes; ?></span>
+                                                    <span class="plan-month-state <?php echo $estado_clase; ?>"><?php echo $estado ?: '—'; ?></span>
+                                                </div>
+                                                <div class="month-toggle">
+                                                    <?php foreach (['P' => 'p', 'E' => 'e', 'R' => 'r'] as $letra => $clase): ?>
+                                                        <form action="procesar_estandar4.php" method="post">
+                                                            <input type="hidden" name="accion" value="actualizar_mes"><input type="hidden" name="anio" value="<?php echo $anio; ?>">
+                                                            <input type="hidden" name="actividad_id" value="<?php echo $actividad['id']; ?>"><input type="hidden" name="mes" value="<?php echo $numero; ?>">
+                                                            <input type="hidden" name="estado" value="<?php echo $estado === $letra ? '' : $letra; ?>">
+                                                            <button class="month-state <?php echo $clase . ($estado === $letra ? ' active' : ''); ?>" title="<?php echo $estado === $letra ? 'Quitar estado' : ['P'=>'Programado','E'=>'Ejecutado','R'=>'Reprogramado'][$letra]; ?>" <?php echo !$editable ? 'disabled' : ''; ?>><?php echo $letra; ?></button>
+                                                        </form>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                                <div class="month-date"><?php echo $fecha ? date('d/m/y', strtotime($fecha)) : ''; ?></div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </section>
+
+        <section class="section">
+            <div class="section-head">
+                <div><h2>Seguimiento del Responsable SST</h2><p>Registra análisis, acciones propuestas, responsables y vencimientos.</p></div>
+                <?php if ($editable): ?><button class="btn btn-blue" type="button" onclick="openTrackingModal()"><i class="fa-solid fa-plus"></i> Nuevo seguimiento</button><?php endif; ?>
+            </div>
+            <?php if (!$seguimientos): ?>
+                <div class="empty-state"><i class="fa-solid fa-chart-simple"></i><h3>Sin seguimientos registrados</h3><p>Las acciones de mejora y sus resultados aparecerán en esta sección.</p></div>
+            <?php else: ?>
+                <div class="tracking-scroll"><table class="tracking"><thead><tr><th>Periodo</th><th>Análisis del resultado</th><th>Acción propuesta</th><th>Responsable</th><th>Fecha máxima</th><th>Fecha seguimiento</th><th>Responsable seguimiento</th><th>Resultado</th><th>Acciones</th></tr></thead><tbody>
+                <?php foreach ($seguimientos as $seguimiento):
+                    $tracking_payload = htmlspecialchars(json_encode($seguimiento, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8');
+                ?>
+                    <tr>
+                        <td class="tracking-main"><?php echo htmlspecialchars($seguimiento['periodo']); ?></td>
+                        <td class="tracking-text"><?php echo nl2br(htmlspecialchars($seguimiento['analisis_resultado'])); ?></td>
+                        <td class="tracking-text"><?php echo nl2br(htmlspecialchars($seguimiento['accion_propuesta'])); ?></td>
+                        <td class="tracking-main"><?php echo htmlspecialchars($seguimiento['responsable']); ?></td>
+                        <td class="tracking-date"><?php echo $seguimiento['fecha_max_ejecucion'] ? date('d/m/Y', strtotime($seguimiento['fecha_max_ejecucion'])) : '—'; ?></td>
+                        <td class="tracking-date"><?php echo $seguimiento['fecha_seguimiento'] ? date('d/m/Y', strtotime($seguimiento['fecha_seguimiento'])) : '—'; ?></td>
+                        <td><?php echo htmlspecialchars($seguimiento['responsable_seguimiento'] ?: '—'); ?></td>
+                        <td class="tracking-text"><?php echo $seguimiento['resultado_seguimiento'] ? nl2br(htmlspecialchars($seguimiento['resultado_seguimiento'])) : 'Pendiente'; ?></td>
+                        <td><div class="tracking-actions"><?php if ($editable): ?>
+                            <button class="icon-btn" type="button" data-tracking="<?php echo $tracking_payload; ?>" onclick="editTracking(this)" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                            <form action="procesar_estandar4.php" method="post" onsubmit="return confirm('¿Eliminar este seguimiento?')"><input type="hidden" name="accion" value="eliminar_seguimiento"><input type="hidden" name="anio" value="<?php echo $anio; ?>"><input type="hidden" name="seguimiento_id" value="<?php echo $seguimiento['id']; ?>"><button class="icon-btn delete" title="Eliminar"><i class="fa-solid fa-trash"></i></button></form>
+                        <?php endif; ?></div></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody></table></div>
+            <?php endif; ?>
+        </section>
+
+        <section class="section">
+            <div class="section-head"><div><h2>Firmas del documento</h2><p>Primero firma el Responsable SST. Luego el Representante Legal revisa y aprueba el plan.</p></div></div>
+            <div class="signatures">
+                <div class="signature-card">
+                    <h3>Responsable del SG-SST</h3><p>Elabora y presenta el Plan Anual de Trabajo.</p>
+                    <?php if ($plan['firma_sst']): ?>
+                        <img class="signature-image" src="<?php echo htmlspecialchars($plan['firma_sst']); ?>" alt="Firma Responsable SST">
+                        <div class="signature-name"><?php echo htmlspecialchars(trim(($firmante_sst['nombre'] ?? '') . ' ' . ($firmante_sst['apellido'] ?? ''))); ?></div>
+                    <?php elseif ($usuario_rol === 'sst' && $plan['estado'] !== 'firmado'): ?>
+                        <form action="procesar_estandar4.php" method="post" class="signature-form" data-canvas="sstSignature">
+                            <input type="hidden" name="accion" value="firmar_sst"><input type="hidden" name="anio" value="<?php echo $anio; ?>"><input type="hidden" name="firma" class="signature-value">
+                            <div class="signature-pad"><canvas id="sstSignature"></canvas></div>
+                            <div class="signature-actions"><button type="button" class="btn clear-signature"><i class="fa-solid fa-eraser"></i> Limpiar</button><button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Firmar y enviar</button></div>
+                        </form>
+                    <?php else: ?><div class="signature-placeholder"><span><i class="fa-regular fa-clock"></i><br>Pendiente de firma SST</span></div><?php endif; ?>
+                </div>
+                <div class="signature-card">
+                    <h3>Representante Legal</h3><p>Revisa, aprueba y avala la ejecución del plan.</p>
+                    <?php if ($plan['firma_representante']): ?>
+                        <img class="signature-image" src="<?php echo htmlspecialchars($plan['firma_representante']); ?>" alt="Firma Representante Legal">
+                        <div class="signature-name"><?php echo htmlspecialchars(trim(($firmante_representante['nombre'] ?? '') . ' ' . ($firmante_representante['apellido'] ?? ''))); ?></div>
+                    <?php elseif ($usuario_rol === 'representante' && $plan['estado'] === 'pendiente_firma'): ?>
+                        <form action="procesar_estandar4.php" method="post" class="signature-form" data-canvas="repSignature">
+                            <input type="hidden" name="accion" value="firmar_representante"><input type="hidden" name="anio" value="<?php echo $anio; ?>"><input type="hidden" name="firma" class="signature-value">
+                            <div class="signature-pad"><canvas id="repSignature"></canvas></div>
+                            <div class="signature-actions"><button type="button" class="btn clear-signature"><i class="fa-solid fa-eraser"></i> Limpiar</button><button type="submit" class="btn btn-blue"><i class="fa-solid fa-signature"></i> Aprobar y firmar</button></div>
+                        </form>
+                    <?php else: ?><div class="signature-placeholder"><span><i class="fa-regular fa-clock"></i><br><?php echo $plan['firma_sst'] ? 'Pendiente de gerencia' : 'Disponible después de la firma SST'; ?></span></div><?php endif; ?>
+                </div>
+            </div>
+            <div class="pdf-bar">
+                <span><?php echo $plan['estado'] === 'firmado' ? 'Documento legalizado el ' . date('d/m/Y H:i', strtotime($plan['fecha_firma'])) : 'El PDF se habilita cuando estén registradas ambas firmas.'; ?></span>
+                <div class="head-actions">
+                    <?php if ($plan['estado'] === 'firmado' && $usuario_rol === 'sst'): ?>
+                        <form action="procesar_estandar4.php" method="post" onsubmit="return confirm('Al reabrir el plan se solicitarán nuevamente las firmas. ¿Continuar?')"><input type="hidden" name="accion" value="reabrir_plan"><input type="hidden" name="anio" value="<?php echo $anio; ?>"><button class="btn" type="submit"><i class="fa-solid fa-pen-to-square"></i> Reabrir plan</button></form>
+                    <?php endif; ?>
+                    <a class="btn btn-blue" href="<?php echo $plan['estado'] === 'firmado' ? 'estandar4_pdf.php?anio=' . $anio : '#'; ?>" <?php echo $plan['estado'] !== 'firmado' ? 'aria-disabled="true" style="opacity:.5;pointer-events:none"' : ''; ?>><i class="fa-solid fa-file-pdf"></i> Descargar PDF firmado</a>
+                </div>
+            </div>
+        </section>
+    </div>
+</main>
+
+<div class="modal" id="activityModal" aria-hidden="true">
+    <div class="modal-card">
+        <div class="modal-head"><h2 id="activityModalTitle">Nueva actividad del plan</h2><button class="modal-close" type="button" onclick="closeModal('activityModal')"><i class="fa-solid fa-xmark"></i></button></div>
+        <form action="procesar_estandar4.php" method="post" id="activityForm">
+            <input type="hidden" name="accion" value="guardar_actividad"><input type="hidden" name="anio" value="<?php echo $anio; ?>"><input type="hidden" name="actividad_id" id="activityId">
+            <div class="modal-body"><div class="form-grid">
+                <div class="field"><label for="activityTopic">Tema</label><input id="activityTopic" name="tema" required placeholder="Ej. Capacitación SST"></div>
+                <div class="field"><label for="activityResponsible">Responsable</label><input id="activityResponsible" name="responsable" required list="responsibleOptions" placeholder="Nombre o cargo"></div>
+                <div class="field full"><label for="activityName">Actividad</label><input id="activityName" name="actividad" required placeholder="Describe la actividad a ejecutar"></div>
+                <div class="field full"><label>Meses programados</label><div class="months-selector"><?php foreach ($meses as $numero => $mes): ?><label class="month-check"><input type="checkbox" name="meses[]" value="<?php echo $numero; ?>"><span><?php echo $mes; ?></span></label><?php endforeach; ?></div></div>
+                <div class="field full"><label for="activityNotes">Observaciones</label><textarea id="activityNotes" name="observaciones" placeholder="Recursos, alcance o información adicional"></textarea></div>
+            </div></div>
+            <div class="modal-foot"><button class="btn" type="button" onclick="closeModal('activityModal')">Cancelar</button><button class="btn btn-primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Guardar actividad</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="trackingModal" aria-hidden="true">
+    <div class="modal-card">
+        <div class="modal-head"><h2 id="trackingModalTitle">Nuevo seguimiento</h2><button class="modal-close" type="button" onclick="closeModal('trackingModal')"><i class="fa-solid fa-xmark"></i></button></div>
+        <form action="procesar_estandar4.php" method="post" id="trackingForm">
+            <input type="hidden" name="accion" value="guardar_seguimiento"><input type="hidden" name="anio" value="<?php echo $anio; ?>"><input type="hidden" name="seguimiento_id" id="trackingId">
+            <div class="modal-body"><div class="form-grid">
+                <div class="field"><label for="trackingPeriod">Periodo</label><input id="trackingPeriod" name="periodo" required placeholder="Ej. Enero - Marzo"></div>
+                <div class="field"><label for="trackingResponsible">Responsable</label><input id="trackingResponsible" name="responsable" required list="responsibleOptions"></div>
+                <div class="field full"><label for="trackingAnalysis">Análisis del resultado</label><textarea id="trackingAnalysis" name="analisis_resultado" required></textarea></div>
+                <div class="field full"><label for="trackingAction">Acción propuesta</label><textarea id="trackingAction" name="accion_propuesta" required></textarea></div>
+                <div class="field"><label for="trackingDeadline">Fecha máxima de ejecución</label><input id="trackingDeadline" name="fecha_max_ejecucion" type="date"></div>
+                <div class="field"><label for="trackingDate">Fecha de seguimiento</label><input id="trackingDate" name="fecha_seguimiento" type="date"></div>
+                <div class="field"><label for="trackingReviewer">Responsable del seguimiento</label><input id="trackingReviewer" name="responsable_seguimiento" list="responsibleOptions"></div>
+                <div class="field"><label for="trackingResult">Resultado del seguimiento</label><textarea id="trackingResult" name="resultado_seguimiento"></textarea></div>
+            </div></div>
+            <div class="modal-foot"><button class="btn" type="button" onclick="closeModal('trackingModal')">Cancelar</button><button class="btn btn-primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Guardar seguimiento</button></div>
+        </form>
+    </div>
+</div>
+
+<datalist id="responsibleOptions">
+    <?php foreach ($responsables as $responsable): ?><option value="<?php echo htmlspecialchars(trim($responsable['nombre'] . ' ' . $responsable['apellido'])); ?>"><?php echo htmlspecialchars(ucfirst($responsable['rol'])); ?></option><?php endforeach; ?>
+    <option value="Responsable SG-SST"><option value="Representante Legal"><option value="COPASST"><option value="Comité de Convivencia">
+</datalist>
+
+<script>
+    function openModal(id) {
+        const modal = document.getElementById(id);
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeModal(id) {
+        const modal = document.getElementById(id);
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+    }
+    function openActivityModal() {
+        document.getElementById('activityForm').reset();
+        document.getElementById('activityId').value = '';
+        document.getElementById('activityModalTitle').textContent = 'Nueva actividad del plan';
+        openModal('activityModal');
+    }
+    function editActivity(button) {
+        const activity = JSON.parse(button.dataset.activity);
+        openActivityModal();
+        document.getElementById('activityModalTitle').textContent = 'Editar actividad';
+        document.getElementById('activityId').value = activity.id;
+        document.getElementById('activityTopic').value = activity.tema || '';
+        document.getElementById('activityName').value = activity.actividad || '';
+        document.getElementById('activityResponsible').value = activity.responsable || '';
+        document.getElementById('activityNotes').value = activity.observaciones || '';
+        document.querySelectorAll('#activityForm input[name="meses[]"]').forEach(input => input.checked = activity.meses.includes(Number(input.value)));
+    }
+    function openTrackingModal() {
+        document.getElementById('trackingForm').reset();
+        document.getElementById('trackingId').value = '';
+        document.getElementById('trackingModalTitle').textContent = 'Nuevo seguimiento';
+        openModal('trackingModal');
+    }
+    function editTracking(button) {
+        const data = JSON.parse(button.dataset.tracking);
+        openTrackingModal();
+        document.getElementById('trackingModalTitle').textContent = 'Editar seguimiento';
+        const fields = {
+            trackingId:'id', trackingPeriod:'periodo', trackingResponsible:'responsable',
+            trackingAnalysis:'analisis_resultado', trackingAction:'accion_propuesta',
+            trackingDeadline:'fecha_max_ejecucion', trackingDate:'fecha_seguimiento',
+            trackingReviewer:'responsable_seguimiento', trackingResult:'resultado_seguimiento'
+        };
+        Object.entries(fields).forEach(([id, key]) => document.getElementById(id).value = data[key] || '');
+    }
+    document.querySelectorAll('.modal').forEach(modal => modal.addEventListener('click', event => {
+        if (event.target === modal) closeModal(modal.id);
+    }));
+
+    document.querySelectorAll('[data-summary-toggle]').forEach(button => {
+        button.addEventListener('click', () => {
+            const card = button.closest('.summary-card');
+            const panel = card.querySelector('.summary-month-panel');
+            const isOpen = card.classList.toggle('is-open');
+            button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            panel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+        });
+    });
+
+    const monthIndicatorSelect = document.getElementById('monthIndicatorSelect');
+    if (monthIndicatorSelect) {
+        const monthIndicatorName = document.getElementById('monthIndicatorName');
+        const monthIndicatorPercent = document.getElementById('monthIndicatorPercent');
+        const monthIndicatorP = document.getElementById('monthIndicatorP');
+        const monthIndicatorE = document.getElementById('monthIndicatorE');
+        const monthIndicatorR = document.getElementById('monthIndicatorR');
+        monthIndicatorSelect.addEventListener('change', () => {
+            const option = monthIndicatorSelect.selectedOptions[0];
+            monthIndicatorName.textContent = option.dataset.name;
+            monthIndicatorPercent.textContent = option.dataset.percent;
+            monthIndicatorP.textContent = option.dataset.p;
+            monthIndicatorE.textContent = option.dataset.e;
+            monthIndicatorR.textContent = option.dataset.r;
+        });
+    }
+
+    function initializeSignature(form) {
+        const canvas = document.getElementById(form.dataset.canvas);
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
+        let hasInk = false;
+        function resize() {
+            const ratio = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = Math.max(1, Math.round(rect.width * ratio));
+            canvas.height = Math.max(1, Math.round(rect.height * ratio));
+            ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#172554';
+        }
+        function point(event) {
+            const source = event.touches ? event.touches[0] : event;
+            const rect = canvas.getBoundingClientRect();
+            return {x: source.clientX - rect.left, y: source.clientY - rect.top};
+        }
+        function start(event) {
+            event.preventDefault();
+            drawing = true;
+            hasInk = true;
+            const p = point(event);
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+        }
+        function move(event) {
+            if (!drawing) return;
+            event.preventDefault();
+            const p = point(event);
+            ctx.lineTo(p.x, p.y);
+            ctx.stroke();
+        }
+        function stop() { drawing = false; }
+        resize();
+        canvas.addEventListener('mousedown', start);
+        canvas.addEventListener('mousemove', move);
+        canvas.addEventListener('mouseup', stop);
+        canvas.addEventListener('mouseleave', stop);
+        canvas.addEventListener('touchstart', start, {passive:false});
+        canvas.addEventListener('touchmove', move, {passive:false});
+        canvas.addEventListener('touchend', stop);
+        form.querySelector('.clear-signature').addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            hasInk = false;
+        });
+        form.addEventListener('submit', event => {
+            if (!hasInk) {
+                event.preventDefault();
+                alert('Dibuja tu firma antes de continuar.');
+                return;
+            }
+            form.querySelector('.signature-value').value = canvas.toDataURL('image/png');
+        });
+    }
+    document.querySelectorAll('.signature-form').forEach(initializeSignature);
+</script>
+</body>
+</html>

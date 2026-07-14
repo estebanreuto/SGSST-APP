@@ -1,0 +1,22 @@
+﻿Cambio: Carta de recomendaciones sincronizada con matriz 3.1.6
+Fecha: 2026-07-05 18:45:14
+
+Archivos modificados:
+- estandar5.php
+- procesar_estandar5.php
+- config/estandar5_schema.php
+- database/migrations/2026_07_05_estandar5_cartas_recomendaciones_sync.sql
+
+Resumen:
+- Se agrego una seccion previa para crear la carta de recomendaciones medicas.
+- La carta genera un PDF y crea el registro base de la matriz de seguimiento.
+- Se agrego una segunda seccion para actualizar seguimiento sobre cartas ya creadas, evitando repetir trabajador/recomendaciones/restricciones.
+- Se agregaron campos carta_fecha, fecha_examen, ips_nombre, concepto_medico, proyecto y carta_pdf.
+- La matriz ahora muestra enlace a la carta PDF y fecha de carta.
+
+Verificacion:
+- php -l estandar5.php: OK
+- php -l procesar_estandar5.php: OK
+- php -l config/estandar5_schema.php: OK
+- Migracion aplicada en MySQL: OK
+- Vista 3.1.6 recargada en navegador sin errores de consola.
