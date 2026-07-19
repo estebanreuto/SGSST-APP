@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 15-07-2026 a las 00:15:36
+-- Tiempo de generación: 19-07-2026 a las 03:27:50
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -37,6 +37,9 @@ CREATE TABLE `actividades_capacitacion` (
   `fecha_inicio` datetime NOT NULL,
   `fecha_fin` datetime NOT NULL,
   `enlace_reunion` varchar(255) DEFAULT NULL,
+  `calendar_provider` varchar(20) DEFAULT NULL,
+  `calendar_event_id` varchar(255) DEFAULT NULL,
+  `calendar_event_url` text DEFAULT NULL,
   `estado` enum('programada','en_proceso','completada','cancelada','ejecutada','reprogramada','no_ejecutada') DEFAULT 'programada',
   `fecha_creacion` timestamp NOT NULL DEFAULT current_timestamp(),
   `modalidad` varchar(50) DEFAULT 'Virtual',
@@ -48,12 +51,12 @@ CREATE TABLE `actividades_capacitacion` (
 -- Volcado de datos para la tabla `actividades_capacitacion`
 --
 
-INSERT INTO `actividades_capacitacion` (`id`, `empresa_id`, `nombre_actividad`, `tipo_capacitacion`, `categoria`, `dirigido_a`, `fecha_inicio`, `fecha_fin`, `enlace_reunion`, `estado`, `fecha_creacion`, `modalidad`, `lugar_exacto`, `descripcion`) VALUES
-(9, 1, 'Hola mundo', 'Inducción', 'Biológico', 'Toda la empresa', '2026-06-09 12:00:00', '2026-06-12 12:00:00', NULL, 'ejecutada', '2026-06-10 03:47:54', 'Sistema', '', ''),
-(10, 1, 'Hola mundo', 'Inducción', 'Físico', 'Toda la empresa', '2026-06-10 12:00:00', '2026-06-12 12:00:00', NULL, 'ejecutada', '2026-06-11 01:20:22', 'Sistema', '', ''),
-(12, 1, 'Hola mundocdscdsdcs', 'Charla de Seguridad', 'Biomecánicos', 'Toda la empresa', '2026-06-10 12:00:00', '2026-06-10 22:00:00', NULL, 'ejecutada', '2026-06-11 02:44:29', 'Sistema', '', ''),
-(13, 1, 'Hola mundo', 'Inducción', 'Biológico', 'Toda la empresa', '2026-06-19 12:00:00', '2026-06-27 22:00:00', NULL, 'reprogramada', '2026-06-20 02:42:24', 'Virtual', '', 'Hola mundosacadcadscdsa'),
-(14, 17, 'Prueba 1', 'Inducción', 'Legal', 'Trabajador Específico', '2026-07-14 08:00:00', '2026-07-14 09:00:00', NULL, 'programada', '2026-07-12 21:22:48', 'Virtual', '', 'Pruebas de Funcionamiento');
+INSERT INTO `actividades_capacitacion` (`id`, `empresa_id`, `nombre_actividad`, `tipo_capacitacion`, `categoria`, `dirigido_a`, `fecha_inicio`, `fecha_fin`, `enlace_reunion`, `calendar_provider`, `calendar_event_id`, `calendar_event_url`, `estado`, `fecha_creacion`, `modalidad`, `lugar_exacto`, `descripcion`) VALUES
+(9, 1, 'Hola mundo', 'Inducción', 'Biológico', 'Toda la empresa', '2026-06-09 12:00:00', '2026-06-12 12:00:00', NULL, NULL, NULL, NULL, 'ejecutada', '2026-06-10 03:47:54', 'Sistema', '', ''),
+(10, 1, 'Hola mundo', 'Inducción', 'Físico', 'Toda la empresa', '2026-06-10 12:00:00', '2026-06-12 12:00:00', NULL, NULL, NULL, NULL, 'ejecutada', '2026-06-11 01:20:22', 'Sistema', '', ''),
+(12, 1, 'Hola mundocdscdsdcs', 'Charla de Seguridad', 'Biomecánicos', 'Toda la empresa', '2026-06-10 12:00:00', '2026-06-10 22:00:00', NULL, NULL, NULL, NULL, 'ejecutada', '2026-06-11 02:44:29', 'Sistema', '', ''),
+(13, 1, 'Hola mundo', 'Inducción', 'Biológico', 'Toda la empresa', '2026-06-19 12:00:00', '2026-06-27 22:00:00', NULL, NULL, NULL, NULL, 'reprogramada', '2026-06-20 02:42:24', 'Virtual', '', 'Hola mundosacadcadscdsa'),
+(14, 17, 'Prueba 1', 'Inducción', 'Legal', 'Trabajador Específico', '2026-07-14 08:00:00', '2026-07-14 09:00:00', NULL, NULL, NULL, NULL, 'programada', '2026-07-12 21:22:48', 'Virtual', '', 'Pruebas de Funcionamiento');
 
 -- --------------------------------------------------------
 
@@ -76,6 +79,81 @@ INSERT INTO `actividades_trabajadores` (`actividad_id`, `usuario_id`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `almacenamiento_archivos`
+--
+
+CREATE TABLE `almacenamiento_archivos` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `empresa_id` int(11) NOT NULL,
+  `estandar_numero` smallint(5) UNSIGNED NOT NULL,
+  `estandar_nombre` varchar(220) NOT NULL,
+  `subestandar_slug` varchar(120) DEFAULT NULL,
+  `subestandar_nombre` varchar(220) DEFAULT NULL,
+  `carpeta_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `nombre_original` varchar(255) NOT NULL,
+  `nombre_guardado` varchar(255) NOT NULL,
+  `ruta_relativa` varchar(700) NOT NULL,
+  `tipo_mime` varchar(150) DEFAULT NULL,
+  `extension` varchar(20) DEFAULT NULL,
+  `tamano_bytes` bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+  `usuario_id` int(11) DEFAULT NULL,
+  `codigo_documento` varchar(80) DEFAULT NULL,
+  `version_documento` varchar(30) DEFAULT NULL,
+  `fecha_documento` date DEFAULT NULL,
+  `estado_documental` varchar(30) NOT NULL DEFAULT 'sin_control',
+  `origen_modulo` varchar(80) DEFAULT NULL,
+  `control_registro_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `actualizado_en` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `almacenamiento_archivos`
+--
+
+INSERT INTO `almacenamiento_archivos` (`id`, `empresa_id`, `estandar_numero`, `estandar_nombre`, `subestandar_slug`, `subestandar_nombre`, `carpeta_id`, `nombre_original`, `nombre_guardado`, `ruta_relativa`, `tipo_mime`, `extension`, `tamano_bytes`, `usuario_id`, `codigo_documento`, `version_documento`, `fecha_documento`, `estado_documental`, `origen_modulo`, `control_registro_id`, `creado_en`, `actualizado_en`) VALUES
+(3, 1, 1, 'Asignacion de persona que disena el Sistema de Gestion de SST', NULL, NULL, NULL, 'PW-SST-E01-ACTA_V1.0_Acta-Designacion-SST.pdf', '20260717-004232-bd9bcfea2e18f7.pdf', 'SGSST-APP/uploads/empresas/empresa-1/estandar-01-asignacion-de-persona-que-disena-el-sistema-de-gestion-de-sst/20260717-004232-bd9bcfea2e18f7.pdf', 'application/pdf', 'pdf', 65158, 1, 'PW-SST-E01-ACTA', 'V1.0', '2026-07-16', 'aprobado', 'estandar1_pdf', 2, '2026-07-16 22:42:32', '2026-07-16 22:43:19');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `almacenamiento_carpetas`
+--
+
+CREATE TABLE `almacenamiento_carpetas` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `empresa_id` int(11) NOT NULL,
+  `estandar_numero` smallint(5) UNSIGNED NOT NULL,
+  `subestandar_slug` varchar(120) DEFAULT NULL,
+  `parent_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `nombre` varchar(180) NOT NULL,
+  `nombre_guardado` varchar(220) NOT NULL,
+  `usuario_id` int(11) DEFAULT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `actualizado_en` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `almacenamiento_compartidos`
+--
+
+CREATE TABLE `almacenamiento_compartidos` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `empresa_id` int(11) NOT NULL,
+  `tipo_objeto` enum('archivo','carpeta') NOT NULL,
+  `objeto_id` bigint(20) UNSIGNED NOT NULL,
+  `token_hash` char(64) NOT NULL,
+  `creado_por` int(11) DEFAULT NULL,
+  `vence_en` datetime NOT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `asistencias_capacitacion`
 --
 
@@ -89,6 +167,24 @@ CREATE TABLE `asistencias_capacitacion` (
   `firma` mediumtext NOT NULL,
   `fecha_registro` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `calendar_connections`
+--
+
+CREATE TABLE `calendar_connections` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `usuario_id` int(11) NOT NULL,
+  `empresa_id` int(11) DEFAULT NULL,
+  `provider` enum('google','microsoft') NOT NULL,
+  `account_email` varchar(190) DEFAULT NULL,
+  `token_payload` longtext NOT NULL,
+  `expires_at` datetime DEFAULT NULL,
+  `connected_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -316,6 +412,59 @@ INSERT INTO `capacitaciones_respuestas` (`id`, `intento_id`, `pregunta_id`, `opc
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `control_documental_config`
+--
+
+CREATE TABLE `control_documental_config` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `empresa_id` int(11) NOT NULL,
+  `estandar_numero` smallint(5) UNSIGNED NOT NULL,
+  `codigo_prefijo` varchar(40) NOT NULL DEFAULT 'PW-SST',
+  `separador` char(1) NOT NULL DEFAULT '-',
+  `version_prefijo` varchar(8) NOT NULL DEFAULT 'V',
+  `version_inicial` varchar(20) NOT NULL DEFAULT 'V1.0',
+  `exigir_codigo_nombre` tinyint(1) NOT NULL DEFAULT 1,
+  `actualizado_por` int(11) DEFAULT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `actualizado_en` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `control_documental_registros`
+--
+
+CREATE TABLE `control_documental_registros` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `empresa_id` int(11) NOT NULL,
+  `estandar_numero` smallint(5) UNSIGNED NOT NULL,
+  `almacenamiento_archivo_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `doc_asignacion_id` int(11) DEFAULT NULL,
+  `tipo_documento` enum('formato','soporte','pdf_legalizado') NOT NULL DEFAULT 'soporte',
+  `nombre_documento` varchar(220) NOT NULL,
+  `codigo_documento` varchar(80) NOT NULL,
+  `version_documento` varchar(30) NOT NULL,
+  `fecha_documento` date NOT NULL,
+  `estado` enum('validado','aprobado','rechazado','obsoleto') NOT NULL DEFAULT 'validado',
+  `archivo_original` varchar(255) DEFAULT NULL,
+  `resultado_validacion` text DEFAULT NULL,
+  `observaciones` varchar(500) DEFAULT NULL,
+  `usuario_id` int(11) DEFAULT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `actualizado_en` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `control_documental_registros`
+--
+
+INSERT INTO `control_documental_registros` (`id`, `empresa_id`, `estandar_numero`, `almacenamiento_archivo_id`, `doc_asignacion_id`, `tipo_documento`, `nombre_documento`, `codigo_documento`, `version_documento`, `fecha_documento`, `estado`, `archivo_original`, `resultado_validacion`, `observaciones`, `usuario_id`, `creado_en`, `actualizado_en`) VALUES
+(2, 1, 1, 3, 1, 'pdf_legalizado', 'Acta de designación del Responsable SG-SST', 'PW-SST-E01-ACTA', 'V1.0', '2026-07-16', 'aprobado', 'PW-SST-E01-ACTA_V1.0_Acta-Designacion-SST.pdf', '{\"origen\":\"firmas_electronicas\",\"estado\":\"legalizado\"}', NULL, 1, '2026-07-16 22:42:32', '2026-07-16 22:42:32');
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `cpanel_admins`
 --
 
@@ -338,6 +487,52 @@ CREATE TABLE `cpanel_admins` (
 
 INSERT INTO `cpanel_admins` (`id`, `username`, `password`, `nombre`, `email`, `foto_perfil`, `wompi_public`, `wompi_private`, `wompi_integrity`, `created_at`) VALUES
 (1, 'admin', '$2y$10$zHMbGuze.4su6uf2tm5V3.j0gThW22xzdRIYnezDu5pYRKcPLd1/e', 'Super Administrador', 'admin@preventwork.com', '../uploads/perfiles_admin/admin_1_1778286342.jpeg', 'pub_test_GDP0XsIX6xKx9Y4EviZd94yq3GOdgXQb', 'prv_test_xCaTFF4r5GgEdfMBY3sKFMzXAJDDMRfn', 'test_integrity_r6UkyxV3GsHe9noC6B58GQ5zslngU50P', '2026-03-20 19:32:22');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `demo_prospectos`
+--
+
+CREATE TABLE `demo_prospectos` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `nombre_completo` varchar(150) NOT NULL,
+  `empresa` varchar(180) NOT NULL,
+  `email` varchar(180) NOT NULL,
+  `telefono` varchar(40) NOT NULL,
+  `ciudad` varchar(100) DEFAULT NULL,
+  `cargo` varchar(120) DEFAULT NULL,
+  `cantidad_trabajadores` int(10) UNSIGNED NOT NULL DEFAULT 1,
+  `interes` varchar(80) NOT NULL DEFAULT 'Plan PEM',
+  `estado` varchar(30) NOT NULL DEFAULT 'nuevo',
+  `notas` text DEFAULT NULL,
+  `origen` varchar(60) NOT NULL DEFAULT 'demo_pem',
+  `paginas_vistas` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `primera_visita` datetime NOT NULL DEFAULT current_timestamp(),
+  `ultima_visita` datetime NOT NULL DEFAULT current_timestamp(),
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` varchar(255) DEFAULT NULL,
+  `acepta_contacto` tinyint(1) NOT NULL DEFAULT 1,
+  `acceso_estado` varchar(20) NOT NULL DEFAULT 'pendiente',
+  `acceso_token_hash` char(64) DEFAULT NULL,
+  `acceso_token_sufijo` varchar(12) DEFAULT NULL,
+  `acceso_generado_en` datetime DEFAULT NULL,
+  `acceso_expira_en` datetime DEFAULT NULL,
+  `acceso_revocado_en` datetime DEFAULT NULL,
+  `acceso_decidido_en` datetime DEFAULT NULL,
+  `acceso_decidido_por` int(11) DEFAULT NULL,
+  `notificacion_enviada_en` datetime DEFAULT NULL,
+  `notificacion_error` varchar(500) DEFAULT NULL,
+  `creado_en` datetime NOT NULL DEFAULT current_timestamp(),
+  `actualizado_en` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `demo_prospectos`
+--
+
+INSERT INTO `demo_prospectos` (`id`, `nombre_completo`, `empresa`, `email`, `telefono`, `ciudad`, `cargo`, `cantidad_trabajadores`, `interes`, `estado`, `notas`, `origen`, `paginas_vistas`, `primera_visita`, `ultima_visita`, `ip_address`, `user_agent`, `acepta_contacto`, `acceso_estado`, `acceso_token_hash`, `acceso_token_sufijo`, `acceso_generado_en`, `acceso_expira_en`, `acceso_revocado_en`, `acceso_decidido_en`, `acceso_decidido_por`, `notificacion_enviada_en`, `notificacion_error`, `creado_en`, `actualizado_en`) VALUES
+(2, 'Esteban Reuto', 'Vertix Developers', 'estebanreuto4@gmail.com', '3001259241', 'Tame', 'Representante', 20, 'Plan PEM', 'nuevo', NULL, 'demo_pem', 18, '2026-07-16 12:28:51', '2026-07-16 17:04:44', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', 1, 'aprobado', '0c598798f4e86dd2de806318e7711c3c289220642147391994d1cc0ed2d6e2f3', 'b8599f4c1a', '2026-07-16 17:03:45', '2026-07-24 00:03:45', NULL, '2026-07-16 17:03:45', 1, NULL, NULL, '2026-07-16 12:28:51', '2026-07-16 17:04:44');
 
 -- --------------------------------------------------------
 
@@ -412,9 +607,12 @@ INSERT INTO `encuesta_sociodemografica` (`id`, `usuario_id`, `edad`, `estado_civ
 
 CREATE TABLE `estandar2_planillas` (
   `id` int(11) NOT NULL,
+  `empresa_id` int(11) NOT NULL,
   `mes` int(2) NOT NULL,
   `anio` int(4) NOT NULL,
   `archivo_url` varchar(255) NOT NULL,
+  `almacenamiento_archivo_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `version_actual` int(10) UNSIGNED NOT NULL DEFAULT 1,
   `valor_total` decimal(14,2) DEFAULT NULL,
   `cedulas_detectadas` int(10) UNSIGNED DEFAULT NULL,
   `trabajadores_esperados` int(10) UNSIGNED DEFAULT NULL,
@@ -424,6 +622,29 @@ CREATE TABLE `estandar2_planillas` (
   `subido_por` int(11) NOT NULL,
   `fecha_subida` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `estandar2_planilla_versiones`
+--
+
+CREATE TABLE `estandar2_planilla_versiones` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `planilla_id` int(11) NOT NULL,
+  `empresa_id` int(11) NOT NULL,
+  `almacenamiento_archivo_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `numero_version` int(10) UNSIGNED NOT NULL,
+  `archivo_original` varchar(255) NOT NULL,
+  `valor_total` decimal(14,2) DEFAULT NULL,
+  `cedulas_detectadas` int(10) UNSIGNED DEFAULT NULL,
+  `trabajadores_esperados` int(10) UNSIGNED DEFAULT NULL,
+  `riesgos_detectados` varchar(120) DEFAULT NULL,
+  `nit_coincide` enum('SI','NO') DEFAULT NULL,
+  `novedades_resumen` text DEFAULT NULL,
+  `subido_por` int(11) NOT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -1040,7 +1261,27 @@ INSERT INTO `logs_actividad` (`id`, `usuario_id`, `accion`, `descripcion`, `ip_a
 (86, 7, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-07-13 03:38:48'),
 (87, 7, 'LOGOUT', 'Cierre de sesión', '::1', '2026-07-13 03:41:32'),
 (88, 19, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-07-13 03:42:11'),
-(89, 19, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-07-13 20:54:50');
+(89, 19, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-07-13 20:54:50'),
+(90, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-07-14 22:53:10'),
+(91, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-07-14 23:08:23'),
+(92, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-07-15 12:17:25'),
+(93, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-07-15 22:38:43'),
+(94, 2, 'LOGOUT', 'Cierre de sesión', '::1', '2026-07-16 04:40:47'),
+(95, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-07-16 16:14:56'),
+(96, 2, 'LOGOUT', 'Cierre de sesión', '::1', '2026-07-16 16:45:55'),
+(97, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-07-16 16:51:13'),
+(98, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-07-16 17:10:40'),
+(99, 7, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-07-16 18:14:43'),
+(100, 2, 'LOGOUT', 'Cierre de sesión', '::1', '2026-07-16 18:15:01'),
+(101, 19, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-07-16 18:15:49'),
+(102, 21, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-07-16 18:16:18'),
+(103, 7, 'LOGOUT', 'Cierre de sesión', '::1', '2026-07-16 18:21:19'),
+(104, 7, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-07-16 18:22:27'),
+(105, 7, 'LOGOUT', 'Cierre de sesión', '::1', '2026-07-16 19:08:34'),
+(106, 21, 'LOGOUT', 'Cierre de sesión', '::1', '2026-07-16 19:24:45'),
+(107, 1, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-07-16 22:07:34'),
+(108, 1, 'LOGOUT', 'Cierre de sesión', '::1', '2026-07-16 23:01:27'),
+(109, 2, 'LOGIN_OK', 'Ingreso exitoso con 2FA', '::1', '2026-07-16 23:02:44');
 
 -- --------------------------------------------------------
 
@@ -1133,6 +1374,7 @@ CREATE TABLE `planes` (
   `precio_normal` decimal(10,2) NOT NULL,
   `precio_descuento` decimal(10,2) DEFAULT 0.00,
   `trabajadores` int(11) NOT NULL,
+  `almacenamiento_gb` decimal(10,2) NOT NULL DEFAULT 0.00,
   `popular` tinyint(1) DEFAULT 0,
   `clase_btn` varchar(50) DEFAULT 'btn-outline'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -1141,10 +1383,10 @@ CREATE TABLE `planes` (
 -- Volcado de datos para la tabla `planes`
 --
 
-INSERT INTO `planes` (`id`, `nombre`, `precio_normal`, `precio_descuento`, `trabajadores`, `popular`, `clase_btn`) VALUES
-(1, 'EMPRESA PEM', 2000000.00, 0.00, 12, 0, 'btn-outline'),
-(2, 'Empresas MEM', 2500000.00, 0.00, 52, 1, 'btn-solid'),
-(3, 'EMPRESAS GEM', 3000000.00, 0.00, 100, 0, 'btn-outline');
+INSERT INTO `planes` (`id`, `nombre`, `precio_normal`, `precio_descuento`, `trabajadores`, `almacenamiento_gb`, `popular`, `clase_btn`) VALUES
+(1, 'EMPRESA PEM', 2500000.00, 0.00, 12, 30.00, 0, 'btn-outline'),
+(2, 'Empresas MEM', 3000000.00, 0.00, 52, 100.00, 1, 'btn-solid'),
+(3, 'EMPRESAS GEM', 4000000.00, 0.00, 100, 200.00, 0, 'btn-outline');
 
 -- --------------------------------------------------------
 
@@ -1164,36 +1406,45 @@ CREATE TABLE `plan_caracteristicas` (
 --
 
 INSERT INTO `plan_caracteristicas` (`id`, `plan_id`, `texto`, `incluido`) VALUES
-(26, 1, 'Alcance de 1 a 7 Estandares Normativos Res. 0312', 1),
-(27, 1, 'Alcance de 1 a 22 Estandares Normativos Res. 0313', 0),
-(28, 1, 'Alcance de 1 a 60 Estandares Normativos Res. 0314', 0),
-(29, 1, '12 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 10 Colaboradores)', 1),
-(30, 1, '52 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 50 Colaboradores)', 0),
-(31, 1, '102 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 100 Colaboradores)', 0),
-(32, 1, 'Firmas Digitales en tiempo real', 1),
-(33, 1, 'Notifocaiones Digitales en tiempo real', 1),
-(34, 1, 'Recopilación y Bases de datos docuemntales 30 Gb a 100 Gb', 1),
-(35, 1, 'Planificación de eventos en tiempo real con conexción a calendarios', 1),
-(66, 2, 'Alcance de 1 a 7 Estandares Normativos Res. 0312', 0),
-(67, 2, 'Alcance de 1 a 22 Estandares Normativos Res. 0313', 1),
-(68, 2, 'Alcance de 1 a 60 Estandares Normativos Res. 0314', 0),
-(69, 2, '12 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 10 Colaboradores)', 0),
-(70, 2, '52 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 50 Colaboradores)', 1),
-(71, 2, '102 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 100 Colaboradores)', 0),
-(72, 2, 'Firmas Digitales en tiempo real', 1),
-(73, 2, 'Notifocaiones Digitales en tiempo real', 1),
-(74, 2, 'Recopilación y Bases de datos docuemntales 30 Gb a 100 Gb', 1),
-(75, 2, 'Planificación de eventos en tiempo real con conexción a calendarios', 1),
-(76, 3, 'Alcance de 1 a 7 Estandares Normativos Res. 0312', 0),
-(77, 3, 'Alcance de 1 a 22 Estandares Normativos Res. 0313', 0),
-(78, 3, 'Alcance de 1 a 60 Estandares Normativos Res. 0314', 1),
-(79, 3, '12 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 10 Colaboradores)', 0),
-(80, 3, '52 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 50 Colaboradores)', 0),
-(81, 3, '102 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 100 Colaboradores)', 1),
-(82, 3, 'Firmas Digitales en tiempo real', 1),
-(83, 3, 'Notifocaiones Digitales en tiempo real', 1),
-(84, 3, 'Recopilación y Bases de datos docuemntales 30 Gb a 100 Gb', 1),
-(85, 3, 'Planificación de eventos en tiempo real con conexción a calendarios', 1);
+(205, 1, 'Alcance de 1 a 7 Estandares Normativos Res. 0312', 1),
+(206, 1, 'Alcance de 1 a 22 Estandares Normativos Res. 0313', 0),
+(207, 1, 'Alcance de 1 a 60 Estandares Normativos Res. 0314', 0),
+(208, 1, '12 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 10 Colaboradores)', 1),
+(209, 1, '52 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 50 Colaboradores)', 0),
+(210, 1, '102 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 100 Colaboradores)', 0),
+(211, 1, 'Firmas Digitales en tiempo real', 1),
+(212, 1, 'Notifocaiones Digitales en tiempo real', 1),
+(213, 1, 'Recopilación y Bases de datos docuemntales 30 GB', 1),
+(214, 1, 'Planificación de eventos en tiempo real con conexción a calendarios', 1),
+(215, 1, 'Soporte tecnico y acompañamiento', 1),
+(216, 1, 'Networking de proveedores y prestadores de servicio asociado a la actividad económica', 1),
+(217, 1, 'Creación de nuevos usuarios asociados a los requerimientos de los estándares', 1),
+(218, 2, 'Alcance de 1 a 7 Estandares Normativos Res. 0312', 0),
+(219, 2, 'Alcance de 1 a 22 Estandares Normativos Res. 0313', 1),
+(220, 2, 'Alcance de 1 a 60 Estandares Normativos Res. 0314', 0),
+(221, 2, '12 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 10 Colaboradores)', 0),
+(222, 2, '52 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 50 Colaboradores)', 1),
+(223, 2, '102 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 100 Colaboradores)', 0),
+(224, 2, 'Firmas Digitales en tiempo real', 1),
+(225, 2, 'Notifocaiones Digitales en tiempo real', 1),
+(226, 2, 'Recopilación y Bases de datos docuemntales 100 GB', 1),
+(227, 2, 'Planificación de eventos en tiempo real con conexción a calendarios', 1),
+(228, 2, 'Soporte tecnico y acompañamiento', 1),
+(229, 2, 'Networking de proveedores y prestadores de servicio asociado a la actividad económica', 1),
+(230, 2, 'Creación de nuevos usuarios asociados a los requerimientos de los estándares', 1),
+(231, 3, 'Alcance de 1 a 7 Estandares Normativos Res. 0312', 0),
+(232, 3, 'Alcance de 1 a 22 Estandares Normativos Res. 0313', 0),
+(233, 3, 'Alcance de 1 a 60 Estandares Normativos Res. 0314', 1),
+(234, 3, '12 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 10 Colaboradores)', 0),
+(235, 3, '52 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 50 Colaboradores)', 0),
+(236, 3, '102 Usuarios( 1 Representante Legal, 1 Responsable del SG-SST, 100 Colaboradores)', 1),
+(237, 3, 'Firmas Digitales en tiempo real', 1),
+(238, 3, 'Notifocaiones Digitales en tiempo real', 1),
+(239, 3, 'Recopilación y Bases de datos docuemntales 200 GB', 1),
+(240, 3, 'Planificación de eventos en tiempo real con conexción a calendarios', 1),
+(241, 3, 'Soporte tecnico y acompañamiento', 1),
+(242, 3, 'Networking de proveedores y prestadores de servicio asociado a la actividad económica', 1),
+(243, 3, 'Creación de nuevos usuarios asociados a los requerimientos de los estándares', 1);
 
 -- --------------------------------------------------------
 
@@ -1321,7 +1572,20 @@ INSERT INTO `sesiones` (`id`, `usuario_id`, `token`, `codigo_2fa`, `codigo_2fa_e
 (79, 7, '0fe7eba35921f937966b46cea6ace54014e425ad50f4538ef153561ed77e65da', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-13 03:38:48', '2026-07-13 18:38:48', 0),
 (80, 19, 'cbccb207d0fdf751e83fdcc8b63f990a5e1c336d11e710bc8fe55f04b10760c1', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-13 03:42:11', '2026-07-13 18:42:11', 1),
 (81, 19, 'b99849a839e7b6257e52b161b2cfb204d71f7901dd4368eddbed50b63b8e782c', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-13 20:54:50', '2026-07-14 11:54:50', 1),
-(82, 19, '099181233cf53b73250f822ceffae7a47cb9ff43edfb85ce4515bb198b58a517', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-13 20:54:50', '2026-08-13 03:54:50', 1);
+(82, 19, '099181233cf53b73250f822ceffae7a47cb9ff43edfb85ce4515bb198b58a517', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-13 20:54:50', '2026-08-13 03:54:50', 1),
+(83, 2, '0c91cd1d50bfffad05d3bf14d7bb31aeeca8a7db40234b1801ca73f2b7c028dd', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-14 22:53:10', '2026-07-15 13:53:10', 1),
+(84, 2, 'aaa2e8726d66c28528ba40a63197d75739602be9837c10bdf90d31254c82c15c', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-14 23:08:23', '2026-07-15 14:08:23', 1),
+(85, 2, '65411dcce7df21bbba33c776cf20adbc72acc7dcdc41ee7a03bfd489f371e9d7', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-15 12:17:25', '2026-07-16 03:17:25', 1),
+(86, 2, '5f9ed9e348eb312831eb23e2d98492ffd70638718d6e8bde9161b805d6d83ed6', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-15 22:38:43', '2026-07-16 13:38:43', 0),
+(87, 2, '86f2fd11da61ca98adb5717f2259a4d6159fb010898fda18e3e4994bbfa7115d', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-16 16:14:56', '2026-07-17 07:14:56', 0),
+(92, 2, 'c77714bedbe15af22b4b4690e34d836abbf64161cab12612d384e14a358f197c', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-16 16:51:13', '2026-07-17 07:51:13', 1),
+(93, 2, 'b46d70c0c2ef4e436e1ba71bbbf9ded6ad864a32bdeeae628939e8339565806d', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-16 17:10:40', '2026-07-17 08:10:40', 0),
+(103, 7, 'c2c98eee184d697b68d3371b946909122ca2f08f52f83da93e9d89a88c1bfdb0', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0', '2026-07-16 18:14:43', '2026-07-17 09:14:43', 0),
+(104, 19, '94f169d48efaf6fe489b8bb734d2f60cb96bc6894907560c5af3f4280a3a314b', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-16 18:15:49', '2026-07-17 09:15:49', 1),
+(105, 21, '0db22ed260261a66f166a5851b931baebeb6f5322feadadb4c1549703567ce8a', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-16 18:16:18', '2026-07-17 09:16:18', 0),
+(106, 7, 'cefff9cbef422966dc7f25772c48f39ea61c0304b9e6598aff825b2698576bde', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0', '2026-07-16 18:22:27', '2026-07-17 09:22:27', 0),
+(107, 1, '665f35f3492987302bc88670a7f6745db1ba0d89ad32286e6f75ea2c22b1ce53', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0', '2026-07-16 22:07:34', '2026-07-17 13:07:34', 0),
+(117, 2, '244cd1edda7938cc315ac80204bb611b736c1b069e05387754014c6ec868f0b7', NULL, NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0', '2026-07-16 23:02:44', '2026-07-17 14:02:44', 1);
 
 -- --------------------------------------------------------
 
@@ -1508,10 +1772,47 @@ ALTER TABLE `actividades_trabajadores`
   ADD KEY `idx_usuario_actividad` (`usuario_id`);
 
 --
+-- Indices de la tabla `almacenamiento_archivos`
+--
+ALTER TABLE `almacenamiento_archivos`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_storage_empresa` (`empresa_id`),
+  ADD KEY `idx_storage_carpeta` (`empresa_id`,`estandar_numero`,`subestandar_slug`),
+  ADD KEY `idx_storage_usuario` (`usuario_id`),
+  ADD KEY `idx_storage_carpeta_personalizada` (`empresa_id`,`carpeta_id`),
+  ADD KEY `idx_storage_control_documental` (`empresa_id`,`estandar_numero`,`codigo_documento`,`version_documento`);
+
+--
+-- Indices de la tabla `almacenamiento_carpetas`
+--
+ALTER TABLE `almacenamiento_carpetas`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_storage_folder_company` (`empresa_id`,`estandar_numero`,`subestandar_slug`),
+  ADD KEY `idx_storage_folder_parent` (`empresa_id`,`parent_id`);
+
+--
+-- Indices de la tabla `almacenamiento_compartidos`
+--
+ALTER TABLE `almacenamiento_compartidos`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_storage_share_token` (`token_hash`),
+  ADD KEY `idx_storage_share_object` (`empresa_id`,`tipo_objeto`,`objeto_id`),
+  ADD KEY `idx_storage_share_expiry` (`activo`,`vence_en`);
+
+--
 -- Indices de la tabla `asistencias_capacitacion`
 --
 ALTER TABLE `asistencias_capacitacion`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indices de la tabla `calendar_connections`
+--
+ALTER TABLE `calendar_connections`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_calendar_user` (`usuario_id`),
+  ADD KEY `idx_calendar_company` (`empresa_id`),
+  ADD KEY `idx_calendar_provider` (`provider`);
 
 --
 -- Indices de la tabla `capacitaciones_actas`
@@ -1584,11 +1885,40 @@ ALTER TABLE `capacitaciones_respuestas`
   ADD KEY `fk_respuesta_pregunta` (`pregunta_id`);
 
 --
+-- Indices de la tabla `control_documental_config`
+--
+ALTER TABLE `control_documental_config`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_doc_config_empresa_estandar` (`empresa_id`,`estandar_numero`),
+  ADD KEY `idx_doc_config_empresa` (`empresa_id`);
+
+--
+-- Indices de la tabla `control_documental_registros`
+--
+ALTER TABLE `control_documental_registros`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_doc_control_empresa_estandar` (`empresa_id`,`estandar_numero`,`creado_en`),
+  ADD KEY `idx_doc_control_archivo` (`almacenamiento_archivo_id`),
+  ADD KEY `idx_doc_control_acta` (`doc_asignacion_id`);
+
+--
 -- Indices de la tabla `cpanel_admins`
 --
 ALTER TABLE `cpanel_admins`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `username` (`username`);
+
+--
+-- Indices de la tabla `demo_prospectos`
+--
+ALTER TABLE `demo_prospectos`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_demo_prospectos_email` (`email`),
+  ADD UNIQUE KEY `uq_demo_prospectos_token` (`acceso_token_hash`),
+  ADD KEY `idx_demo_prospectos_estado` (`estado`),
+  ADD KEY `idx_demo_prospectos_ultima_visita` (`ultima_visita`),
+  ADD KEY `idx_demo_prospectos_creado_en` (`creado_en`),
+  ADD KEY `idx_demo_prospectos_acceso` (`acceso_estado`,`acceso_expira_en`);
 
 --
 -- Indices de la tabla `doc_asignacion_sst`
@@ -1609,8 +1939,17 @@ ALTER TABLE `encuesta_sociodemografica`
 --
 ALTER TABLE `estandar2_planillas`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `idx_mes_anio` (`mes`,`anio`),
+  ADD UNIQUE KEY `uq_e2_empresa_periodo` (`empresa_id`,`anio`,`mes`),
   ADD KEY `subido_por` (`subido_por`);
+
+--
+-- Indices de la tabla `estandar2_planilla_versiones`
+--
+ALTER TABLE `estandar2_planilla_versiones`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_e2_planilla_version` (`planilla_id`,`numero_version`),
+  ADD KEY `idx_e2_version_empresa` (`empresa_id`,`creado_en`),
+  ADD KEY `idx_e2_version_archivo` (`almacenamiento_archivo_id`);
 
 --
 -- Indices de la tabla `estandar4_actividades`
@@ -1899,10 +2238,34 @@ ALTER TABLE `actividades_capacitacion`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
+-- AUTO_INCREMENT de la tabla `almacenamiento_archivos`
+--
+ALTER TABLE `almacenamiento_archivos`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
+-- AUTO_INCREMENT de la tabla `almacenamiento_carpetas`
+--
+ALTER TABLE `almacenamiento_carpetas`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT de la tabla `almacenamiento_compartidos`
+--
+ALTER TABLE `almacenamiento_compartidos`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
 -- AUTO_INCREMENT de la tabla `asistencias_capacitacion`
 --
 ALTER TABLE `asistencias_capacitacion`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `calendar_connections`
+--
+ALTER TABLE `calendar_connections`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `capacitaciones_actas`
@@ -1959,10 +2322,28 @@ ALTER TABLE `capacitaciones_respuestas`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
+-- AUTO_INCREMENT de la tabla `control_documental_config`
+--
+ALTER TABLE `control_documental_config`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `control_documental_registros`
+--
+ALTER TABLE `control_documental_registros`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+
+--
 -- AUTO_INCREMENT de la tabla `cpanel_admins`
 --
 ALTER TABLE `cpanel_admins`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT de la tabla `demo_prospectos`
+--
+ALTER TABLE `demo_prospectos`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT de la tabla `doc_asignacion_sst`
@@ -1980,7 +2361,13 @@ ALTER TABLE `encuesta_sociodemografica`
 -- AUTO_INCREMENT de la tabla `estandar2_planillas`
 --
 ALTER TABLE `estandar2_planillas`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT de la tabla `estandar2_planilla_versiones`
+--
+ALTER TABLE `estandar2_planilla_versiones`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT de la tabla `estandar4_actividades`
@@ -2094,7 +2481,7 @@ ALTER TABLE `grupos_personal`
 -- AUTO_INCREMENT de la tabla `logs_actividad`
 --
 ALTER TABLE `logs_actividad`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=90;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=118;
 
 --
 -- AUTO_INCREMENT de la tabla `movimientos_financieros`
@@ -2124,7 +2511,7 @@ ALTER TABLE `planes`
 -- AUTO_INCREMENT de la tabla `plan_caracteristicas`
 --
 ALTER TABLE `plan_caracteristicas`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=86;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=244;
 
 --
 -- AUTO_INCREMENT de la tabla `preguntas_frecuentes`
@@ -2136,7 +2523,7 @@ ALTER TABLE `preguntas_frecuentes`
 -- AUTO_INCREMENT de la tabla `sesiones`
 --
 ALTER TABLE `sesiones`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=83;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=136;
 
 --
 -- AUTO_INCREMENT de la tabla `solicitudes_empresas`
