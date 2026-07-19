@@ -17,6 +17,27 @@ $empresa_id = (int)$stmt->fetchColumn();
 
 function estandar5_redirect(string $msg, string $tipo = 'ok', string $modulo = 'perfiles-cargo'): never
 {
+    $origen = trim((string)($_POST['origen_formulario'] ?? ''));
+    if ($origen === 'control-examenes' && $modulo === 'evaluaciones-medicas') {
+        header('Location: control_examenes_medicos?msg=' . urlencode($msg) . '&tipo=' . urlencode($tipo));
+        exit;
+    }
+    if ($origen === 'gestion-restricciones' && $modulo === 'restricciones') {
+        $vista = ($_POST['vista_restricciones'] ?? '') === 'seguimiento' ? 'seguimiento' : 'nueva';
+        header('Location: gestion_restricciones_medicas?vista=' . urlencode($vista) . '&msg=' . urlencode($msg) . '&tipo=' . urlencode($tipo));
+        exit;
+    }
+    if ($modulo === 'perfiles-cargo') {
+        $origenes = [
+            'centro' => 'nuevo_centro_medico',
+            'proceso' => 'nuevo_proceso_perfil',
+            'perfil' => 'nuevo_perfil_cargo',
+        ];
+        if (isset($origenes[$origen])) {
+            header('Location: ' . $origenes[$origen] . '?msg=' . urlencode($msg) . '&tipo=' . urlencode($tipo));
+            exit;
+        }
+    }
     header('Location: estandar5.php?modulo=' . urlencode($modulo) . '&msg=' . urlencode($msg) . '&tipo=' . urlencode($tipo));
     exit;
 }
@@ -418,6 +439,27 @@ try {
         estandar5_redirect('Centro médico autorizado registrado.');
     }
 
+    if ($accion === 'guardar_proceso_perfil') {
+        $nombre = trim((string)($_POST['nombre'] ?? ''));
+        if ($nombre === '') {
+            throw new RuntimeException('Escribe el nombre del proceso.');
+        }
+        if (mb_strlen($nombre) > 160) {
+            throw new RuntimeException('El nombre del proceso es demasiado largo.');
+        }
+
+        $stmt = $conn->prepare("
+            INSERT IGNORE INTO estandar5_procesos_perfil (empresa_id, nombre, creado_por)
+            VALUES (?, ?, ?)
+        ");
+        $stmt->execute([$empresa_id, $nombre, $usuario_id]);
+
+        $mensaje = $stmt->rowCount() > 0
+            ? 'Proceso guardado y disponible para crear perfiles.'
+            : 'Ese proceso ya estaba registrado y sigue disponible.';
+        estandar5_redirect($mensaje);
+    }
+
     if ($accion === 'guardar_perfil_cargo') {
         $centro_medico_id = (int)($_POST['centro_medico_id'] ?? 0);
         $nombre_cargo = trim($_POST['nombre_cargo'] ?? '');
@@ -480,29 +522,44 @@ try {
     }
 
     if ($accion === 'programar_evaluacion_medica') {
-        $trabajador_id = (int)($_POST['trabajador_id'] ?? 0);
+        $trabajador_ids = $_POST['trabajador_ids'] ?? [];
+        if (!is_array($trabajador_ids)) {
+            $trabajador_ids = [];
+        }
+        $trabajador_id_individual = (int)($_POST['trabajador_id'] ?? 0);
+        if ($trabajador_id_individual > 0) {
+            $trabajador_ids[] = $trabajador_id_individual;
+        }
+        $trabajador_ids = array_values(array_unique(array_filter(array_map('intval', $trabajador_ids), fn($id) => $id > 0)));
         $perfil_cargo_id = (int)($_POST['perfil_cargo_id'] ?? 0);
         $centro_medico_id = (int)($_POST['centro_medico_id'] ?? 0);
         $tipo_examen = trim($_POST['tipo_examen'] ?? 'Periodico');
         $observaciones = trim($_POST['observaciones'] ?? '');
         $tipos_validos = ['Ingreso', 'Periodico', 'Egreso', 'Post incapacidad', 'Reubicacion'];
 
+        if (empty($trabajador_ids)) {
+            throw new RuntimeException('Selecciona al menos un trabajador para programar.');
+        }
+        if (count($trabajador_ids) > 200) {
+            throw new RuntimeException('Puedes programar máximo 200 trabajadores por envío.');
+        }
         if (!in_array($tipo_examen, $tipos_validos, true)) {
             throw new RuntimeException('Selecciona un tipo de examen válido.');
         }
 
+        $placeholders = implode(',', array_fill(0, count($trabajador_ids), '?'));
         $stmt = $conn->prepare("
             SELECT u.*, g.nombre AS grupo_nombre, e.tipo_personal
             FROM usuarios u
             LEFT JOIN grupos_personal g ON g.id = u.grupo_id
             LEFT JOIN encuesta_sociodemografica e ON e.usuario_id = u.id
-            WHERE u.id = ? AND u.empresa_id = ? AND u.rol = 'trabajador'
-            LIMIT 1
+            WHERE u.id IN ($placeholders) AND u.empresa_id = ? AND u.rol = 'trabajador'
+            ORDER BY u.nombre ASC, u.apellido ASC
         ");
-        $stmt->execute([$trabajador_id, $empresa_id]);
-        $trabajador = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$trabajador) {
-            throw new RuntimeException('No se encontró el trabajador seleccionado.');
+        $stmt->execute([...$trabajador_ids, $empresa_id]);
+        $trabajadores = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (count($trabajadores) !== count($trabajador_ids)) {
+            throw new RuntimeException('Uno o más trabajadores seleccionados no pertenecen a la empresa.');
         }
 
         $stmt = $conn->prepare("SELECT * FROM estandar5_perfiles_cargo WHERE id = ? AND empresa_id = ? AND estado = 'activo' LIMIT 1");
@@ -527,28 +584,40 @@ try {
         $stmt->execute([$empresa_id]);
         $empresa_nombre = $stmt->fetchColumn() ?: 'Empresa';
 
-        [$ok, $mail_msg] = estandar5_enviar_solicitud_medica($centro, $trabajador, $perfil, $empresa_nombre, $tipo_examen, $observaciones);
-        if (!$ok) {
-            throw new RuntimeException('No se pudo enviar el correo al centro médico: ' . $mail_msg);
-        }
-
-        $stmt = $conn->prepare("
+        $insertar_programacion = $conn->prepare("
             INSERT INTO estandar5_evaluaciones_medicas
                 (empresa_id, trabajador_id, perfil_cargo_id, centro_medico_id, tipo_examen, correo_destino, observaciones, creado_por)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([
-            $empresa_id,
-            $trabajador_id,
-            $perfil_cargo_id,
-            $centro_medico_id,
-            $tipo_examen,
-            $centro['correo'],
-            $observaciones,
-            $usuario_id,
-        ]);
+        $programados = 0;
+        $fallidos = [];
+        foreach ($trabajadores as $trabajador) {
+            [$ok, $mail_msg] = estandar5_enviar_solicitud_medica($centro, $trabajador, $perfil, $empresa_nombre, $tipo_examen, $observaciones);
+            if (!$ok) {
+                $fallidos[] = trim(($trabajador['nombre'] ?? '') . ' ' . ($trabajador['apellido'] ?? '')) . ': ' . $mail_msg;
+                continue;
+            }
+            $insertar_programacion->execute([
+                $empresa_id,
+                (int)$trabajador['id'],
+                $perfil_cargo_id,
+                $centro_medico_id,
+                $tipo_examen,
+                $centro['correo'],
+                $observaciones,
+                $usuario_id,
+            ]);
+            $programados++;
+        }
 
-        estandar5_redirect('Solicitud enviada al centro médico y programación registrada.', 'ok', 'evaluaciones-medicas');
+        if ($programados === 0) {
+            throw new RuntimeException('No se pudo programar ningún trabajador. ' . implode(' | ', array_slice($fallidos, 0, 3)));
+        }
+        $mensaje_programacion = $programados . ' trabajador(es) programado(s) y solicitud(es) enviada(s) al centro médico.';
+        if (!empty($fallidos)) {
+            $mensaje_programacion .= ' ' . count($fallidos) . ' envío(s) no se completaron; puedes intentarlos nuevamente.';
+        }
+        estandar5_redirect($mensaje_programacion, 'ok', 'evaluaciones-medicas');
     }
 
     if ($accion === 'guardar_soporte_evaluacion_medica') {

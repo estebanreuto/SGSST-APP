@@ -251,6 +251,8 @@ if (isset($_GET['status']) && $_GET['status'] === 'success') {
 </head>
 <body>
 
+    <?php include_once __DIR__ . '/components/public_page_loader.php'; ?>
+
     <div id="loader">
         <i class="fa-solid fa-circle-notch spinner"></i>
         <h3 style="margin-top:16px; font-size:1rem; color: var(--blue-dark); font-weight:800;">Guardando tu firma...</h3>

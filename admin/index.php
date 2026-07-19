@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once '../config/db.php';
+require_once '../config/demo_schema.php';
+ensure_demo_prospectos_schema($conn);
 
 // Bloquear acceso si no es admin
 if (!isset($_SESSION['cpanel_admin_id'])) {
@@ -95,6 +97,7 @@ $total_empresas = $conteos['representante'] ?? 0;
 $total_sst = $conteos['sst'] ?? 0;
 $total_trabajadores = $conteos['trabajador'] ?? 0;
 $total_usuarios = array_sum($conteos);
+$total_prospectos_demo = (int)$conn->query("SELECT COUNT(*) FROM demo_prospectos WHERE estado = 'nuevo'")->fetchColumn();
 
 // 3. Obtener lista de empresas (Representantes Legales)
 $stmt_empresas = $conn->query("SELECT id, nombre, apellido, cedula, email, ciudad, fecha_registro FROM usuarios WHERE rol = 'representante' ORDER BY id DESC LIMIT 10");
@@ -216,6 +219,7 @@ $current_page = 'index.php';
             background: var(--card); border: 1px solid var(--border); border-radius: 12px; 
             padding: 16px; position: relative; overflow: hidden; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.01); transition: transform 0.2s ease, box-shadow 0.2s ease; 
+            color:inherit; text-decoration:none;
         }
         .summary-card:hover { transform: translateY(-3px); box-shadow: 0 8px 16px rgba(0,0,0,0.04); border-color: #cbd5e1; }
         
@@ -262,6 +266,9 @@ $current_page = 'index.php';
         .card-purple .summary-bg-icon { color: #8b5cf6; }
         .card-purple .summary-icon-box { background: rgba(139, 92, 246, 0.08); color: #8b5cf6; }
         .card-purple .summary-value { color: #8b5cf6; }
+        .card-teal .summary-bg-icon { color: #0891b2; }
+        .card-teal .summary-icon-box { background: rgba(8,145,178,.08); color:#0891b2; }
+        .card-teal .summary-value { color:#0891b2; }
 
         /* GRÁFICAS */
         .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
@@ -438,6 +445,17 @@ $current_page = 'index.php';
                         <p class="summary-desc">Personal operativo registrado.</p>
                     </div>
                 </div>
+                <a class="summary-card card-teal" href="prospectos_demo.php">
+                    <i class="fa-solid fa-rocket summary-bg-icon"></i>
+                    <div class="summary-content">
+                        <div class="summary-header">
+                            <div class="summary-icon-box"><i class="fa-solid fa-rocket"></i></div>
+                            <h2 class="summary-value"><?php echo $total_prospectos_demo; ?></h2>
+                        </div>
+                        <h3 class="summary-title">Prospectos Demo</h3>
+                        <p class="summary-desc">Nuevos interesados por contactar.</p>
+                    </div>
+                </a>
             </div>
 
             <div class="charts-grid">

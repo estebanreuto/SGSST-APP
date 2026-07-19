@@ -81,6 +81,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'eliminar_actividad' && isset(
 // ==========================================
 $mes_actual_num = isset($_GET['mes']) ? str_pad(intval($_GET['mes']), 2, '0', STR_PAD_LEFT) : date('m');
 $anio_actual = isset($_GET['anio']) ? intval($_GET['anio']) : date('Y');
+$actividad_enfocada = max(0, (int)($_GET['actividad'] ?? 0));
 
 if (!preg_match('/^(0[1-9]|1[0-2])$/', $mes_actual_num)) $mes_actual_num = date('m');
 if ($anio_actual < 2020 || $anio_actual > 2100) $anio_actual = date('Y');
@@ -559,6 +560,25 @@ $current_page = 'estandar3.php';
                 </div>
             <?php endif; ?>
 
+            <?php if (isset($_GET['save']) && $_GET['save'] === 'success'): ?>
+                <?php if (($_GET['calendar'] ?? '') === 'error'): ?>
+                    <div class="alert-dev">
+                        <i class="fa-solid fa-calendar-xmark"></i>
+                        <div>
+                            <strong style="display:block;margin-bottom:3px;">Actividad guardada; calendario pendiente</strong>
+                            <?php echo htmlspecialchars((string)($_GET['calendar_message'] ?? 'Revisa la conexión desde Configuración e intenta nuevamente.')); ?>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <div class="alert-success">
+                        <i class="fa-solid fa-calendar-check"></i>
+                        <?php echo (($_GET['calendar'] ?? '') === 'synced')
+                            ? 'Actividad guardada y reunión sincronizada con tu calendario.'
+                            : 'Actividad guardada en PreventWork. Puedes conectar un calendario desde Configuración.'; ?>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
+
             <?php if (isset($_GET['save']) && $_GET['save'] === 'curso_success'): ?>
                 <div class="alert-success">
                     <i class="fa-solid fa-graduation-cap"></i> Curso, evaluación y asignación guardados correctamente.
@@ -844,7 +864,7 @@ $current_page = 'estandar3.php';
                                 <?php if (!empty($dia_data['eventos'])): ?>
                                     <?php foreach ($dia_data['eventos'] as $evento): ?>
                                         
-                                        <div class="agenda-event-row evento-item" 
+                                        <div class="agenda-event-row evento-item" id="actividad-<?php echo (int)$evento['id']; ?>"
                                              data-texto="<?php echo strtolower(htmlspecialchars($evento['nombre_actividad'].' '.$evento['categoria'])); ?>"
                                              data-estado="<?php echo $evento['estado']; ?>"
                                              data-categoria="<?php echo htmlspecialchars($evento['categoria']); ?>"
@@ -1234,6 +1254,21 @@ $current_page = 'estandar3.php';
                     btn.style.color = '';
                     btn.style.borderColor = '';
                 }, 2000);
+            });
+        }
+
+        const actividadEnfocada = <?php echo (int)$actividad_enfocada; ?>;
+        if (actividadEnfocada > 0) {
+            window.addEventListener('load', () => {
+                const actividad = document.getElementById('actividad-' + actividadEnfocada);
+                const detalle = document.getElementById('details-' + actividadEnfocada);
+                const icono = document.getElementById('icon-' + actividadEnfocada);
+                if (!actividad || !detalle) return;
+                detalle.style.display = 'block';
+                if (icono) icono.style.transform = 'rotate(180deg)';
+                actividad.style.borderColor = '#fb923c';
+                actividad.style.background = '#fff7ed';
+                setTimeout(() => actividad.scrollIntoView({ behavior:'smooth', block:'center' }), 120);
             });
         }
     </script>

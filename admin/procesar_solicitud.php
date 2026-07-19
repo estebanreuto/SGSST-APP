@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/db.php';
+require_once '../config/storage_schema.php';
 
 // Bloquear acceso si no es admin
 if (!isset($_SESSION['cpanel_admin_id'])) {
@@ -27,6 +28,15 @@ if ($id && in_array($accion, ['aprobar', 'rechazar'])) {
         $solicitud = $stmt_sel->fetch(PDO::FETCH_ASSOC);
 
         if ($solicitud) {
+            try {
+                ensure_storage_schema($conn);
+                $storageContext = storage_company_context($conn, (int)$id);
+                if ($storageContext) {
+                    storage_prepare_company_folders((int)$id, (int)$storageContext['nivel_plan']);
+                }
+            } catch (Throwable $storageError) {
+                // El explorador reintentara crear las carpetas al primer ingreso.
+            }
             // Verificamos por seguridad que no exista ya con esa cédula o correo
             $check = $conn->prepare("SELECT id FROM usuarios WHERE cedula = ? OR email = ?");
             $check->execute([$solicitud['cedula'], $solicitud['email']]);

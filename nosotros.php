@@ -29,17 +29,6 @@ $isLoggedIn = isset($_SESSION['user_id']);
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
         body { background-color: var(--bg-color); color: var(--text-main); line-height: 1.6; overflow-x: hidden; scroll-behavior: smooth; }
         
-        /* ⏳ PRELOADER */
-        #preloader {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background-color: var(--surface); z-index: 99999;
-            display: flex; justify-content: center; align-items: center; transition: opacity 0.4s ease, visibility 0.4s ease;
-        }
-        .spinner { 
-            width: 36px; height: 36px; border: 3px solid rgba(255, 138, 31, 0.2); 
-            border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; 
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
         /* ANIMACIONES BÁSICAS */
         @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .animate-up { animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
@@ -77,15 +66,15 @@ $isLoggedIn = isset($_SESSION['user_id']);
             text-transform: uppercase; letter-spacing: 0.5px;
         }
         
-        .about-hero h1 { font-size: 56px; font-weight: 900; letter-spacing: -2px; line-height: 1.1; margin-bottom: 24px; color: var(--blue-dark); }
-        .about-hero p { font-size: 16px; color: var(--text-muted); line-height: 1.6; max-width: 660px; margin: 0 auto; font-weight: 500;}
+        .about-hero h1 { font-size: 52px; font-weight: 900; letter-spacing: -1.8px; line-height: 1.1; margin-bottom: 24px; color: var(--blue-dark); }
+        .about-hero p { font-size: 15px; color: var(--text-muted); line-height: 1.6; max-width: 660px; margin: 0 auto; font-weight: 500;}
 
         /* 📖 NUESTRA HISTORIA */
         .story-section { padding: 100px 5%; background: var(--bg-color); position: relative;}
         .story-grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1.2fr 1fr; gap: 70px; align-items: center; }
         
-        .story-text h2 { font-size: 40px; font-weight: 900; letter-spacing: -1.5px; margin-bottom: 20px; color: var(--blue-dark); line-height: 1.1;}
-        .story-text p { font-size: 16px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.7; text-align: justify; }
+        .story-text h2 { font-size: 36px; font-weight: 900; letter-spacing: -1.3px; margin-bottom: 20px; color: var(--blue-dark); line-height: 1.1;}
+        .story-text p { font-size: 15px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.7; text-align: justify; }
         
         /* Cifras Destacadas */
         .story-highlights { display: flex; gap: 32px; margin-top: 32px; border-top: 1px solid var(--border); padding-top: 24px; margin-bottom: 32px;}
@@ -146,7 +135,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
         .story-stars svg { width: 16px; height: 16px; fill: currentColor; }
 
         .story-quote { 
-            font-size: 19px; font-weight: 500; line-height: 1.6; letter-spacing: -0.2px; color: #F3F4F6;
+            font-size: 18px; font-weight: 500; line-height: 1.6; letter-spacing: -0.2px; color: #F3F4F6;
             position: relative; z-index: 2; margin-bottom: 32px; font-style: italic;
         }
         
@@ -172,7 +161,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
             background-image: radial-gradient(#D1D5DB 1px, transparent 1px); background-size: 24px 24px; opacity: 0.5; z-index: 0; pointer-events: none;
         }
         .values-header { text-align: center; max-width: 600px; margin: 0 auto 40px auto; position: relative; z-index: 1;} 
-        .values-header h2 { font-size: 36px; font-weight: 900; letter-spacing: -1.5px; margin-bottom: 12px; color: var(--blue-dark); line-height: 1.1;} 
+        .values-header h2 { font-size: 33px; font-weight: 900; letter-spacing: -1.3px; margin-bottom: 12px; color: var(--blue-dark); line-height: 1.1;} 
         .values-header p { color: var(--text-muted); font-size: 15px; line-height: 1.6; }
         
         .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 1100px; margin: 0 auto; position: relative; z-index: 1; }
@@ -210,7 +199,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
         @keyframes floatOrb { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(30px, 30px) scale(1.1); } }
 
         .cta-content { position: relative; z-index: 2; }
-        .cta-content h2 { font-size: 38px; font-weight: 900; letter-spacing: -1.5px; margin-bottom: 16px; line-height: 1.1;}
+        .cta-content h2 { font-size: 35px; font-weight: 900; letter-spacing: -1.3px; margin-bottom: 16px; line-height: 1.1;}
         .cta-content p { font-size: 15px; color: #E2E8F0; margin-bottom: 24px; max-width: 550px; margin-left: auto; margin-right: auto; line-height: 1.6;}
         
         /* Puntos de Confianza */
@@ -247,10 +236,10 @@ $isLoggedIn = isset($_SESSION['user_id']);
         }
         @media (max-width: 768px) {
             .about-hero { padding: 140px 5% 40px 5%; }
-            .about-hero h1 { font-size: 40px; letter-spacing: -1px; }
+            .about-hero h1 { font-size: 37px; letter-spacing: -1px; }
             
             .story-section { padding: 60px 5%; }
-            .story-text h2 { font-size: 30px; letter-spacing: -1px;}
+            .story-text h2 { font-size: 28px; letter-spacing: -1px;}
             .story-highlights { gap: 20px; flex-direction: column; align-items: center; text-align: center; }
             .highlight-item { align-items: center; }
             
@@ -262,12 +251,12 @@ $isLoggedIn = isset($_SESSION['user_id']);
             .floating-badge { right: 10px; top: -15px; padding: 10px 16px; font-size: 12px; }
             
             .values-section { padding: 60px 5%; }
-            .values-header h2 { font-size: 28px; letter-spacing: -1px; }
+            .values-header h2 { font-size: 26px; letter-spacing: -1px; }
             .feature-card { padding: 20px 16px; text-align: left; }
             
             .cta-section { padding: 60px 5%; }
             .cta-box { padding: 40px 20px; border-radius: 20px; }
-            .cta-content h2 { font-size: 28px; letter-spacing: -1px; }
+            .cta-content h2 { font-size: 26px; letter-spacing: -1px; }
             .cta-trust { flex-direction: column; gap: 10px; align-items: center; }
             .cta-buttons { flex-direction: column; }
             .btn-cta-primary, .btn-cta-outline { width: 100%; justify-content: center; }
@@ -275,10 +264,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
     </style>
 </head>
 <body>
-
-    <div id="preloader">
-        <div class="spinner"></div>
-    </div>
+    <?php include_once __DIR__ . '/components/public_page_loader.php'; ?>
 
     <?php include 'components/public_header.php'; ?>
 
@@ -460,13 +446,5 @@ $isLoggedIn = isset($_SESSION['user_id']);
     <?php include 'components/public_footer.php'; ?>
     <?php include 'components/floating_buttons.php'; ?>
 
-    <script>
-        // Preloader
-        window.addEventListener('load', function() {
-            const preloader = document.getElementById('preloader');
-            preloader.style.opacity = '0';
-            setTimeout(() => { preloader.style.visibility = 'hidden'; }, 400);
-        });
-    </script>
 </body>
 </html>

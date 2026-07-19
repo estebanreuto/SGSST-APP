@@ -28,11 +28,18 @@ $current_page = basename($_SERVER['PHP_SELF']);
 $unread_count = 0;
 $nivel_plan = 0; // 1 = Básico, 2 = Pro, 3 = Enterprise
 $foto_perfil_sidebar = ''; // Variable para guardar la foto
+$storage_sidebar = null;
+$storage_sidebar_url = file_exists('almacenamiento.php') ? 'almacenamiento.php' : '../almacenamiento.php';
 
 // LÓGICA INTELIGENTE DE NOTIFICACIONES SEGÚN EL ROL Y PLANES
 if ($es_super_admin) {
     $stmt_notif = $conn->query("SELECT COUNT(*) FROM solicitudes_empresas WHERE estado = 'pendiente'");
     $unread_count = $stmt_notif->fetchColumn();
+    try {
+        $unread_count += (int)$conn->query("SELECT COUNT(*) FROM demo_prospectos WHERE estado = 'nuevo'")->fetchColumn();
+    } catch (Throwable $e) {
+        // La migración de prospectos puede no haberse ejecutado todavía.
+    }
     $nivel_plan = 3; // Super admin tiene nivel máximo
 } elseif (isset($_SESSION['usuario_id']) && isset($conn)) {
     $stmt_notif = $conn->prepare("SELECT COUNT(*) FROM notificaciones WHERE usuario_id = ? AND leida = 0");
@@ -55,9 +62,9 @@ if ($es_super_admin) {
 
         if (!empty($plan_data['nombre'])) {
             $nombre_plan = strtolower($plan_data['nombre']);
-            if (strpos($nombre_plan, 'enterprise') !== false) {
+            if (strpos($nombre_plan, 'enterprise') !== false || strpos($nombre_plan, 'gem') !== false) {
                 $nivel_plan = 3;
-            } elseif (strpos($nombre_plan, 'pro') !== false) {
+            } elseif (strpos($nombre_plan, 'pro') !== false || strpos($nombre_plan, 'mem') !== false) {
                 $nivel_plan = 2;
             } else {
                 $nivel_plan = 1; 
@@ -65,6 +72,16 @@ if ($es_super_admin) {
         } else {
             $nivel_plan = 0; 
         }
+    }
+
+    try {
+        require_once __DIR__ . '/../config/storage_schema.php';
+        $storageEmpresaId = storage_user_company_id($conn, (int)$_SESSION['usuario_id']);
+        if ($storageEmpresaId > 0) {
+            $storage_sidebar = storage_company_context($conn, $storageEmpresaId);
+        }
+    } catch (Throwable $e) {
+        $storage_sidebar = null;
     }
 }
 
@@ -238,19 +255,30 @@ $ruta_logo = file_exists('assets/logo_preventwork.jpeg') ? 'assets/logo_preventw
     .dot-indicator { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; margin-left: auto; animation: pulse-dot 2s infinite; }
 
     /* FOOTER Y CUENTA */
-    .sidebar-footer { padding: 16px; padding-bottom: max(16px, env(safe-area-inset-bottom, 20px)); border-top: 1px solid rgba(0, 0, 0, 0.04); background: #ffffff; }
-    .user-box { display: flex; flex-direction: column; background: #f8fafc; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; transition: box-shadow 0.2s; gap: 12px; }
-    .user-box:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04); }
-    .user-mini { display: flex; align-items: center; gap: 10px; overflow: hidden; }
+    .sidebar-footer { padding: 13px 20px max(16px, env(safe-area-inset-bottom, 20px)); border-top: 1px solid #eef2f7; background: #ffffff; }
+    .user-box { display:flex; flex-direction:column; gap:10px; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
+    .user-box:hover { box-shadow:none; }
+    .user-mini { display:flex; align-items:center; gap:10px; padding:1px 2px 2px; overflow:hidden; }
     .avatar-mini { padding: 0; overflow: hidden; width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; flex-shrink: 0; box-shadow: 0 2px 6px rgba(255, 138, 31, 0.3); }
     .avatar-admin { background: linear-gradient(135deg, #1e293b, #0f172a); box-shadow: 0 2px 6px rgba(30, 41, 59, 0.3); }
     .user-details { display: flex; flex-direction: column; }
     .user-details .name { font-size: 0.8rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
     .user-details .role { font-size: 0.7rem; color: var(--muted); font-weight: 500; }
-    .user-box-divider { height: 1px; background: #e2e8f0; width: 100%; }
+    .user-box-divider { height:1px; width:100%; background:#eef2f7; }
+    .session-storage { display:grid; grid-template-columns:31px minmax(0,1fr); align-items:center; gap:8px; padding:7px 2px; border:0; border-radius:8px; color:inherit; background:transparent; text-decoration:none; transition:.18s ease; }
+    .session-storage-icon { width:31px; height:31px; display:grid; place-items:center; border-radius:8px; color:#2563eb; background:#e8f1ff; }
+    .session-storage-body { min-width:0; }
+    .session-storage-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .session-storage-title { min-width:0; overflow:hidden; color:#36506f; font-size:.58rem; font-weight:800; text-overflow:ellipsis; white-space:nowrap; }
+    .session-storage-percent { color:#1d4ed8; font-size:.56rem; font-weight:850; }
+    .session-storage-track { height:4px; margin-top:6px; overflow:hidden; border-radius:99px; background:#dce6f2; }
+    .session-storage-track span { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#2563eb,#ff7a00); }
+    .session-storage-meta { display:flex; justify-content:space-between; gap:6px; margin-top:4px; color:#728198; font-size:.47rem; }
+    .session-storage:hover { background:#f8fafc; transform:none; }
+    .session-storage:hover .session-storage-title { color:var(--primary2); }
     
-    .user-actions { display: flex; flex-direction: column; gap: 6px; }
-    .action-btn { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; color: var(--text); text-decoration: none; transition: all 0.2s ease; }
+    .user-actions { display:flex; flex-direction:column; gap:3px; }
+    .action-btn { display:flex; align-items:center; gap:8px; padding:8px 4px; border-radius:7px; font-size:.8rem; font-weight:600; color:var(--text); text-decoration:none; transition:all .2s ease; }
     .action-btn svg { color: var(--muted); transition: color 0.2s ease; }
     .action-btn:hover { background: #e2e8f0; color: var(--primary); }
     .action-btn:hover svg { color: var(--primary); }
@@ -276,39 +304,42 @@ $ruta_logo = file_exists('assets/logo_preventwork.jpeg') ? 'assets/logo_preventw
             box-sizing: border-box;
         }
         body.sidebar-collapsed .main-wrapper { margin-left: var(--sidebar-compact) !important; width: calc(100% - var(--sidebar-compact)) !important; }
-        body.sidebar-collapsed .sidebar { width: var(--sidebar-compact); }
-        body.sidebar-collapsed .sidebar-header { padding: 0 13px; justify-content: center; }
-        body.sidebar-collapsed .brand { display: none; }
-        body.sidebar-collapsed .btn-collapse-sidebar { width: 34px; height: 34px; background: #fff; border-color: #dbe3ec; box-shadow: 0 3px 10px rgba(15,23,42,.08); }
-        body.sidebar-collapsed .sidebar-nav { padding: 12px 10px 20px; align-items: center; overflow-x: visible; }
-        body.sidebar-collapsed .nav-section,
-        body.sidebar-collapsed .sidebar-search-box,
-        body.sidebar-collapsed .nav-dropdown-menu { display: none !important; }
-        body.sidebar-collapsed .nav-item { width: 44px; height: 42px; padding: 0; justify-content: center; gap: 0; font-size: 0; overflow: visible; }
-        body.sidebar-collapsed .nav-item:hover { transform: none; }
-        body.sidebar-collapsed .nav-item > svg { width: 19px; height: 19px; }
-        body.sidebar-collapsed .nav-item.active::before { left: -10px; top: 22%; height: 56%; }
-        body.sidebar-collapsed .nav-dropdown { width: 44px; }
-        body.sidebar-collapsed .nav-dropdown-toggle { width: 44px; height: 42px; padding: 0; justify-content: center; }
-        body.sidebar-collapsed .nav-dropdown-toggle .dropdown-left { gap: 0; font-size: 0; }
-        body.sidebar-collapsed .nav-dropdown-toggle .dropdown-left svg { width: 19px; height: 19px; }
-        body.sidebar-collapsed .nav-dropdown-toggle > .chevron-icon { display: none; }
-        body.sidebar-collapsed .nav-dropdown.active .nav-dropdown-toggle { background: #fff3e8; }
-        body.sidebar-collapsed .nav-item-locked { width: 44px; height: 42px; padding: 0; justify-content: center; font-size: 0; }
-        body.sidebar-collapsed .nav-item-locked .lock-left { gap: 0; font-size: 0; }
-        body.sidebar-collapsed .nav-item-locked .lock-left svg { width: 19px; height: 19px; }
-        body.sidebar-collapsed .nav-item-locked > svg { display: none; }
-        body.sidebar-collapsed .sidebar-footer { padding: 10px; }
-        body.sidebar-collapsed .user-box { padding: 8px 6px; gap: 8px; align-items: center; border-radius: 9px; }
-        body.sidebar-collapsed .user-mini { justify-content: center; }
-        body.sidebar-collapsed .avatar-mini { width: 34px; height: 34px; }
-        body.sidebar-collapsed .user-details,
-        body.sidebar-collapsed .user-box-divider { display: none; }
-        body.sidebar-collapsed .user-actions { align-items: center; width: 100%; }
-        body.sidebar-collapsed .action-btn { width: 38px; height: 36px; padding: 0; justify-content: center; gap: 0; font-size: 0; position: relative; }
-        body.sidebar-collapsed .action-btn > div { flex: none !important; gap: 0 !important; }
-        body.sidebar-collapsed .action-btn svg { width: 17px; height: 17px; }
-        body.sidebar-collapsed .action-btn .dot-indicator { position: absolute; right: 4px; top: 5px; width: 7px; height: 7px; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) { width: var(--sidebar-compact); }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .sidebar-header { padding: 0 13px; justify-content: center; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .brand { display: none; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .btn-collapse-sidebar { width: 34px; height: 34px; background: #fff; border-color: #dbe3ec; box-shadow: 0 3px 10px rgba(15,23,42,.08); }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .sidebar-nav { padding: 12px 10px 20px; align-items: center; overflow-x: visible; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .nav-section,
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .sidebar-search-box,
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .nav-dropdown-menu { display: none !important; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .nav-item { width: 44px; height: 42px; padding: 0; justify-content: center; gap: 0; font-size: 0; overflow: visible; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .nav-item:hover { transform: none; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .nav-item > svg { width: 19px; height: 19px; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .nav-item.active::before { left: -10px; top: 22%; height: 56%; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .nav-dropdown { width: 44px; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .nav-dropdown-toggle { width: 44px; height: 42px; padding: 0; justify-content: center; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .nav-dropdown-toggle .dropdown-left { gap: 0; font-size: 0; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .nav-dropdown-toggle .dropdown-left svg { width: 19px; height: 19px; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .nav-dropdown-toggle > .chevron-icon { display: none; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .nav-dropdown.active .nav-dropdown-toggle { background: #fff3e8; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .nav-item-locked { width: 44px; height: 42px; padding: 0; justify-content: center; font-size: 0; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .nav-item-locked .lock-left { gap: 0; font-size: 0; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .nav-item-locked .lock-left svg { width: 19px; height: 19px; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .nav-item-locked > svg { display: none; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .sidebar-footer { padding: 10px; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .user-box { padding:0; gap:8px; align-items:center; border-radius:0; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .user-mini { justify-content: center; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .avatar-mini { width: 34px; height: 34px; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .user-details,
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .user-box-divider,
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .session-storage { display: none; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .user-actions { align-items: center; width: 100%; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .action-btn { width: 38px; height: 36px; padding: 0; justify-content: center; gap: 0; font-size: 0; position: relative; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .action-btn > div { flex: none !important; gap: 0 !important; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .action-btn svg { width: 17px; height: 17px; }
+        body.sidebar-collapsed:not(.sidebar-hover-expanded) .sidebar:not(:hover) .action-btn .dot-indicator { position: absolute; right: 4px; top: 5px; width: 7px; height: 7px; }
+        body.sidebar-collapsed .sidebar:hover,
+        body.sidebar-collapsed.sidebar-hover-expanded .sidebar { box-shadow: 12px 0 30px rgba(15,23,42,.14); }
     }
 
     /* Listados de tarjetas: más contenido visible sin perder lectura. */
@@ -389,6 +420,9 @@ $ruta_logo = file_exists('assets/logo_preventwork.jpeg') ? 'assets/logo_preventw
             <a href="solicitudes.php" class="nav-item <?php echo $current_page == 'solicitudes.php' ? 'active' : ''; ?>">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg> Solicitudes
             </a>
+            <a href="prospectos_demo.php" class="nav-item <?php echo $current_page == 'prospectos_demo.php' ? 'active' : ''; ?>">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v18m9-9H3m14.5-6.5l-11 13m0-13l11 13"></path></svg> Prospectos Demo
+            </a>
             <a href="accesos.php" class="nav-item <?php echo $current_page == 'accesos.php' ? 'active' : ''; ?>">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg> Accesos
             </a>
@@ -451,7 +485,11 @@ $ruta_logo = file_exists('assets/logo_preventwork.jpeg') ? 'assets/logo_preventw
                                 'procedimientos' => '4.2.3 Procedimientos, instructivos, fichas, protocolos',
                                 'inspecciones' => '4.2.4 Inspecciones sistematicas con participacion del COPASST',
                             ];
-                            $estandar5_activo = $current_page == 'estandar5.php';
+                            $paginas_perfiles_cargo = ['nuevo_centro_medico.php', 'nuevo_proceso_perfil.php', 'nuevo_perfil_cargo.php'];
+                            $estandar5_activo = $current_page == 'estandar5.php' || in_array($current_page, $paginas_perfiles_cargo, true);
+                            $estandar5_modulo_sidebar = in_array($current_page, $paginas_perfiles_cargo, true)
+                                ? 'perfiles-cargo'
+                                : ($_GET['modulo'] ?? '');
                             $estandar7_activo = $current_page == 'estandar7.php';
                         ?>
                         <?php for($i = 1; $i <= 7; $i++): ?>
@@ -472,14 +510,14 @@ $ruta_logo = file_exists('assets/logo_preventwork.jpeg') ? 'assets/logo_preventw
                                     </div>
                                     <div class="submodule-menu">
                                         <?php foreach ($submodulos_actuales as $modulo_slug => $modulo_nombre): ?>
-                                            <a href="<?php echo $pagina_estandar; ?>?modulo=<?php echo urlencode($modulo_slug); ?>" class="submodule-link <?php echo $estandar_activo && ($_GET['modulo'] ?? '') === $modulo_slug ? 'active' : ''; ?>">
+                                            <a href="<?php echo $pagina_estandar; ?>?modulo=<?php echo urlencode($modulo_slug); ?>" class="submodule-link <?php echo $estandar_activo && (($i === 5 ? $estandar5_modulo_sidebar : ($_GET['modulo'] ?? '')) === $modulo_slug) ? 'active' : ''; ?>">
                                                 <span><?php echo htmlspecialchars($modulo_nombre); ?></span>
                                             </a>
                                         <?php endforeach; ?>
                                     </div>
                                 </div>
                             <?php else: ?>
-                                <a href="estandar<?php echo $i; ?>.php" class="sub-item std-item <?php echo $current_page == 'estandar'.$i.'.php' ? 'active' : ''; ?>" data-search="<?php echo $i . ' ' . strtolower(htmlspecialchars($nombres_estandares[$i])); ?>">
+                                <a href="estandar<?php echo $i; ?>.php" class="sub-item std-item <?php echo ($current_page == 'estandar'.$i.'.php' || ($i === 6 && $current_page === 'nuevo_peligro_ipvr.php')) ? 'active' : ''; ?>" data-search="<?php echo $i . ' ' . strtolower(htmlspecialchars($nombres_estandares[$i])); ?>">
                                     <span><?php echo htmlspecialchars($nombres_estandares[$i]); ?></span>
                                 </a>
                             <?php endif; ?>
@@ -591,6 +629,23 @@ $ruta_logo = file_exists('assets/logo_preventwork.jpeg') ? 'assets/logo_preventw
                 </div>
             </div>
             <div class="user-box-divider"></div>
+            <?php if (!$es_super_admin && $storage_sidebar): ?>
+                <a class="session-storage" href="<?php echo htmlspecialchars($storage_sidebar_url); ?>" title="Abrir almacenamiento documental">
+                    <span class="session-storage-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 18a4.6 4.6 0 01-.8-9.13A6 6 0 0117.7 7.2 4.8 4.8 0 0118 18H7z"></path></svg></span>
+                    <div class="session-storage-body">
+                        <div class="session-storage-head">
+                            <span class="session-storage-title">Almacenamiento</span>
+                            <span class="session-storage-percent"><?php echo number_format((float)$storage_sidebar['porcentaje'], 1, ',', '.'); ?>%</span>
+                        </div>
+                        <div class="session-storage-track"><span style="width:<?php echo min(100, max(0, (float)$storage_sidebar['porcentaje'])); ?>%"></span></div>
+                        <div class="session-storage-meta">
+                            <span><?php echo storage_format_bytes((int)$storage_sidebar['usado_bytes']); ?> usados</span>
+                            <span><?php echo number_format((float)$storage_sidebar['cuota_gb'], 0, ',', '.'); ?> GB</span>
+                        </div>
+                    </div>
+                </a>
+                <div class="user-box-divider"></div>
+            <?php endif; ?>
             <div class="user-actions">
                 
                 <a href="notificaciones.php" class="action-btn <?php echo ($current_page == 'notificaciones.php') ? 'active' : ''; ?>">
@@ -678,19 +733,54 @@ $ruta_logo = file_exists('assets/logo_preventwork.jpeg') ? 'assets/logo_preventw
         });
     }
 
-    // AUTO-ABRIR EL DESPLEGABLE SI EL ESTÁNDAR ESTÁ ACTIVO
-    document.addEventListener('DOMContentLoaded', () => {
-        const activeSubItem = document.querySelector('.sub-item.active');
-        if (activeSubItem) {
-            const parentDropdown = activeSubItem.closest('.nav-dropdown');
+    // AUTO-ABRIR Y CENTRAR EL ELEMENTO ACTIVO DENTRO DEL SCROLL DEL SIDEBAR
+    let sidebarCenterTimer = null;
+    function centerActiveSidebarItem(options = {}) {
+        const delay = Number.isFinite(options.delay) ? options.delay : 120;
+        const behavior = options.behavior || 'smooth';
+        const sidebarNav = document.querySelector('.sidebar-nav');
+        const activeSubmodule = document.querySelector('.submodule-link.active');
+        const activeTarget = activeSubmodule
+            || document.querySelector('.sub-item.active')
+            || document.querySelector('.nav-item.active')
+            || document.querySelector('.action-btn.active');
+
+        if (activeTarget) {
+            const standardGroup = activeTarget.closest('.standard-submodules');
+            if (standardGroup) {
+                standardGroup.classList.add('active');
+                standardGroup.querySelector('.submodule-toggle')?.setAttribute('aria-expanded', 'true');
+            }
+
+            const parentDropdown = activeTarget.closest('.nav-dropdown');
             if (parentDropdown) {
                 parentDropdown.classList.add('active');
-                setTimeout(() => {
-                    activeSubItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 150);
+            }
+
+            if (sidebarNav) {
+                clearTimeout(sidebarCenterTimer);
+                sidebarCenterTimer = setTimeout(() => {
+                    const navRect = sidebarNav.getBoundingClientRect();
+                    const targetRect = activeTarget.getBoundingClientRect();
+                    if (targetRect.height <= 0 || navRect.height <= 0) return;
+                    const targetTop = sidebarNav.scrollTop
+                        + (targetRect.top - navRect.top)
+                        - ((sidebarNav.clientHeight - targetRect.height) / 2);
+
+                    sidebarNav.scrollTo({
+                        top: Math.max(0, targetTop),
+                        behavior
+                    });
+                }, delay);
             }
         }
-    });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', centerActiveSidebarItem, { once: true });
+    } else {
+        centerActiveSidebarItem();
+    }
 
     // REEMPLAZAMOS EL CONFIRM NATIVO POR EL MODAL PREMIUM
     function cerrarSesionSegura() {
@@ -727,6 +817,7 @@ $ruta_logo = file_exists('assets/logo_preventwork.jpeg') ? 'assets/logo_preventw
         }
 
         function setDesktopSidebar(collapsed) {
+            document.body.classList.remove('sidebar-hover-expanded');
             document.body.classList.toggle('sidebar-collapsed', collapsed);
             localStorage.setItem('preventwork_sidebar_collapsed', collapsed ? '1' : '0');
             syncDesktopSidebar();
@@ -745,14 +836,41 @@ $ruta_logo = file_exists('assets/logo_preventwork.jpeg') ? 'assets/logo_preventw
         });
         document.querySelectorAll('.nav-dropdown-toggle').forEach(toggle => {
             toggle.addEventListener('click', () => {
-                if (window.innerWidth > 768 && document.body.classList.contains('sidebar-collapsed')) {
+                if (window.innerWidth > 768
+                    && document.body.classList.contains('sidebar-collapsed')
+                    && !document.body.classList.contains('sidebar-hover-expanded')) {
                     setDesktopSidebar(false);
                 }
             });
         });
+        if (mainSidebar) {
+            let hoverCloseTimer = null;
+            mainSidebar.addEventListener('pointerenter', () => {
+                if (window.innerWidth <= 768 || !document.body.classList.contains('sidebar-collapsed')) return;
+                clearTimeout(hoverCloseTimer);
+                document.body.classList.add('sidebar-hover-expanded');
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => centerActiveSidebarItem({ delay: 340, behavior: 'auto' }));
+                });
+            });
+            mainSidebar.addEventListener('pointerleave', () => {
+                if (window.innerWidth <= 768 || !document.body.classList.contains('sidebar-collapsed')) return;
+                clearTimeout(hoverCloseTimer);
+                hoverCloseTimer = setTimeout(() => {
+                    document.body.classList.remove('sidebar-hover-expanded');
+                }, 120);
+            });
+            window.addEventListener('resize', () => {
+                if (window.innerWidth <= 768) document.body.classList.remove('sidebar-hover-expanded');
+            });
+        }
         if (btnCollapseSidebar) {
             btnCollapseSidebar.addEventListener('click', () => {
-                setDesktopSidebar(!document.body.classList.contains('sidebar-collapsed'));
+                const collapse = !document.body.classList.contains('sidebar-collapsed');
+                setDesktopSidebar(collapse);
+                if (!collapse) {
+                    requestAnimationFrame(() => centerActiveSidebarItem({ delay: 340, behavior: 'auto' }));
+                }
             });
         }
         if (btnOpenSidebar) btnOpenSidebar.addEventListener('click', toggleMenu);

@@ -1,0 +1,153 @@
+.demo-link-flash {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 12px;
+    border: 1px solid #86efac;
+    border-radius: 10px;
+    background: #f0fdf4;
+}
+
+.demo-link-flash strong,
+.demo-link-flash small {
+    display: block;
+}
+
+.demo-link-flash strong {
+    color: #166534;
+    font-size: .68rem;
+}
+
+.demo-link-flash small {
+    margin-top: 3px;
+    color: #4b6b56;
+    font-size: .56rem;
+}
+
+.demo-link-copy {
+    display: flex;
+    gap: 7px;
+    margin-top: 8px;
+}
+
+.demo-link-copy input {
+    width: 100%;
+    min-width: 0;
+    height: 36px;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    background: #fff;
+    padding: 0 9px;
+    color: #166534;
+    font: inherit;
+    font-size: .57rem;
+}
+
+.demo-copy-btn {
+    min-height: 36px;
+    border: 0;
+    border-radius: 8px;
+    background: #15803d;
+    color: #fff;
+    padding: 0 11px;
+    font: inherit;
+    font-size: .58rem;
+    font-weight: 850;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.prospect-access {
+    grid-column: 1 / -1;
+    padding: 11px;
+    border: 1px solid #dbeafe;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #f8fbff, #fff);
+}
+
+.prospect-access-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.prospect-access-head strong {
+    display: block;
+    color: #172554;
+    font-size: .66rem;
+}
+
+.prospect-access-head p {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: .56rem;
+    line-height: 1.4;
+}
+
+.access-state {
+    flex: none;
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: #fff7ed;
+    color: #c2410c;
+    font-size: .49rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.access-state.aprobado { background: #ecfdf5; color: #047857; }
+.access-state.rechazado,
+.access-state.revocado { background: #fef2f2; color: #b91c1c; }
+
+.prospect-access-form {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.prospect-access-form label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #64748b;
+    font-size: .53rem;
+    font-weight: 750;
+}
+
+.prospect-access-form select {
+    height: 34px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    background: #fff;
+    padding: 0 26px 0 8px;
+    color: #334155;
+    font: inherit;
+    font-size: .56rem;
+}
+
+.prospect-access-form button {
+    min-height: 34px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    padding: 0 10px;
+    font: inherit;
+    font-size: .55rem;
+    font-weight: 850;
+    cursor: pointer;
+}
+
+.access-primary { background: #2563eb; color: #fff; }
+.access-danger { border-color: #fecaca !important; background: #fff; color: #b91c1c; }
+
+@media (max-width: 680px) {
+    .demo-link-flash { grid-template-columns: 1fr; }
+    .demo-link-copy { align-items: stretch; flex-direction: column; }
+    .prospect-access-head { flex-direction: column; }
+    .prospect-access-form { align-items: stretch; flex-direction: column; }
+    .prospect-access-form label { justify-content: space-between; }
+}

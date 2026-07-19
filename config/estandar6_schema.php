@@ -220,7 +220,7 @@ function estandar6_interpretacion_np(int $np): string
 
 function estandar6_significado_riesgo(int $riesgo): string
 {
-    if ($riesgo > 600) {
+    if ($riesgo >= 600) {
         return 'I - Situacion critica. Suspender o intervenir de inmediato.';
     }
     if ($riesgo >= 150) {
@@ -265,10 +265,12 @@ function estandar6_calcular(array $data): array
     $npResidual = $ndResidual * $neResidual;
     $riesgoResidual = $npResidual * $ncResidual;
 
-    $accidentesAnterior = isset($data['accidentes_anterior']) && $data['accidentes_anterior'] !== '' ? (int)$data['accidentes_anterior'] : null;
-    $eficacia = '';
-    if ($accidentesAnterior !== null) {
-        $eficacia = $accidentesAnterior >= 1 ? 'NO' : 'SI';
+    $accidentesAnterior = isset($data['accidentes_anterior']) && $data['accidentes_anterior'] !== '' ? max(0, (int)$data['accidentes_anterior']) : null;
+    $accidentesActual = isset($data['accidentes_actual']) && $data['accidentes_actual'] !== '' ? max(0, (int)$data['accidentes_actual']) : null;
+    $eficaciaSolicitada = strtoupper(trim((string)($data['eficacia_controles'] ?? '')));
+    $eficacia = in_array($eficaciaSolicitada, ['SI', 'NO'], true) ? $eficaciaSolicitada : '';
+    if ($eficacia === '' && $accidentesAnterior !== null && $accidentesActual !== null) {
+        $eficacia = $accidentesActual <= $accidentesAnterior ? 'SI' : 'NO';
     }
 
     return [

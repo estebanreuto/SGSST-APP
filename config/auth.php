@@ -17,7 +17,8 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
         'domain' => '',
         'secure' => $isHttps,
         'httponly' => true,
-        'samesite' => 'Strict',
+        // Lax permite regresar de OAuth (Google/Microsoft) sin exponer la cookie en POST entre sitios.
+        'samesite' => 'Lax',
     ]);
 
     session_start();
@@ -83,7 +84,7 @@ function create_db_session(PDO $conn, array $usuario, int $hours = 8): void
         'path' => '/',
         'secure' => $isHttps,
         'httponly' => true,
-        'samesite' => 'Strict',
+        'samesite' => 'Lax',
     ]);
 
     // Hardening de sesión PHP
@@ -161,7 +162,7 @@ function revoke_session(PDO $conn): void
         'path' => '/',
         'secure' => $isHttps,
         'httponly' => true,
-        'samesite' => 'Strict',
+        'samesite' => 'Lax',
     ]);
 
     // Limpia PHP session

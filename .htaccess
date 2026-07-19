@@ -1,0 +1,29 @@
+Options -MultiViews
+DirectoryIndex index.php
+
+RewriteEngine On
+RewriteBase /SGSST-APP/
+
+# Conserva método y cuerpo al limpiar URLs de formularios y endpoints.
+# Apache responde antes de ejecutar PHP, por lo que cada operación se procesa una sola vez.
+RewriteCond %{REQUEST_METHOD} !^(?:GET|HEAD)$
+RewriteCond %{THE_REQUEST} \s/+[^?\s]*\.php(?:[?\s]) [NC]
+RewriteRule ^(.+)\.php$ $1 [R=307,L,NE]
+
+# Canonicaliza los index.php a la ruta de su carpeta.
+# Solo redirige navegaciones; los POST conservan su cuerpo y procesamiento.
+RewriteCond %{REQUEST_METHOD} ^(?:GET|HEAD)$
+RewriteCond %{THE_REQUEST} \s/+(.*/)?index\.php(?:[?\s]) [NC]
+RewriteRule ^(.*/)?index\.php$ $1 [R=302,L,NE]
+
+# Quita .php de las solicitudes visibles realizadas por el navegador.
+# THE_REQUEST evita ciclos cuando Apache hace la reescritura interna.
+RewriteCond %{REQUEST_METHOD} ^(?:GET|HEAD)$
+RewriteCond %{THE_REQUEST} \s/+[^?\s]*\.php(?:[?\s]) [NC]
+RewriteRule ^(.+)\.php$ $1 [R=302,L,NE]
+
+# Resuelve /ruta como /ruta.php sin cambiar la URL visible.
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^(.+)$ $1.php [END,QSA]

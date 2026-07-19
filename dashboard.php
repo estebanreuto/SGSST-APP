@@ -1,6 +1,7 @@
 <?php
 require_once 'config/db.php';
 require_once 'config/auth.php';
+require_once 'config/calendar_integration.php';
 
 // Exige sesión válida
 $u = require_auth($conn);
@@ -87,6 +88,15 @@ try {
     }
 } catch (PDOException $e) {
     $usuario_info = [];
+}
+
+$dashboard_calendar = null;
+if (in_array($usuario_rol, ['sst', 'representante'], true)) {
+    try {
+        $dashboard_calendar = calendar_connection($conn, (int)$_SESSION['usuario_id']);
+    } catch (Throwable $e) {
+        $dashboard_calendar = null;
+    }
 }
 
 // LÓGICA DEL MODAL DE EMPRESA
@@ -179,22 +189,25 @@ function mostrarDato($dato) {
            TARJETA DE PERFIL HERO
            ========================================= */
         .profile-hero-card {
-            background: linear-gradient(135deg, #1e293b, #0f172a); 
-            color: white;
-            border-radius: 16px;
-            padding: 32px;
-            display: flex;
-            gap: 32px;
+            background: #ffffff;
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 22px;
+            display: grid;
+            grid-template-columns: 128px minmax(0, 1fr) auto;
+            gap: 22px;
             align-items: center;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            min-height: 190px;
+            margin-bottom: 22px;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.055);
             position: relative;
             overflow: hidden; 
         }
 
-        .card-blob { position: absolute; border-radius: 50%; filter: blur(60px); z-index: 1; opacity: 0.25; animation: floatCardAnim 12s infinite alternate ease-in-out; }
-        .card-blob-1 { width: 350px; height: 350px; background: var(--primary); top: -150px; left: -100px; }
-        .card-blob-2 { width: 300px; height: 300px; background: #3b82f6; bottom: -150px; right: 0%; animation-delay: -6s; }
+        .card-blob { position: absolute; border-radius: 50%; filter: blur(70px); z-index: 0; opacity: 0.11; animation: floatCardAnim 12s infinite alternate ease-in-out; }
+        .card-blob-1 { width: 310px; height: 310px; background: var(--primary); top: -190px; left: -90px; }
+        .card-blob-2 { width: 280px; height: 280px; background: #3b82f6; bottom: -190px; right: 2%; animation-delay: -6s; }
 
         @keyframes floatCardAnim {
             0% { transform: translate(0, 0) scale(1); }
@@ -203,12 +216,12 @@ function mostrarDato($dato) {
         }
 
         /* ICONOS FLOTANTES */
-        .float-icon { position: absolute; z-index: 1; animation: spinFloat 20s infinite linear; pointer-events: none; }
-        .fi-x1 { top: 15%; right: 8%; font-size: 60px; animation-duration: 25s; color: rgba(255, 138, 31, 0.08); }
-        .fi-c1 { bottom: 10%; right: 25%; font-size: 100px; animation-direction: reverse; color: rgba(255, 255, 255, 0.06); }
-        .fi-x2 { top: 50%; right: 15%; font-size: 40px; animation-duration: 15s; color: rgba(59, 130, 246, 0.08); }
-        .fi-c2 { top: 20%; right: 35%; font-size: 70px; animation-duration: 30s; animation-direction: reverse; color: rgba(255, 138, 31, 0.05); }
-        .fi-x3 { bottom: 20%; right: 5%; font-size: 50px; animation-duration: 20s; color: rgba(255, 255, 255, 0.04); }
+        .float-icon { position: absolute; z-index: 0; animation: spinFloat 20s infinite linear; pointer-events: none; }
+        .fi-x1 { top: 10%; right: 7%; font-size: 54px; animation-duration: 25s; color: rgba(255, 122, 0, 0.065); }
+        .fi-c1 { bottom: 4%; right: 26%; font-size: 88px; animation-direction: reverse; color: rgba(37, 99, 235, 0.055); }
+        .fi-x2 { top: 49%; right: 14%; font-size: 36px; animation-duration: 15s; color: rgba(59, 130, 246, 0.055); }
+        .fi-c2 { top: 10%; right: 36%; font-size: 64px; animation-duration: 30s; animation-direction: reverse; color: rgba(255, 122, 0, 0.05); }
+        .fi-x3 { bottom: 12%; right: 3%; font-size: 46px; animation-duration: 20s; color: rgba(30, 58, 138, 0.04); }
 
         @keyframes spinFloat {
             0% { transform: translateY(0) rotate(0deg); }
@@ -219,11 +232,11 @@ function mostrarDato($dato) {
         .profile-hero-photo, .profile-hero-info, .profile-btn-edit { position: relative; z-index: 2; }
 
         .profile-hero-photo {
-            width: 150px;
-            height: 150px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 20px;
-            border: 2px dashed rgba(255, 255, 255, 0.3);
+            width: 128px;
+            height: 128px;
+            background: #f8fafc;
+            border-radius: 14px;
+            border: 1px dashed #aebed0;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -232,71 +245,103 @@ function mostrarDato($dato) {
             transition: all 0.3s ease;
             flex-shrink: 0;
             overflow: hidden;
-            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 20px rgba(15,23,42,.07);
         }
 
-        .profile-hero-photo:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--primary); }
+        .profile-hero-photo:hover { background: #fff7ed; border-color: var(--primary); transform: translateY(-2px); }
         .profile-hero-photo img { width: 100%; height: 100%; object-fit: cover; }
 
         .loading-spinner { display: none; color: var(--primary); font-size: 2rem; animation: spin 1s infinite linear;}
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        .profile-photo-placeholder { text-align: center; color: rgba(255, 255, 255, 0.8); font-size: 0.85rem; display: flex; flex-direction: column; gap: 8px; align-items: center; transition: color 0.3s ease; }
+        .profile-photo-placeholder { text-align: center; color: #64748b; font-size: 0.72rem; display: flex; flex-direction: column; gap: 7px; align-items: center; transition: color 0.3s ease; }
         .profile-hero-photo:hover .profile-photo-placeholder { color: var(--primary); }
 
-        .profile-hero-info { flex: 1; display: flex; flex-direction: column; gap: 8px; }
-        .profile-hero-name { font-size: 2.2rem; font-weight: 800; margin: 0; line-height: 1.1; color: #ffffff; letter-spacing: -0.02em; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-        .profile-hero-role { font-size: 1.1rem; color: var(--primary); font-weight: 700; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 0.05em; }
+        .profile-hero-info { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+        .profile-hero-kicker { display:flex; align-items:center; gap:6px; color:#64748b; font-size:.62rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; }
+        .profile-hero-kicker i { color:var(--primary2); }
+        .profile-hero-name { max-width: 780px; font-size: clamp(1.25rem, 2.2vw, 1.85rem); font-weight: 800; margin: 0; line-height: 1.15; color: #1e3a8a; letter-spacing: -0.025em; overflow-wrap:anywhere; }
+        .profile-hero-role { width:max-content; max-width:100%; font-size: .68rem; color: #c2410c; background:#fff7ed; border:1px solid #fed7aa; border-radius:999px; padding:4px 9px; font-weight: 800; margin: 0 0 5px; text-transform: uppercase; letter-spacing: 0.04em; }
 
-        .profile-hero-details { display: flex; flex-wrap: wrap; gap: 16px; }
-        .profile-hero-detail-item { display: flex; align-items: center; gap: 6px; font-size: 0.95rem; color: #e2e8f0; background: rgba(255, 255, 255, 0.08); padding: 6px 12px; border-radius: 8px; backdrop-filter: blur(5px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .profile-hero-details { display: flex; flex-wrap: wrap; gap: 7px; min-width:0; }
+        .profile-hero-detail-item { min-width:0; max-width:100%; display: flex; align-items: center; gap: 7px; font-size: .68rem; font-weight:650; color: #526177; background: #f8fafc; padding: 7px 9px; border-radius: 8px; border: 1px solid #e2e8f0; overflow-wrap:anywhere; }
+        .profile-hero-detail-item i { color:#2563eb; flex:none; }
 
-        .profile-btn-edit { position: absolute; top: 32px; right: 32px; background: rgba(255, 255, 255, 0.1); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: none; backdrop-filter: blur(10px); }
+        .profile-btn-edit { position: relative; top: auto; right: auto; align-self:flex-start; background: #ffffff; color: #c2410c; border: 1px solid #fdba74; box-shadow: 0 5px 14px rgba(234,88,12,.07); padding:9px 12px; font-size:.68rem; white-space:nowrap; }
         .profile-btn-edit:hover { background: var(--primary); border-color: var(--primary); color: white; }
 
+        /* ACCESO ÚNICO A CALENDARIO */
+        .calendar-shortcut { --calendar-color:#2563eb; position:relative; overflow:hidden; width:min(100%,560px); min-height:0; margin:0 0 13px auto; padding:7px 9px; display:grid; grid-template-columns:29px minmax(0,1fr) auto; gap:8px; align-items:center; box-sizing:border-box; border:1px solid #dfe7f0; border-radius:9px; background:rgba(255,255,255,.72); box-shadow:none; text-decoration:none; transition:background .2s,border-color .2s,transform .2s; }
+        .calendar-shortcut.connected { --calendar-color:#059669; }
+        .calendar-shortcut:hover { transform:translateY(-1px); border-color:#b9cff2; background:#fff; }
+        .calendar-shortcut-icon { position:relative; z-index:2; width:29px; height:29px; display:grid; place-items:center; border-radius:7px; background:color-mix(in srgb,var(--calendar-color) 9%,white); color:var(--calendar-color); font-size:.66rem; }
+        .calendar-shortcut-copy { position:relative; z-index:2; min-width:0; }
+        .calendar-shortcut-copy strong { display:block; color:#294a7e; font-size:.67rem; }
+        .calendar-shortcut-copy span { display:block; margin-top:2px; color:#7c8a9e; font-size:.57rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .calendar-shortcut-state { position:relative; z-index:2; display:inline-flex; align-items:center; gap:5px; padding:4px 7px; border-radius:999px; background:transparent; color:var(--calendar-color); font-size:.56rem; font-weight:850; white-space:nowrap; }
+        .calendar-shortcut-watermark { position:absolute; right:58px; bottom:-21px; color:var(--calendar-color); opacity:.03; font-size:3.6rem; transform:rotate(-10deg); pointer-events:none; }
+
         /* DETALLES ABAJO */
-        .header-section { margin: 24px 0 20px 0; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
-        .section-title { font-size: 0.95rem; font-weight: 700; color: var(--text); margin: 0; display: flex; align-items: center; gap: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
-        .title-icon-wrapper { background: rgba(255, 138, 31, 0.12); padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--primary2); }
+        .header-section { margin:13px 0 8px; padding-bottom:7px; border-bottom:1px solid var(--border); }
+        .section-title { font-size:.78rem; font-weight:800; color:#1e3a8a; margin:0; display:flex; align-items:center; gap:8px; text-transform:uppercase; letter-spacing:.035em; }
+        .title-icon-wrapper { width:28px; height:28px; background:rgba(255,138,31,.1); border-radius:7px; display:flex; align-items:center; justify-content:center; color:var(--primary2); }
         
         .section-desc { color: var(--muted); font-size: 0.85rem; margin: 10px 0 0 0; display: flex; align-items: flex-start; gap: 8px; text-align: left; line-height: 1.4; }
         .section-desc svg { flex-shrink: 0; margin-top: 2px; }
 
-        .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-        .info-card { background: var(--card); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.02); display: flex; align-items: flex-start; gap: 12px; transition: transform 0.2s ease, box-shadow 0.2s ease; }
-        .info-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.04); border-color: #cbd5e1; }
-        .icon-box { width: 38px; height: 38px; background: rgba(255, 138, 31, 0.08); color: var(--primary2); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.3s ease; }
-        .info-content { display: flex; flex-direction: column; gap: 4px; overflow: hidden; padding-top: 2px; }
-        .info-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 700; margin: 0; }
-        .info-value { font-size: 0.9rem; font-weight: 600; color: var(--text); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .badge-rol { display: inline-block; background: rgba(255, 138, 31, 0.12); color: var(--primary2); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
+        .info-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+        .info-card { --info-color:#ea580c; --info-soft:#fff3e8; position:relative; min-width:0; min-height:64px; overflow:hidden; display:grid; grid-template-columns:minmax(0,1fr) 28px; align-items:center; gap:7px; padding:8px 9px; box-sizing:border-box; border:1px solid var(--border); border-radius:9px; background:#fff; box-shadow:0 5px 16px rgba(15,23,42,.035); isolation:isolate; transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease; }
+        .info-card:nth-child(2) { --info-color:#2563eb; --info-soft:#eff6ff; }
+        .info-card:nth-child(3) { --info-color:#7c3aed; --info-soft:#f5f3ff; }
+        .info-card:nth-child(4) { --info-color:#059669; --info-soft:#ecfdf5; }
+        .info-card:nth-child(5) { --info-color:#d97706; --info-soft:#fffbeb; }
+        .info-card:nth-child(6) { --info-color:#dc2626; --info-soft:#fef2f2; }
+        .info-card.certification-card { --info-color:#2563eb; --info-soft:#eff6ff; }
+        .info-card:hover { transform:translateY(-2px); border-color:var(--info-color); box-shadow:0 9px 22px rgba(15,23,42,.07); }
+        .icon-box { position:relative; z-index:2; grid-column:2; grid-row:1; width:28px; height:28px; display:grid; place-items:center; border-radius:7px; background:var(--info-soft) !important; color:var(--info-color) !important; font-size:.62rem; transition:transform .22s ease; }
+        .info-card:hover .icon-box { transform:scale(1.05); }
+        .info-content { position:relative; z-index:2; grid-column:1; grid-row:1; min-width:0; align-self:center; display:flex; flex-direction:column; align-items:flex-start; gap:4px; overflow:hidden; }
+        .info-label { width:max-content; max-width:100%; min-height:17px; display:inline-flex; align-items:center; margin:0; padding:0 6px; border-radius:999px; background:var(--info-soft); color:var(--info-color); font-size:.46rem; line-height:1; text-transform:uppercase; letter-spacing:.03em; font-weight:900; }
+        .info-value { max-width:100%; margin:0; color:#172554; font-size:.66rem; line-height:1.25; font-weight:750; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .info-watermark { position:absolute; z-index:1; right:-8px; bottom:-17px; color:var(--info-color); font-size:3.65rem; opacity:.04; transform:rotate(-10deg); pointer-events:none; transition:opacity .22s ease,transform .22s ease; }
+        .info-card:hover .info-watermark { opacity:.08; transform:rotate(-6deg) scale(1.03); }
+        .badge-rol { display:inline-block; padding:2px 7px; border-radius:6px; background:var(--info-soft); color:var(--info-color); font-size:.57rem; line-height:1.2; font-weight:800; }
 
         /* =========================================
            AJUSTES MÓVILES
            ========================================= */
+        @media (max-width: 1050px) {
+            .content-area { padding: 26px 24px; }
+            .profile-hero-card { grid-template-columns:112px minmax(0,1fr); }
+            .profile-hero-photo { width:112px; height:112px; }
+            .profile-btn-edit { grid-column:2; }
+            .info-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        }
+
         @media (max-width: 768px) {
             .main-wrapper { margin-left: 0; width: 100%; }
-            .content-area { padding: 20px 16px; }
-            .info-grid { grid-template-columns: 1fr; }
+            .content-area { padding: 16px 14px 38px; }
             
             .profile-hero-card { 
-                flex-direction: column; 
+                grid-template-columns: 88px minmax(0,1fr);
                 align-items: flex-start; 
                 text-align: left; 
-                padding: 24px; 
-                gap: 20px; 
+                padding: 16px;
+                gap: 14px;
             }
-            .profile-hero-details { 
-                justify-content: flex-start; 
-            }
+            .profile-hero-photo { width:88px; height:88px; border-radius:11px; }
+            .profile-hero-info { align-self:center; }
+            .profile-hero-kicker { display:none; }
+            .profile-hero-details { grid-column:1/-1; display:grid; grid-template-columns:1fr; width:100%; }
+            .profile-hero-detail-item { width:100%; }
             .profile-btn-edit { 
-                position: relative; 
-                top: 0; 
-                right: 0; 
+                grid-column:1/-1;
                 width: 100%; 
-                margin-top: 10px; 
                 justify-content: center; 
             }
+            .calendar-shortcut { width:100%; grid-template-columns:29px minmax(0,1fr) auto; }
+            .calendar-shortcut-state { grid-column:auto; width:max-content; }
+            .calendar-shortcut-watermark { right:-8px; }
             
             /* Ajuste de íconos para que se vean bien en móvil sin estorbar */
             .float-icon { opacity: 1; } /* Les devuelvo la opacidad base */
@@ -305,6 +350,23 @@ function mostrarDato($dato) {
             .fi-x2 { top: 40%; right: 5%; font-size: 30px; }
             .fi-c2 { top: 10%; right: 20%; font-size: 50px; }
             .fi-x3 { bottom: 10%; right: 2%; font-size: 35px; }
+        }
+
+        @media (max-width: 520px) {
+            .content-area { padding-left:12px; padding-right:12px; }
+            .profile-hero-card { grid-template-columns:72px minmax(0,1fr); padding:14px; gap:12px; }
+            .profile-hero-photo { width:72px; height:72px; }
+            .profile-hero-name { font-size:1.05rem; }
+            .profile-hero-role { font-size:.56rem; }
+            .calendar-shortcut-copy span { display:none; }
+            .info-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+            .info-card { min-height:62px; padding:8px; }
+            .info-watermark { right:-7px; bottom:-15px; font-size:3.4rem; }
+            .header-section { margin-top:13px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .card-blob, .float-icon { animation:none; }
         }
     </style>
 </head>
@@ -361,6 +423,7 @@ function mostrarDato($dato) {
                     </div>
 
                     <div class="profile-hero-info">
+                        <div class="profile-hero-kicker"><i class="fa-solid fa-shield-heart"></i> Perfil de usuario PreventWork</div>
                         <h1 class="profile-hero-name"><?php echo mostrarDato($usuario_info['nombre'] . ' ' . $usuario_info['apellido']); ?></h1>
                         <p class="profile-hero-role"><?php echo htmlspecialchars($rol_display); ?></p>
                         
@@ -387,6 +450,29 @@ function mostrarDato($dato) {
                     <?php endif; ?>
                 </div>
 
+                <?php if (in_array($usuario_rol, ['sst', 'representante'], true)): ?>
+                    <a href="configuracion.php?tab=calendar" class="calendar-shortcut <?php echo $dashboard_calendar ? 'connected' : ''; ?>">
+                        <div class="calendar-shortcut-icon">
+                            <i class="fa-solid <?php echo $dashboard_calendar ? 'fa-calendar-check' : 'fa-calendar-plus'; ?>"></i>
+                        </div>
+                        <div class="calendar-shortcut-copy">
+                            <strong>Agenda y reuniones</strong>
+                            <span>
+                                <?php if ($dashboard_calendar): ?>
+                                    <?php echo htmlspecialchars(calendar_provider_label($dashboard_calendar['provider'])); ?> conectado · administra la sincronización desde Configuración
+                                <?php else: ?>
+                                    Conecta Google Calendar o Microsoft Outlook para programar reuniones
+                                <?php endif; ?>
+                            </span>
+                        </div>
+                        <span class="calendar-shortcut-state">
+                            <i class="fa-solid <?php echo $dashboard_calendar ? 'fa-circle-check' : 'fa-arrow-right'; ?>"></i>
+                            <?php echo $dashboard_calendar ? 'Conectado' : 'Configurar'; ?>
+                        </span>
+                        <i class="fa-regular fa-calendar-check calendar-shortcut-watermark" aria-hidden="true"></i>
+                    </a>
+                <?php endif; ?>
+
                 <div class="header-section">
                     <h2 class="section-title">
                         <div class="title-icon-wrapper">
@@ -405,6 +491,7 @@ function mostrarDato($dato) {
                             <p class="info-label">Nombre Completo</p>
                             <p class="info-value"><?php echo mostrarDato($usuario_info['nombre'] . ' ' . $usuario_info['apellido']); ?></p>
                         </div>
+                        <i class="fa-regular fa-user info-watermark" aria-hidden="true"></i>
                     </div>
                     <div class="info-card">
                         <div class="icon-box"><i class="fa-regular fa-id-card"></i></div>
@@ -412,6 +499,7 @@ function mostrarDato($dato) {
                             <p class="info-label">Documento</p>
                             <p class="info-value"><?php echo mostrarDato($usuario_info['cedula']); ?></p>
                         </div>
+                        <i class="fa-regular fa-id-card info-watermark" aria-hidden="true"></i>
                     </div>
                     <div class="info-card">
                         <div class="icon-box"><i class="fa-regular fa-envelope"></i></div>
@@ -419,6 +507,7 @@ function mostrarDato($dato) {
                             <p class="info-label">Correo Electrónico</p>
                             <p class="info-value"><?php echo mostrarDato($usuario_info['email']); ?></p>
                         </div>
+                        <i class="fa-regular fa-envelope info-watermark" aria-hidden="true"></i>
                     </div>
                     <div class="info-card">
                         <div class="icon-box"><i class="fa-solid fa-phone"></i></div>
@@ -426,6 +515,7 @@ function mostrarDato($dato) {
                             <p class="info-label">Teléfono</p>
                             <p class="info-value"><?php echo mostrarDato($usuario_info['telefono']); ?></p>
                         </div>
+                        <i class="fa-solid fa-phone info-watermark" aria-hidden="true"></i>
                     </div>
                     <div class="info-card">
                         <div class="icon-box"><i class="fa-solid fa-location-dot"></i></div>
@@ -433,6 +523,7 @@ function mostrarDato($dato) {
                             <p class="info-label">Ciudad</p>
                             <p class="info-value"><?php echo mostrarDato($usuario_info['ciudad']); ?></p>
                         </div>
+                        <i class="fa-solid fa-location-dot info-watermark" aria-hidden="true"></i>
                     </div>
                     <div class="info-card">
                         <div class="icon-box"><i class="fa-solid fa-briefcase"></i></div>
@@ -440,11 +531,12 @@ function mostrarDato($dato) {
                             <p class="info-label">Rol Asignado</p>
                             <p class="info-value"><span class="badge-rol"><?php echo htmlspecialchars($rol_display); ?></span></p>
                         </div>
+                        <i class="fa-solid fa-briefcase info-watermark" aria-hidden="true"></i>
                     </div>
                 </div>
 
                 <?php if ($usuario_info['licencia_sst'] === 'si' || !empty($usuario_info['numero_licencia']) || $usuario_rol === 'sst'): ?>
-                    <div class="header-section" style="margin-top: 30px;">
+                    <div class="header-section" style="margin-top: 20px;">
                         <h2 class="section-title">
                             <div class="title-icon-wrapper" style="background: rgba(74, 127, 191, 0.12); color: #4a7fbf;">
                                 <i class="fa-solid fa-certificate"></i>
@@ -454,17 +546,20 @@ function mostrarDato($dato) {
                     </div>
 
                     <div class="info-grid">
-                        <div class="info-card">
+                        <div class="info-card certification-card">
                             <div class="icon-box" style="background: rgba(74, 127, 191, 0.08); color: #4a7fbf;"><i class="fa-solid fa-id-badge"></i></div>
                             <div class="info-content"><p class="info-label">Tipo de Licencia</p><p class="info-value"><?php echo mostrarDato($usuario_info['tipo_licencia']); ?></p></div>
+                            <i class="fa-solid fa-id-badge info-watermark" aria-hidden="true"></i>
                         </div>
-                        <div class="info-card">
+                        <div class="info-card certification-card">
                             <div class="icon-box" style="background: rgba(74, 127, 191, 0.08); color: #4a7fbf;"><i class="fa-solid fa-hashtag"></i></div>
                             <div class="info-content"><p class="info-label">Número de Licencia</p><p class="info-value"><?php echo mostrarDato($usuario_info['numero_licencia']); ?></p></div>
+                            <i class="fa-solid fa-hashtag info-watermark" aria-hidden="true"></i>
                         </div>
-                        <div class="info-card">
+                        <div class="info-card certification-card">
                             <div class="icon-box" style="background: rgba(74, 127, 191, 0.08); color: #4a7fbf;"><i class="fa-regular fa-calendar-check"></i></div>
                             <div class="info-content"><p class="info-label">Fecha de Expedición</p><p class="info-value"><?php echo mostrarDato($usuario_info['fecha_licencia']); ?></p></div>
+                            <i class="fa-regular fa-calendar-check info-watermark" aria-hidden="true"></i>
                         </div>
                     </div>
                 <?php endif; ?>

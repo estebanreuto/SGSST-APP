@@ -2,10 +2,12 @@
 require_once 'config/db.php';
 require_once 'config/auth.php';
 require_once 'config/capacitaciones_schema.php';
+require_once 'config/calendar_integration.php';
 
 // Exige sesión válida
 $u = require_auth($conn);
 ensure_capacitaciones_schema($conn);
+ensure_calendar_integration_schema($conn);
 
 if (($_SESSION['usuario_rol'] ?? '') !== 'sst') {
     header('Location: dashboard.php');
@@ -263,57 +265,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($accion === 'crear_actividad' || $
         // ==========================================================
         // LA MAGIA: INTEGRACIÓN CON GOOGLE CALENDAR API Y MEET
         // ==========================================================
-        $usar_api_google = false;
-
-        if ($usar_api_google && file_exists('vendor/autoload.php')) {
-            require_once 'vendor/autoload.php';
-            
-            $client = new Google\Client();
-            $client->setAuthConfig('credentials.json'); 
-            $client->addScope(Google\Service\Calendar::CALENDAR);
-            
-            if (isset($_SESSION['google_access_token'])) {
-                $client->setAccessToken($_SESSION['google_access_token']);
-                $service = new Google\Service\Calendar($client);
-                
-                $event = new Google\Service\Calendar\Event([
-                  'summary' => 'SG-SST: ' . $nombre,
-                  'description' => "Modalidad: $modalidad\nLugar: $lugar_exacto\nDescripción: $descripcion",
-                  'start' => [
-                    'dateTime' => date('c', strtotime($inicio)),
-                    'timeZone' => 'America/Bogota', 
-                  ],
-                  'end' => [
-                    'dateTime' => date('c', strtotime($fin)),
-                    'timeZone' => 'America/Bogota',
-                  ],
-                  'conferenceData' => [
-                    'createRequest' => [
-                      'requestId' => 'sg-sst-meet-' . $actividad_id . '-' . time(),
-                      'conferenceSolutionKey' => ['type' => 'hangoutsMeet']
-                    ]
-                  ]
-                ]);
-                
-                // (Para simplificar en modo edición, aquí crearíamos un evento nuevo. 
-                // Lo ideal a futuro es guardar el ID de Google Calendar en BD y hacer un $service->events->update())
-                $createdEvent = $service->events->insert('primary', $event, ['conferenceDataVersion' => 1]);
-                $enlace_meet = $createdEvent->getHangoutLink(); 
-                
-                if ($enlace_meet) {
-                    $stmt_upd = $conn->prepare("UPDATE actividades_capacitacion SET enlace_reunion = ? WHERE id = ?");
-                    $stmt_upd->execute([$enlace_meet, $actividad_id]);
+        $calendarSyncError = null;
+        if (!$es_curso_virtual) {
+            try {
+                $calendarConnection = calendar_connection($conn, (int)$_SESSION['usuario_id']);
+                if ($calendarConnection) {
+                    $stmtExternal = $conn->prepare('SELECT calendar_provider, calendar_event_id FROM actividades_capacitacion WHERE id = ? AND empresa_id = ?');
+                    $stmtExternal->execute([$actividad_id, $empresa_id]);
+                    $externalEvent = $stmtExternal->fetch(PDO::FETCH_ASSOC) ?: [];
+                    $syncResult = calendar_sync_event($conn, $calendarConnection, [
+                        'activity_id' => $actividad_id,
+                        'existing_provider' => $externalEvent['calendar_provider'] ?? null,
+                        'event_id' => $externalEvent['calendar_event_id'] ?? null,
+                        'title' => 'SG-SST: ' . $nombre,
+                        'description' => "Tipo: {$tipo}\nModalidad: {$modalidad}\nLugar: {$lugar_exacto}\n\n{$descripcion}",
+                        'location' => $modalidad === 'Físico' ? $lugar_exacto : '',
+                        'start' => date('c', strtotime($inicio)),
+                        'end' => date('c', strtotime($fin)),
+                    ]);
+                    $meetingUrl = trim((string)($syncResult['meeting_url'] ?? $syncResult['web_url'] ?? ''));
+                    $stmtMeeting = $conn->prepare(
+                        'UPDATE actividades_capacitacion
+                         SET enlace_reunion = ?, calendar_provider = ?, calendar_event_id = ?, calendar_event_url = ?
+                         WHERE id = ? AND empresa_id = ?'
+                    );
+                    $stmtMeeting->execute([
+                        $meetingUrl !== '' ? $meetingUrl : null,
+                        $syncResult['provider'] ?? null,
+                        $syncResult['event_id'] ?? null,
+                        $syncResult['web_url'] ?? null,
+                        $actividad_id,
+                        $empresa_id,
+                    ]);
                 }
-                
-                $conn->commit();
-                header('Location: estandar3.php?save=success');
-                exit;
+            } catch (Throwable $calendarError) {
+                $calendarSyncError = $calendarError->getMessage();
             }
         }
-        
-        // ==========================================================
-        // MÉTODO TRADICIONAL (Sin API directa)
-        // ==========================================================
+
         $conn->commit(); 
 
         if ($es_curso_virtual) {
@@ -321,22 +310,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($accion === 'crear_actividad' || $
             exit;
         }
 
-        $google_start = date('Ymd\THis', strtotime($inicio));
-        $google_end = date('Ymd\THis', strtotime($fin));
-        $details = "Capacitación SG-SST: " . $tipo . "\nModalidad: " . $modalidad . "\n\n" . $descripcion;
-        $location = $modalidad === 'Físico' ? $lugar_exacto : '';
-        
-        $google_url = "https://www.google.com/calendar/render?action=TEMPLATE" .
-                      "&text=" . urlencode("SG-SST: " . $nombre) .
-                      "&dates=" . $google_start . "/" . $google_end .
-                      "&details=" . urlencode($details) .
-                      "&location=" . urlencode($location) .
-                      "&sf=true&output=xml";
+        if ($calendarSyncError !== null) {
+            header('Location: estandar3.php?save=success&calendar=error&calendar_message=' . urlencode($calendarSyncError));
+            exit;
+        }
 
-        echo "<script>
-                window.open('$google_url', '_blank');
-                window.location.href = 'estandar3.php?save=success';
-              </script>";
+        $calendarStatus = isset($calendarConnection) && $calendarConnection ? '&calendar=synced' : '&calendar=local';
+        header('Location: estandar3.php?save=success' . $calendarStatus);
         exit;
 
     } catch (Exception $e) {

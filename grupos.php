@@ -105,7 +105,7 @@ if ($empresa_id) {
     }
 
     // 2. Obtener Trabajadores
-    $stmt_t = $conn->prepare("SELECT id, nombre, apellido, cedula, grupo_id FROM usuarios WHERE empresa_id = ? AND rol = 'trabajador' ORDER BY nombre ASC");
+    $stmt_t = $conn->prepare("SELECT u.id,u.nombre,u.apellido,u.cedula,u.email,u.grupo_id,COALESCE(NULLIF(e.tipo_personal,''),'Sin cargo registrado') AS cargo FROM usuarios u LEFT JOIN encuesta_sociodemografica e ON e.usuario_id=u.id WHERE u.empresa_id = ? AND u.rol = 'trabajador' ORDER BY u.nombre ASC");
     $stmt_t->execute([$empresa_id]);
     $todos_trabajadores = $stmt_t->fetchAll(PDO::FETCH_ASSOC);
 
@@ -315,6 +315,7 @@ if ($empresa_id) {
             .modal-premium-footer .btn-secondary { order: 2; padding: 12px; font-size: 0.9rem;}
         }
     </style>
+    <link rel="stylesheet" href="assets/worker-selector.css?v=20260715-1">
 </head>
 
 <body>
@@ -439,10 +440,10 @@ if ($empresa_id) {
                                     <form action="grupos.php" method="POST">
                                         <input type="hidden" name="accion" value="asignar_trabajador">
                                         <input type="hidden" name="grupo_id" value="<?php echo $g['id']; ?>">
-                                        <select name="trabajador_id" class="select-assign" required>
+                                        <select name="trabajador_id" class="select-assign" data-worker-search data-worker-search-placeholder="Buscar trabajador sin grupo" required>
                                             <option value="">Seleccionar de "Sin Grupo"...</option>
                                             <?php foreach ($trabajadores_sin_grupo as $tsg): ?>
-                                                <option value="<?php echo $tsg['id']; ?>"><?php echo htmlspecialchars($tsg['nombre'] . ' ' . $tsg['apellido']); ?></option>
+                                                <option value="<?php echo $tsg['id']; ?>" data-nombre="<?php echo htmlspecialchars(trim($tsg['nombre'].' '.$tsg['apellido'])); ?>" data-cedula="<?php echo htmlspecialchars($tsg['cedula'] ?? ''); ?>" data-email="<?php echo htmlspecialchars($tsg['email'] ?? ''); ?>" data-cargo="<?php echo htmlspecialchars($tsg['cargo'] ?? ''); ?>"><?php echo htmlspecialchars(trim($tsg['nombre'].' '.$tsg['apellido']).' · C.C. '.($tsg['cedula'] ?? '')); ?></option>
                                             <?php endforeach; ?>
                                         </select>
                                         <button type="submit" class="btn-assign">+ Agregar al grupo</button>
@@ -568,5 +569,6 @@ if ($empresa_id) {
             }
         });
     </script>
+    <script src="assets/worker-selector.js?v=20260715-1"></script>
 </body>
 </html>

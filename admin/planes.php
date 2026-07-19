@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/db.php';
+require_once '../config/storage_schema.php';
 
 // Bloquear acceso si no es admin
 if (!isset($_SESSION['cpanel_admin_id'])) {
@@ -14,6 +15,7 @@ $admin_nombre = $_SESSION['cpanel_admin_nombre'] ?? 'Administrador';
 $current_page = 'planes.php';
 $titulo_header = "Gestión de Planes";
 $rol_display = "Super Administrador";
+ensure_storage_schema($conn);
 
 /* ================================================================
 // TRAER LOS PLANES Y SUS CARACTERÍSTICAS DESDE LA BASE DE DATOS
@@ -265,10 +267,10 @@ foreach ($suscripciones_db as $s) {
                     // Asignación de icono y color dinámico según nombre del plan
                     $watermark_icon = 'fa-paper-plane';
                     $watermark_color = 'watermark-blue';
-                    if (stripos(strtolower($plan['nombre']), 'pro') !== false) {
+                    if (stripos(strtolower($plan['nombre']), 'mem') !== false || stripos(strtolower($plan['nombre']), 'pro') !== false) {
                         $watermark_icon = 'fa-rocket';
                         $watermark_color = 'watermark-orange';
-                    } elseif (stripos(strtolower($plan['nombre']), 'enterprise') !== false) {
+                    } elseif (stripos(strtolower($plan['nombre']), 'gem') !== false || stripos(strtolower($plan['nombre']), 'enterprise') !== false) {
                         $watermark_icon = 'fa-crown';
                         $watermark_color = 'watermark-purple';
                     }
@@ -300,6 +302,10 @@ foreach ($suscripciones_db as $s) {
                                     <i class="fa-solid fa-check"></i>
                                     <?php echo $plan['trabajadores'] == 999 ? 'Trabajadores Ilimitados' : 'Hasta ' . $plan['trabajadores'] . ' Trabajadores'; ?>
                                 </li>
+                                <li>
+                                    <i class="fa-solid fa-cloud"></i>
+                                    <?php echo number_format((float)$plan['almacenamiento_gb'], 0, ',', '.'); ?> GB de almacenamiento documental
+                                </li>
 
                                 <?php foreach ($plan['features'] as $f): ?>
                                     <?php if ($f['incluido']): ?>
@@ -311,7 +317,7 @@ foreach ($suscripciones_db as $s) {
                             </ul>
                             
                             <button class="btn-plan <?php echo $plan['clase_btn'] === 'btn-solid' ? 'btn-solid' : 'btn-outline'; ?>" 
-                                    onclick="abrirModalPlan(<?php echo $plan['id']; ?>, '<?php echo htmlspecialchars($plan['nombre'], ENT_QUOTES); ?>', <?php echo $plan['trabajadores']; ?>, <?php echo $plan['precio_normal']; ?>, <?php echo $plan['precio_descuento']; ?>, '<?php echo htmlspecialchars(json_encode($plan['features']), ENT_QUOTES, 'UTF-8'); ?>')">
+                                    onclick="abrirModalPlan(<?php echo $plan['id']; ?>, '<?php echo htmlspecialchars($plan['nombre'], ENT_QUOTES); ?>', <?php echo $plan['trabajadores']; ?>, <?php echo (float)$plan['almacenamiento_gb']; ?>, <?php echo $plan['precio_normal']; ?>, <?php echo $plan['precio_descuento']; ?>, '<?php echo htmlspecialchars(json_encode($plan['features']), ENT_QUOTES, 'UTF-8'); ?>')">
                                 <i class="fa-solid fa-pen-to-square"></i>
                                 Editar Plan
                             </button>
@@ -356,9 +362,9 @@ foreach ($suscripciones_db as $s) {
                         <?php else: ?>
                             <?php foreach ($suscripciones as $sus): 
                                 $clase_plan = 'basic';
-                                if (stripos(strtolower($sus['plan']), 'pro') !== false) {
+                                if (stripos(strtolower($sus['plan']), 'mem') !== false || stripos(strtolower($sus['plan']), 'pro') !== false) {
                                     $clase_plan = 'pro';
-                                } elseif (stripos(strtolower($sus['plan']), 'enterprise') !== false) {
+                                } elseif (stripos(strtolower($sus['plan']), 'gem') !== false || stripos(strtolower($sus['plan']), 'enterprise') !== false) {
                                     $clase_plan = 'enterprise';
                                 } elseif (strtolower($sus['plan']) === 'sin plan') {
                                     $clase_plan = 'none';

@@ -1,6 +1,8 @@
 <?php
 require_once 'config/db.php';
 require_once 'config/auth.php';
+require_once 'config/document_control_schema.php';
+require_once 'config/calendar_integration.php';
 
 // Exige sesión válida
 $u = require_auth($conn);
@@ -8,9 +10,15 @@ $u = require_auth($conn);
 $usuario_id = $_SESSION['usuario_id'];
 $usuario_rol = $_SESSION['usuario_rol'] ?? '';
 $current_page = 'configuracion.php';
+$empresa_id = storage_user_company_id($conn, (int)$usuario_id);
+ensure_document_control_schema($conn);
 
 $mensaje = '';
 $tipo_mensaje = '';
+ensure_calendar_integration_schema($conn);
+if (empty($_SESSION['calendar_csrf'])) {
+    $_SESSION['calendar_csrf'] = bin2hex(random_bytes(24));
+}
 
 // ========================================================
 // PROCESAR FORMULARIOS DE CONFIGURACIÓN
@@ -103,7 +111,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mensaje = "Licencia y firma digital actualizadas.";
             $tipo_mensaje = "success";
         }
-    } catch (PDOException $e) {
+        elseif ($accion === 'control_documental' && in_array($usuario_rol, ['sst', 'representante'], true)) {
+            $standard = (int)($_POST['estandar_numero'] ?? 1);
+            $storageContext = storage_company_context($conn, $empresa_id);
+            $maxStandard = storage_max_standard((int)($storageContext['nivel_plan'] ?? 1));
+            $prefix = strtoupper(trim((string)($_POST['codigo_prefijo'] ?? 'PW-SST')));
+            $separator = (string)($_POST['separador'] ?? '-');
+            $versionPrefix = strtoupper(trim((string)($_POST['version_prefijo'] ?? 'V')));
+            $initialVersion = strtoupper(trim((string)($_POST['version_inicial'] ?? 'V1.0')));
+            $requireName = isset($_POST['exigir_codigo_nombre']) ? 1 : 0;
+
+            if ($empresa_id <= 0 || $standard < 1 || $standard > $maxStandard) {
+                throw new InvalidArgumentException('El estándar seleccionado no está disponible para la empresa.');
+            }
+            if (!preg_match('/^[A-Z0-9][A-Z0-9_-]{1,38}$/', $prefix)) {
+                throw new InvalidArgumentException('El prefijo debe usar entre 2 y 39 letras, números, guiones o guion bajo.');
+            }
+            if (!in_array($separator, ['-', '_', '.'], true)) {
+                throw new InvalidArgumentException('Selecciona un separador válido.');
+            }
+            if (!preg_match('/^[A-Z]{1,5}$/', $versionPrefix) || !preg_match('/^' . preg_quote($versionPrefix, '/') . '\d+(?:\.\d+){0,2}$/', $initialVersion)) {
+                throw new InvalidArgumentException('La versión inicial debe seguir el patrón del prefijo, por ejemplo V1.0.');
+            }
+
+            $stmtConfig = $conn->prepare(<<<'SQL'
+                INSERT INTO control_documental_config
+                    (empresa_id, estandar_numero, codigo_prefijo, separador, version_prefijo,
+                     version_inicial, exigir_codigo_nombre, actualizado_por)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE codigo_prefijo=VALUES(codigo_prefijo), separador=VALUES(separador),
+                    version_prefijo=VALUES(version_prefijo), version_inicial=VALUES(version_inicial),
+                    exigir_codigo_nombre=VALUES(exigir_codigo_nombre), actualizado_por=VALUES(actualizado_por)
+            SQL);
+            $stmtConfig->execute([$empresa_id, $standard, $prefix, $separator, $versionPrefix, $initialVersion, $requireName, $usuario_id]);
+            $mensaje = 'Control documental del Estándar ' . $standard . ' actualizado correctamente.';
+            $tipo_mensaje = 'success';
+        }
+        elseif ($accion === 'disconnect_calendar' && in_array($usuario_rol, ['sst', 'representante'], true)) {
+            $csrf = (string)($_POST['calendar_csrf'] ?? '');
+            if ($csrf === '' || !hash_equals((string)$_SESSION['calendar_csrf'], $csrf)) {
+                throw new RuntimeException('La solicitud venció. Recarga la página e intenta nuevamente.');
+            }
+            calendar_disconnect($conn, (int)$usuario_id);
+            $mensaje = 'Calendario desconectado correctamente.';
+            $tipo_mensaje = 'success';
+        }
+    } catch (Throwable $e) {
         $mensaje = "Error al actualizar: " . $e->getMessage();
         $tipo_mensaje = "danger";
     }
@@ -140,6 +193,32 @@ if ($usuario_rol === 'representante' && !empty($user_info['empresa_id'])) {
     }
 }
 
+$storage_context_config = $empresa_id > 0 ? storage_company_context($conn, $empresa_id) : null;
+$max_standard_config = storage_max_standard((int)($storage_context_config['nivel_plan'] ?? 1));
+$standard_catalog_config = storage_standard_catalog();
+$document_configs = [];
+if ($empresa_id > 0) {
+    $stmt_doc_configs = $conn->prepare('SELECT * FROM control_documental_config WHERE empresa_id=? ORDER BY estandar_numero');
+    $stmt_doc_configs->execute([$empresa_id]);
+    foreach ($stmt_doc_configs->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $document_configs[(int)$row['estandar_numero']] = $row;
+    }
+}
+
+$calendar_connection = in_array($usuario_rol, ['sst', 'representante'], true)
+    ? calendar_connection($conn, (int)$usuario_id)
+    : null;
+$google_calendar_ready = calendar_provider_configured('google');
+$microsoft_calendar_ready = calendar_provider_configured('microsoft');
+if (isset($_GET['calendar']) && $_GET['calendar'] === 'connected') {
+    $mensaje = 'Calendario conectado. Desde ahora las reuniones podrán sincronizarse automáticamente.';
+    $tipo_mensaje = 'success';
+}
+if (!empty($_GET['calendar_error'])) {
+    $mensaje = (string)$_GET['calendar_error'];
+    $tipo_mensaje = 'danger';
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -148,6 +227,7 @@ if ($usuario_rol === 'representante' && !empty($user_info['empresa_id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Configuración | SG-SST Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         :root { --primary: #ff8a1f; --primary2: #ff7a00; --bg1: #edf4fb; --bg2: #f7f9fc; --card: #ffffff; --text: #1f2d3d; --muted: #5f6f82; --border: #dbe3ec; --radius: 12px; }
         body { font-family: 'Inter', sans-serif; background: linear-gradient(180deg, var(--bg1), var(--bg2)); margin: 0; padding: 0; min-height: 100vh; color: var(--text); display: flex; font-size: 0.85rem; }
@@ -263,6 +343,33 @@ if ($usuario_rol === 'representante' && !empty($user_info['empresa_id'])) {
         .btn-remove-row:hover { background: #ef4444; color: #ffffff; }
         .empty-table-msg { text-align: center; padding: 20px !important; color: #94a3b8 !important; font-style: italic; font-size: 0.8rem; }
 
+        /* CALENDARIO Y REUNIONES */
+        .calendar-overview { position:relative; overflow:hidden; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:18px; align-items:center; padding:17px 18px; margin-bottom:16px; border:1px solid #dbe7f5; border-radius:12px; background:linear-gradient(135deg,#f8fbff 0%,#fff 72%); }
+        .calendar-overview::after { content:'\f073'; position:absolute; right:16px; bottom:-28px; color:#2563eb; opacity:.045; font:900 92px/1 'Font Awesome 6 Free'; pointer-events:none; }
+        .calendar-overview-copy { position:relative; z-index:1; display:flex; align-items:center; gap:13px; min-width:0; }
+        .calendar-main-icon { width:42px; height:42px; border-radius:10px; display:grid; place-items:center; flex:0 0 auto; background:#eaf2ff; color:#2563eb; font-size:1rem; }
+        .calendar-overview h3 { margin:0; color:#173b7a; font-size:.9rem; }
+        .calendar-overview p { margin:4px 0 0; color:#64748b; font-size:.73rem; line-height:1.45; }
+        .calendar-status-pill { position:relative; z-index:1; display:inline-flex; align-items:center; gap:6px; padding:6px 9px; border-radius:999px; background:#ecfdf5; color:#047857; font-size:.65rem; font-weight:800; white-space:nowrap; }
+        .calendar-status-pill.off { background:#f1f5f9; color:#64748b; }
+        .provider-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+        .provider-card { --provider:#4285f4; position:relative; min-width:0; overflow:hidden; display:flex; flex-direction:column; gap:14px; padding:16px; border:1px solid #dbe3ec; border-radius:12px; background:#fff; box-shadow:0 7px 20px rgba(15,23,42,.035); }
+        .provider-card.microsoft { --provider:#2563eb; }
+        .provider-card.active { border-color:#93b4eb; box-shadow:0 10px 24px rgba(37,99,235,.09); }
+        .provider-watermark { position:absolute; right:-9px; bottom:-18px; color:var(--provider); opacity:.045; font-size:4.5rem; pointer-events:none; }
+        .provider-head { position:relative; z-index:1; display:flex; align-items:center; gap:11px; }
+        .provider-icon { width:38px; height:38px; display:grid; place-items:center; flex:0 0 auto; border-radius:9px; background:#eff6ff; color:var(--provider); font-size:.95rem; }
+        .provider-head h3 { margin:0; color:#172554; font-size:.82rem; }
+        .provider-head p { margin:3px 0 0; color:#718096; font-size:.66rem; }
+        .provider-copy { position:relative; z-index:1; margin:0; min-height:37px; color:#64748b; font-size:.71rem; line-height:1.45; }
+        .provider-action { position:relative; z-index:1; min-height:36px; display:inline-flex; justify-content:center; align-items:center; gap:7px; padding:0 12px; border:1px solid #b9cff2; border-radius:8px; background:#fff; color:var(--provider); text-decoration:none; font-size:.7rem; font-weight:800; cursor:pointer; }
+        .provider-action.primary { background:var(--provider); border-color:var(--provider); color:#fff; }
+        .provider-action[aria-disabled='true'] { background:#f8fafc; border-color:#e2e8f0; color:#94a3b8; cursor:not-allowed; }
+        .calendar-footnote { margin:14px 0 0; padding:10px 12px; border-radius:9px; background:#fff7ed; color:#9a4b0d; font-size:.69rem; line-height:1.45; }
+        .disconnect-calendar { margin-top:14px; padding-top:14px; border-top:1px solid #e7edf4; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+        .disconnect-calendar span { color:#64748b; font-size:.7rem; }
+        .btn-disconnect { height:34px; border:1px solid #fecaca; border-radius:8px; padding:0 11px; background:#fff; color:#dc2626; font:inherit; font-size:.68rem; font-weight:800; cursor:pointer; }
+
         /* Lienzo de Firma */
         .firma-box { border: 2px dashed #cbd5e1; border-radius: 10px; background: #f8fafc; position: relative; width: 100%; max-width: 450px; overflow: hidden; margin-top: 6px; transition: border-color 0.2s;}
         .firma-box:hover { border-color: var(--primary); }
@@ -286,7 +393,8 @@ if ($usuario_rol === 'representante' && !empty($user_info['empresa_id'])) {
             /* Optimización Pestañas (Scroll Horizontal Suave) */
             .config-nav { 
                 overflow-x: auto; padding-bottom: 4px; flex-wrap: nowrap; gap: 6px;
-                -webkit-overflow-scrolling: touch; scrollbar-width: none; 
+                -webkit-overflow-scrolling: touch; scrollbar-width: none;
+                width:100%; max-width:100%; min-width:0; box-sizing:border-box;
             }
             .config-nav::-webkit-scrollbar { display: none; }
             .nav-tab { white-space: nowrap; flex: 0 0 auto; font-size: 0.8rem; padding: 8px 12px; }
@@ -294,11 +402,15 @@ if ($usuario_rol === 'representante' && !empty($user_info['empresa_id'])) {
             .config-search { max-width: 100%; }
             .config-content { border-radius: 12px; }
             .tab-pane { padding: 20px 16px; } /* Menos padding interno en móvil */
+            .calendar-overview { grid-template-columns:1fr; padding:14px; }
+            .calendar-status-pill { width:max-content; }
+            .provider-grid { grid-template-columns:1fr; }
+            .disconnect-calendar { align-items:flex-start; flex-direction:column; }
             .pane-header { margin-bottom: 20px; padding-bottom: 12px; }
             .form-grid { grid-template-columns: 1fr; gap: 16px; }
             .btn-primary { width: 100%; justify-content: center; padding: 12px; }
             .firma-box { max-width: 100%; }
-            .btn-back { width: 100%; justify-content: center; padding: 10px; }
+            .btn-back { width: 100%; justify-content: center; padding: 10px; box-sizing:border-box; }
         }
     </style>
 </head>
@@ -355,6 +467,18 @@ if ($usuario_rol === 'representante' && !empty($user_info['empresa_id'])) {
                         <?php if ($usuario_rol === 'sst'): ?>
                             <button class="nav-tab" onclick="openTab(event, 'tab-sst')">
                                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Licencia y Firma
+                            </button>
+                        <?php endif; ?>
+
+                        <?php if (in_array($usuario_rol, ['sst', 'representante'], true)): ?>
+                            <button class="nav-tab" onclick="openTab(event, 'tab-documental')">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6M7 3h7l5 5v13H7z"></path></svg> Control documental
+                            </button>
+                        <?php endif; ?>
+
+                        <?php if (in_array($usuario_rol, ['sst', 'representante'], true)): ?>
+                            <button class="nav-tab" onclick="openTab(event, 'tab-calendar')" data-tab="calendar">
+                                <i class="fa-regular fa-calendar-check"></i> Calendario
                             </button>
                         <?php endif; ?>
 
@@ -551,6 +675,148 @@ if ($usuario_rol === 'representante' && !empty($user_info['empresa_id'])) {
                     </div>
                     <?php endif; ?>
 
+                    <?php if (in_array($usuario_rol, ['sst', 'representante'], true)): ?>
+                    <div id="tab-documental" class="tab-pane">
+                        <div class="pane-header">
+                            <h2 class="pane-title">Identificadores de control documental</h2>
+                            <p class="pane-desc">Define códigos y versiones por estándar. Estas reglas se aplican al validar soportes y formatos antes de guardarlos en Archivos.</p>
+                        </div>
+                        <form action="configuracion.php" method="POST" id="documentControlForm">
+                            <input type="hidden" name="accion" value="control_documental">
+                            <div class="form-grid">
+                                <div class="form-group full">
+                                    <label>Estándar que deseas configurar</label>
+                                    <select name="estandar_numero" id="docStandard" class="custom-select" required>
+                                        <?php for ($standard_number = 1; $standard_number <= $max_standard_config; $standard_number++): ?>
+                                            <option value="<?php echo $standard_number; ?>"><?php echo $standard_number . '. ' . htmlspecialchars($standard_catalog_config[$standard_number] ?? ('Estándar ' . $standard_number)); ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Prefijo del código</label>
+                                    <input class="custom-input" id="docPrefix" name="codigo_prefijo" value="PW-SST" maxlength="39" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Separador</label>
+                                    <select class="custom-select" id="docSeparator" name="separador">
+                                        <option value="-">Guion (-)</option><option value="_">Guion bajo (_)</option><option value=".">Punto (.)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Prefijo de versión</label>
+                                    <input class="custom-input" id="docVersionPrefix" name="version_prefijo" value="V" maxlength="5" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Versión inicial</label>
+                                    <input class="custom-input" id="docInitialVersion" name="version_inicial" value="V1.0" maxlength="20" required>
+                                </div>
+                                <div class="form-group full">
+                                    <label style="display:flex;align-items:center;gap:10px;text-transform:none;letter-spacing:0;cursor:pointer;">
+                                        <input type="checkbox" name="exigir_codigo_nombre" id="docRequireName" checked style="width:18px;height:18px;accent-color:#ff7a00;">
+                                        Exigir que el nombre del archivo contenga el código y la versión
+                                    </label>
+                                </div>
+                                <div class="form-group full">
+                                    <div style="border:1px solid #dce6f1;border-radius:10px;background:#f8fbff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
+                                        <div><label style="margin:0 0 4px;">Vista previa del identificador</label><strong id="docCodePreview" style="color:#1e3a8a;font-size:.9rem;">PW-SST-E01-ACT</strong></div>
+                                        <span id="docFilePreview" style="font-size:.72rem;color:#64748b;">PW-SST-E01-ACT_V1.0.pdf</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn-primary">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                Guardar regla documental
+                            </button>
+                        </form>
+
+                        <?php if ($document_configs): ?>
+                            <div style="margin-top:24px;border-top:1px solid #e4eaf1;padding-top:18px;display:grid;gap:8px;">
+                                <strong style="font-size:.82rem;color:#1e3a8a;">Reglas personalizadas activas</strong>
+                                <?php foreach ($document_configs as $configured_standard => $configured): ?>
+                                    <div style="border:1px solid #e1e8f0;border-radius:9px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:.74rem;">
+                                        <span><strong>Estándar <?php echo $configured_standard; ?></strong> · <?php echo htmlspecialchars($standard_catalog_config[$configured_standard] ?? ''); ?></span>
+                                        <span style="color:#1d4ed8;font-weight:750;"><?php echo htmlspecialchars(document_control_code_example($configured, $configured_standard, 'DOC') . ' · ' . $configured['version_inicial']); ?></span>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
+
+                    <?php if (in_array($usuario_rol, ['sst', 'representante'], true)): ?>
+                    <div id="tab-calendar" class="tab-pane">
+                        <div class="pane-header">
+                            <h2 class="pane-title">Calendario y reuniones</h2>
+                            <p class="pane-desc">Conecta una sola cuenta para enviar automáticamente las reuniones programadas desde PreventWork.</p>
+                        </div>
+
+                        <div class="calendar-overview">
+                            <div class="calendar-overview-copy">
+                                <div class="calendar-main-icon"><i class="fa-regular fa-calendar-check"></i></div>
+                                <div>
+                                    <h3><?php echo $calendar_connection ? htmlspecialchars(calendar_provider_label($calendar_connection['provider'])) : 'Sin calendario conectado'; ?></h3>
+                                    <p>
+                                        <?php if ($calendar_connection): ?>
+                                            <?php echo !empty($calendar_connection['account_email']) ? htmlspecialchars($calendar_connection['account_email']) . ' · ' : ''; ?>Las nuevas reuniones se sincronizarán al guardar.
+                                        <?php else: ?>
+                                            Elige Google o Microsoft. Al conectar uno, cualquier proveedor anterior será reemplazado.
+                                        <?php endif; ?>
+                                    </p>
+                                </div>
+                            </div>
+                            <span class="calendar-status-pill <?php echo $calendar_connection ? '' : 'off'; ?>">
+                                <i class="fa-solid <?php echo $calendar_connection ? 'fa-circle-check' : 'fa-circle-minus'; ?>"></i>
+                                <?php echo $calendar_connection ? 'Conectado' : 'Pendiente'; ?>
+                            </span>
+                        </div>
+
+                        <div class="provider-grid">
+                            <article class="provider-card <?php echo (($calendar_connection['provider'] ?? '') === 'google') ? 'active' : ''; ?>">
+                                <i class="fa-brands fa-google provider-watermark" aria-hidden="true"></i>
+                                <div class="provider-head">
+                                    <div class="provider-icon"><i class="fa-brands fa-google"></i></div>
+                                    <div><h3>Google Calendar</h3><p>Reuniones con Google Meet</p></div>
+                                </div>
+                                <p class="provider-copy">Crea el evento, conserva las fechas y genera el enlace de Google Meet desde la actividad.</p>
+                                <?php if (($calendar_connection['provider'] ?? '') === 'google'): ?>
+                                    <span class="provider-action"><i class="fa-solid fa-check"></i> Cuenta activa</span>
+                                <?php elseif ($google_calendar_ready): ?>
+                                    <a class="provider-action primary" href="calendar_auth.php?provider=google"><i class="fa-solid fa-link"></i> Conectar Google</a>
+                                <?php else: ?>
+                                    <span class="provider-action" aria-disabled="true"><i class="fa-solid fa-triangle-exclamation"></i> Requiere configuración</span>
+                                <?php endif; ?>
+                            </article>
+
+                            <article class="provider-card microsoft <?php echo (($calendar_connection['provider'] ?? '') === 'microsoft') ? 'active' : ''; ?>">
+                                <i class="fa-brands fa-microsoft provider-watermark" aria-hidden="true"></i>
+                                <div class="provider-head">
+                                    <div class="provider-icon"><i class="fa-brands fa-microsoft"></i></div>
+                                    <div><h3>Microsoft Outlook</h3><p>Calendario y Microsoft Teams</p></div>
+                                </div>
+                                <p class="provider-copy">Crea el evento en Outlook y solicita el enlace de Microsoft Teams para la reunión virtual.</p>
+                                <?php if (($calendar_connection['provider'] ?? '') === 'microsoft'): ?>
+                                    <span class="provider-action"><i class="fa-solid fa-check"></i> Cuenta activa</span>
+                                <?php elseif ($microsoft_calendar_ready): ?>
+                                    <a class="provider-action primary" href="calendar_auth.php?provider=microsoft"><i class="fa-solid fa-link"></i> Conectar Microsoft</a>
+                                <?php else: ?>
+                                    <span class="provider-action" aria-disabled="true"><i class="fa-solid fa-triangle-exclamation"></i> Requiere configuración</span>
+                                <?php endif; ?>
+                            </article>
+                        </div>
+
+                        <p class="calendar-footnote"><i class="fa-solid fa-shield-halved"></i> Solo se mantiene un proveedor activo. Cambiar de Google a Microsoft —o al contrario— reemplaza la conexión anterior sin afectar las actividades ya creadas.</p>
+
+                        <?php if ($calendar_connection): ?>
+                            <form method="POST" action="configuracion.php?tab=calendar" class="disconnect-calendar">
+                                <input type="hidden" name="accion" value="disconnect_calendar">
+                                <input type="hidden" name="calendar_csrf" value="<?php echo htmlspecialchars($_SESSION['calendar_csrf']); ?>">
+                                <span>¿Quieres dejar de sincronizar las próximas reuniones?</span>
+                                <button type="submit" class="btn-disconnect"><i class="fa-solid fa-link-slash"></i> Desconectar calendario</button>
+                            </form>
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
+
                     <div id="tab-seguridad" class="tab-pane">
                         <div class="pane-header">
                             <h2 class="pane-title">Seguridad de la Cuenta</h2>
@@ -622,6 +888,47 @@ if ($usuario_rol === 'representante' && !empty($user_info['empresa_id'])) {
             if(tabName === 'tab-sst') {
                 setTimeout(initCanvas, 100);
             }
+        }
+
+        const requestedConfigTab = new URLSearchParams(window.location.search).get('tab');
+        if (requestedConfigTab === 'calendar') {
+            const calendarTabButton = document.querySelector('[data-tab="calendar"]');
+            if (calendarTabButton) calendarTabButton.click();
+        }
+
+        const documentConfigs = <?php echo json_encode($document_configs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        const docStandard = document.getElementById('docStandard');
+        const docPrefix = document.getElementById('docPrefix');
+        const docSeparator = document.getElementById('docSeparator');
+        const docVersionPrefix = document.getElementById('docVersionPrefix');
+        const docInitialVersion = document.getElementById('docInitialVersion');
+        const docRequireName = document.getElementById('docRequireName');
+
+        function refreshDocumentPreview(loadSaved = false) {
+            if (!docStandard) return;
+            const standard = String(docStandard.value || '1');
+            if (loadSaved) {
+                const saved = documentConfigs[standard] || null;
+                docPrefix.value = saved?.codigo_prefijo || 'PW-SST';
+                docSeparator.value = saved?.separador || '-';
+                docVersionPrefix.value = saved?.version_prefijo || 'V';
+                docInitialVersion.value = saved?.version_inicial || ((saved?.version_prefijo || 'V') + '1.0');
+                docRequireName.checked = saved ? Number(saved.exigir_codigo_nombre) === 1 : true;
+            }
+            const separator = ['-', '_', '.'].includes(docSeparator.value) ? docSeparator.value : '-';
+            const code = `${(docPrefix.value || 'PW-SST').toUpperCase()}${separator}E${standard.padStart(2, '0')}${separator}ACT`;
+            const version = (docInitialVersion.value || `${(docVersionPrefix.value || 'V').toUpperCase()}1.0`).toUpperCase();
+            document.getElementById('docCodePreview').textContent = code;
+            document.getElementById('docFilePreview').textContent = `${code}_${version}.pdf`;
+        }
+        if (docStandard) {
+            docStandard.addEventListener('change', () => refreshDocumentPreview(true));
+            [docPrefix, docSeparator, docVersionPrefix, docInitialVersion].forEach(element => element?.addEventListener('input', () => refreshDocumentPreview(false)));
+            refreshDocumentPreview(true);
+            <?php if (($_POST['accion'] ?? '') === 'control_documental'): ?>
+            const documentaryTab = Array.from(document.querySelectorAll('.nav-tab')).find(button => button.getAttribute('onclick')?.includes('tab-documental'));
+            if (documentaryTab) documentaryTab.click();
+            <?php endif; ?>
         }
 
         // Buscador General Inteligente

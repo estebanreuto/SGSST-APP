@@ -2,6 +2,7 @@
 require_once 'config/db.php';
 require_once 'config/auth.php';
 require_once 'config/capacitaciones_schema.php';
+require_once 'config/calendar_integration.php';
 
 // Exige sesión válida
 $u = require_auth($conn);
@@ -21,8 +22,7 @@ $stmt_emp = $conn->prepare("SELECT empresa_id FROM usuarios WHERE id = ?");
 $stmt_emp->execute([$usuario_id]);
 $empresa_id = $stmt_emp->fetchColumn();
 
-// Verificar si ya estamos conectados con Google Calendar
-$google_connected = isset($_SESSION['google_access_token']) && !empty($_SESSION['google_access_token']);
+$calendar_connection = calendar_connection($conn, (int)$usuario_id);
 
 // ==========================================
 // MODO EDICIÓN / REPROGRAMACIÓN (MAGIA)
@@ -189,20 +189,18 @@ $current_page = 'estandar3.php';
         .btn-back { background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 8px 14px; border-radius: 8px; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease; font-size: 0.8rem; }
         .btn-back:hover { background: #f1f5f9; color: #0f172a; }
 
-        /* ESTADO DE GOOGLE CALENDAR */
-        .google-sync-banner { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: center; padding: 16px 18px; border-radius: 10px; margin-bottom: 24px; font-family: 'Inter', sans-serif; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.035);}
-        .google-sync-banner.disconnected { background: #ffffff; border: 1px solid #dbe3ec; border-left: 4px solid #4285f4; }
-        .google-sync-banner.connected { background: #ffffff; border: 1px solid #dbe3ec; border-left: 4px solid #16a34a; }
-        .g-sync-info { display: flex; align-items: center; gap: 14px; }
-        .g-sync-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0; }
-        .disconnected .g-sync-icon { background: rgba(66, 133, 244, 0.1); color: #4285f4; }
-        .connected .g-sync-icon { background: rgba(22, 163, 74, 0.1); color: #16a34a; }
-        .g-sync-text h4 { margin: 0; font-size: 0.95rem; font-weight: 700; color: #1e293b; }
-        .g-sync-text p { margin: 4px 0 0 0; font-size: 0.78rem; color: #64748b; line-height: 1.4; }
-        .sync-status { color: #16a34a; font-weight: 700; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
-        .btn-google { background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.02); box-sizing: border-box;}
-        .btn-google:hover { background: #f8fafc; border-color: #94a3b8; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transform: translateY(-1px); }
-        .btn-google svg { width: 16px; height: 16px; }
+        .activity-flow { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin-bottom:18px; }
+        .flow-item { position:relative; overflow:hidden; min-width:0; display:flex; align-items:center; gap:10px; padding:10px 11px; border:1px solid #dbe3ec; border-radius:10px; background:#fff; }
+        .flow-item.active { border-color:#fdba74; background:#fffaf5; }
+        .flow-item > i { width:30px; height:30px; display:grid; place-items:center; flex:0 0 auto; border-radius:8px; background:#f1f5f9; color:#64748b; font-size:.72rem; }
+        .flow-item.active > i { background:#fff0e2; color:#f97316; }
+        .flow-item strong { display:block; color:#172554; font-size:.7rem; }
+        .flow-item span { display:block; margin-top:2px; color:#7b8aa0; font-size:.6rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+        .form-error-banner { display:flex; align-items:center; gap:12px; padding:12px 14px; margin-bottom:16px; border:1px solid #fecaca; border-radius:10px; background:#fff; color:#b91c1c; }
+        .form-error-banner > i { width:34px; height:34px; display:grid; place-items:center; flex:0 0 auto; border-radius:8px; background:#fee2e2; }
+        .form-error-banner h4 { margin:0; font-size:.78rem; }
+        .form-error-banner p { margin:3px 0 0; color:#7f1d1d; font-size:.7rem; }
 
         /* LAYOUT 2 COLUMNAS */
         .layout-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 28px; align-items: start; }
@@ -326,7 +324,20 @@ $current_page = 'estandar3.php';
         .fade-in-card { opacity: 0; animation: slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
         /* COLUMNA DERECHA (FIJA) */
-        .right-column { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 20px; background: #ffffff; border: 1px solid #dbe3ec; border-top: 3px solid var(--primary); border-radius: 12px; padding: 20px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05); box-sizing: border-box; }
+        .right-column { position:sticky; top:24px; overflow:hidden; display:flex; flex-direction:column; gap:16px; background:#fff; border:1px solid #dbe3ec; border-radius:12px; padding:17px; box-shadow:0 8px 24px rgba(15,23,42,.05); box-sizing:border-box; }
+        .right-column::after { content:'\f073'; position:absolute; right:-18px; bottom:-28px; color:#2563eb; opacity:.035; font:900 98px/1 'Font Awesome 6 Free'; pointer-events:none; }
+        .schedule-heading,.schedule-group,.schedule-actions,.calendar-sync-state,.schedule-live-summary { position:relative; z-index:1; }
+        .calendar-sync-state { display:flex; align-items:center; gap:9px; padding:9px 10px; border:1px solid #dbe7f5; border-radius:9px; background:#f8fbff; }
+        .calendar-sync-state > i { width:28px; height:28px; display:grid; place-items:center; flex:0 0 auto; border-radius:7px; background:#eaf2ff; color:#2563eb; font-size:.7rem; }
+        .calendar-sync-state.connected > i { background:#ecfdf5; color:#059669; }
+        .calendar-sync-copy { min-width:0; flex:1; }
+        .calendar-sync-copy strong { display:block; color:#173b7a; font-size:.65rem; }
+        .calendar-sync-copy span { display:block; margin-top:2px; color:#7a8aa1; font-size:.57rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .calendar-sync-state a { color:#2563eb; font-size:.58rem; font-weight:800; text-decoration:none; white-space:nowrap; }
+        .schedule-live-summary { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+        .schedule-live-summary div { padding:8px 9px; border-radius:8px; background:#f8fafc; border:1px solid #edf1f5; }
+        .schedule-live-summary span { display:block; color:#8a98ab; font-size:.54rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+        .schedule-live-summary strong { display:block; margin-top:3px; color:#172554; font-size:.65rem; }
         .schedule-heading { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid #e2e8f0; }
         .schedule-heading i { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #0284c7; background: rgba(14,165,233,0.1); }
         .schedule-heading h2 { margin: 0; font-size: 0.95rem; color: var(--blue-dark); }
@@ -350,16 +361,16 @@ $current_page = 'estandar3.php';
             .right-column { position: static; order: initial; }
         }
         @media (max-width: 768px) {
-            .main-wrapper { margin-left: 0; width: 100%; }
+            .main-wrapper { margin-left: 0; width: 100%; overflow-x:hidden; }
             .content-area { padding: 16px 14px; }
             .header-actions { flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
             .btn-back { order: -1; width: max-content; padding: 6px 12px; }
             .form-grid-2 { grid-template-columns: 1fr; gap: 16px; }
             .cards-grid { grid-template-columns: 1fr; }
+            .watermark-icon { right:0; }
             .datetime-row { grid-template-columns: 1fr; gap: 12px; } 
-            .google-sync-banner { grid-template-columns: 1fr; gap: 14px; }
-            .btn-google { width: 100%; justify-content: center; }
-            .sync-status { padding-left: 56px; }
+            .activity-flow { grid-template-columns:1fr; }
+            .flow-item { padding:9px 10px; }
             .question-type-switch { grid-template-columns: 1fr; }
             .material-grid { grid-template-columns: 1fr; }
         }
@@ -395,49 +406,16 @@ $current_page = 'estandar3.php';
                 </a>
             </div>
 
-            <?php if (!$act_edit): ?>
-                <?php if ($google_connected): ?>
-                    <div class="google-sync-banner connected">
-                        <div class="g-sync-info">
-                            <div class="g-sync-icon"><i class="fa-solid fa-calendar-check"></i></div>
-                            <div class="g-sync-text">
-                                <h4>Conectado a Google Calendar</h4>
-                                <p>Al guardar podrás continuar el evento en Google Calendar con los datos de la actividad.</p>
-                            </div>
-                        </div>
-                        <span class="sync-status">
-                            <i class="fa-solid fa-check-circle"></i> Sincronizado
-                        </span>
-                    </div>
-                <?php else: ?>
-                    <div class="google-sync-banner disconnected">
-                        <div class="g-sync-info">
-                            <div class="g-sync-icon"><i class="fa-brands fa-google"></i></div>
-                            <div class="g-sync-text">
-                                <h4>Organiza también en Google Calendar</h4>
-                                <p>La conexión es opcional y te permite llevar los datos de la actividad a tu calendario.</p>
-                            </div>
-                        </div>
-                        <a href="google_auth.php" class="btn-google">
-                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                                <path d="M1 1h22v22H1z" fill="none"/>
-                            </svg>
-                            Conectar con Google
-                        </a>
-                    </div>
-                <?php endif; ?>
-            <?php endif; ?>
+            <div class="activity-flow" aria-label="Flujo para programar la actividad">
+                <div class="flow-item active"><i class="fa-solid fa-pen-to-square"></i><div><strong>1. Actividad</strong><span>Nombre, tipo y modalidad</span></div></div>
+                <div class="flow-item"><i class="fa-solid fa-users"></i><div><strong>2. Participantes</strong><span>Empresa, grupos o trabajadores</span></div></div>
+                <div class="flow-item"><i class="fa-regular fa-calendar-check"></i><div><strong>3. Programación</strong><span>Fecha, hora y calendario</span></div></div>
+            </div>
 
             <?php if (isset($_GET['error'])): ?>
-                <div class="google-sync-banner disconnected" style="border-left-color:#dc2626;">
-                    <div class="g-sync-info">
-                        <div class="g-sync-icon" style="color:#dc2626;background:#fee2e2;"><i class="fa-solid fa-circle-exclamation"></i></div>
-                        <div class="g-sync-text"><h4>No pudimos guardar la actividad</h4><p><?php echo htmlspecialchars($_GET['error']); ?></p></div>
-                    </div>
+                <div class="form-error-banner">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <div><h4>No pudimos guardar la actividad</h4><p><?php echo htmlspecialchars($_GET['error']); ?></p></div>
                 </div>
             <?php endif; ?>
 
@@ -469,7 +447,7 @@ $current_page = 'estandar3.php';
 
                             <div class="course-note" id="systemCourseNote">
                                 <i class="fa-solid fa-circle-info"></i>
-                                <span>La modalidad Sistema crea un curso autogestionado dentro de PreventWork. No abrirá Google Calendar y el trabajador deberá completar el contenido, el examen y el acta.</span>
+                                <span>La modalidad Sistema crea un curso autogestionado dentro de PreventWork. No sincroniza calendarios externos y el trabajador deberá completar el contenido, el examen y el acta.</span>
                             </div>
 
                             <div class="materials-builder system-content-field">
@@ -593,7 +571,7 @@ $current_page = 'estandar3.php';
                                     <i class="fa-solid fa-calendar-check"></i> No, solo programar
                                 </label>
                             </div>
-                            <p class="evaluation-hint" id="evaluationHint">Puedes programar la reunión en Google Calendar y decidir si el trabajador deberá presentar una evaluación.</p>
+                            <p class="evaluation-hint" id="evaluationHint">Programa la reunión en PreventWork y decide si el trabajador deberá presentar una evaluación.</p>
                         </div>
 
                         <div class="form-group full" style="margin-bottom: 0;">
@@ -697,9 +675,18 @@ $current_page = 'estandar3.php';
                         <div class="schedule-heading">
                             <i class="fa-regular fa-calendar-check"></i>
                             <div>
-                                <h2>Programación</h2>
-                                <p>Indica cuándo inicia y finaliza.</p>
+                                <h2>Programación de la reunión</h2>
+                                <p>Define el horario y revisa la sincronización.</p>
                             </div>
+                        </div>
+
+                        <div class="calendar-sync-state <?php echo $calendar_connection ? 'connected' : ''; ?>">
+                            <i class="fa-solid <?php echo $calendar_connection ? 'fa-calendar-check' : 'fa-calendar-plus'; ?>"></i>
+                            <div class="calendar-sync-copy">
+                                <strong><?php echo $calendar_connection ? htmlspecialchars(calendar_provider_label($calendar_connection['provider'])) : 'Calendario opcional'; ?></strong>
+                                <span><?php echo $calendar_connection ? 'Se sincronizará al guardar' : 'La actividad se guardará en PreventWork'; ?></span>
+                            </div>
+                            <a href="configuracion.php?tab=calendar"><?php echo $calendar_connection ? 'Administrar' : 'Conectar'; ?></a>
                         </div>
                         
                         <div class="schedule-group">
@@ -730,7 +717,12 @@ $current_page = 'estandar3.php';
                             </div>
                         </div>
 
-                        <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 12px;">
+                        <div class="schedule-live-summary">
+                            <div><span>Duración</span><strong id="scheduleDuration">Por definir</strong></div>
+                            <div><span>Estado</span><strong id="scheduleStatus">Pendiente</strong></div>
+                        </div>
+
+                        <div class="schedule-actions" style="margin-top: 8px; display: flex; flex-direction: column; gap: 10px;">
                             <button type="submit" class="btn-primary-act">
                                 <i class="fa-solid <?php echo $act_edit ? 'fa-calendar-day' : 'fa-check'; ?>"></i>
                                 <?php echo $act_edit ? 'Guardar Cambios' : 'Guardar Actividad'; ?>
@@ -776,7 +768,7 @@ $current_page = 'estandar3.php';
             const tipoCapacitacion = document.getElementById('tipo_capacitacion');
             const categoriaCapacitacion = document.getElementById('categoria');
             const courseBuilder = document.getElementById('courseBuilder');
-            const googleBanner = document.querySelector('.google-sync-banner.connected, .google-sync-banner.disconnected');
+            const calendarSyncState = document.querySelector('.calendar-sync-state');
             const contentUrlField = document.getElementById('contentUrlField');
             const contentVideoField = document.getElementById('contentVideoField');
             const contenidoUrl = document.getElementById('contenido_url');
@@ -810,6 +802,36 @@ $current_page = 'estandar3.php';
             const categoriaPersonalizada = document.getElementById('categoria_personalizada');
             let questionCounter = 0;
             let materialCounter = 0;
+
+            const scheduleFields = ['fecha_inicio', 'hora_inicio', 'fecha_fin', 'hora_fin']
+                .map(id => document.getElementById(id));
+            const scheduleDuration = document.getElementById('scheduleDuration');
+            const scheduleStatus = document.getElementById('scheduleStatus');
+            function refreshScheduleSummary() {
+                const [startDate, startTime, endDate, endTime] = scheduleFields.map(field => field?.value || '');
+                if (!startDate || !startTime || !endDate || !endTime) {
+                    scheduleDuration.textContent = 'Por definir';
+                    scheduleStatus.textContent = 'Pendiente';
+                    return;
+                }
+                const start = new Date(startDate + 'T' + startTime + ':00');
+                const end = new Date(endDate + 'T' + endTime + ':00');
+                const minutes = Math.round((end - start) / 60000);
+                if (!Number.isFinite(minutes) || minutes <= 0) {
+                    scheduleDuration.textContent = 'Horario inválido';
+                    scheduleStatus.textContent = 'Revisar';
+                    return;
+                }
+                const hours = Math.floor(minutes / 60);
+                const rest = minutes % 60;
+                scheduleDuration.textContent = hours ? hours + ' h' + (rest ? ' ' + rest + ' min' : '') : rest + ' min';
+                scheduleStatus.textContent = 'Lista para guardar';
+            }
+            scheduleFields.forEach(field => {
+                field?.addEventListener('change', refreshScheduleSummary);
+                field?._flatpickr?.config.onChange.push(refreshScheduleSummary);
+            });
+            refreshScheduleSummary();
 
             if (modalidadGrid && typeCategoryGrid) {
                 typeCategoryGrid.after(modalidadGrid);
@@ -905,16 +927,16 @@ $current_page = 'estandar3.php';
                 if (builderSubtitle) builderSubtitle.textContent = systemMode
                     ? 'Configura el material autogestionado y el examen de aprobación.'
                     : 'Crea el examen que el trabajador presentará después de la actividad.';
-                if (googleBanner) googleBanner.style.display = systemMode ? 'none' : '';
+                if (calendarSyncState) calendarSyncState.style.display = systemMode ? 'none' : '';
                 if (lugarGroup) lugarGroup.style.display = systemMode ? 'none' : '';
                 if (modalidadGrid) modalidadGrid.style.gridTemplateColumns = systemMode ? '1fr' : '';
                 if (evaluationHint) evaluationHint.textContent = systemMode
                     ? 'En modalidad Sistema la evaluación es obligatoria para completar el curso y firmar el acta.'
-                    : 'Google Calendar seguirá creando la reunión. La evaluación se realizará después desde PreventWork.';
-                document.querySelector('.schedule-heading h2').textContent = systemMode ? 'Disponibilidad' : 'Programación';
+                    : 'La reunión se guardará en PreventWork y se sincronizará con el calendario configurado.';
+                document.querySelector('.schedule-heading h2').textContent = systemMode ? 'Disponibilidad' : 'Programación de la reunión';
                 document.querySelector('.schedule-heading p').textContent = systemMode
                     ? 'Define desde cuándo y hasta cuándo estará disponible.'
-                    : 'Indica cuándo inicia y finaliza.';
+                    : 'Define el horario y revisa la sincronización.';
                 updateContentMode();
             }
 

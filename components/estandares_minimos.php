@@ -98,8 +98,8 @@ $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
        ESTILOS DEL ENCABEZADO DE ESTÁNDARES
        ======================================================== */
     .header-estandares {
-        margin: 32px 0 20px 0;
-        padding-bottom: 16px;
+        margin: 24px 0 13px;
+        padding-bottom: 11px;
         border-bottom: 1px solid var(--border);
     }
 
@@ -123,22 +123,22 @@ $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
     }
 
     .badge-worker-count {
-        background: #f1f5f9;
-        color: #475569;
-        font-size: 0.7rem;
-        padding: 4px 10px;
+        background: #fff7ed;
+        color: #c2410c;
+        font-size: 0.56rem;
+        padding: 4px 8px;
         border-radius: 20px;
         text-transform: none;
         letter-spacing: normal;
-        border: 1px solid #e2e8f0;
-        font-weight: 600;
+        border: 1px solid #fed7aa;
+        font-weight: 800;
         display: inline-flex;
         align-items: center;
     }
 
     .header-estandares-desc {
         color: var(--muted);
-        font-size: 0.85rem;
+        font-size: 0.68rem;
         margin: 0;
         display: flex;
         align-items: center;
@@ -149,10 +149,10 @@ $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
        ESTILOS PARA LOS BADGES DE ESTADO (Completado / Pendiente)
        ======================================================== */
     .badge-std {
-        font-size: 0.65rem;
-        padding: 4px 10px;
-        border-radius: 8px;
-        font-weight: 700;
+        font-size: 0.52rem;
+        padding: 4px 7px;
+        border-radius: 999px;
+        font-weight: 850;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         white-space: nowrap;
@@ -167,45 +167,54 @@ $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
        ======================================================== */
     .standards-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 20px;
-        margin-top: 16px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 11px;
+        margin-top: 13px;
         font-family: 'Inter', sans-serif;
     }
     
     .standard-card {
+        --std-accent: #ea580c;
+        --std-soft: #fff7ed;
         background: var(--card);
         border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 20px;
+        border-radius: 11px;
+        padding: 14px;
         display: flex;
         flex-direction: column;
         transition: all 0.3s ease;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        box-shadow: 0 8px 22px rgba(15,23,42,0.035);
         position: relative;
         overflow: hidden;
-        min-height: 180px;
+        min-height: 164px;
     }
 
+    .standard-card:nth-child(2), .standard-card:nth-child(6) { --std-accent:#2563eb; --std-soft:#eff6ff; }
+    .standard-card:nth-child(3), .standard-card:nth-child(7) { --std-accent:#059669; --std-soft:#ecfdf5; }
+    .standard-card:nth-child(4) { --std-accent:#7c3aed; --std-soft:#f5f3ff; }
+    .standard-card:nth-child(5) { --std-accent:#db2777; --std-soft:#fdf2f8; }
+
     .standard-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 24px rgba(0,0,0,0.06);
-        border-color: var(--primary2);
+        transform: translateY(-3px);
+        box-shadow: 0 13px 26px rgba(15,23,42,0.07);
+        border-color: color-mix(in srgb, var(--std-accent) 45%, #dbe3ec);
     }
 
     /* EL ICONO DE FONDO MODERNO */
     .std-bg-icon {
         position: absolute;
         bottom: -20px;
-        left: -20px;
-        width: 130px;
-        height: 130px;
-        color: var(--primary);
-        opacity: 0.15; /* BRO: AQUÍ SUBÍ LA OPACIDAD AL 15% PARA QUE SE VEA MÁS */
-        z-index: 1;
-        transform: rotate(-15deg);
+        right: -18px;
+        width: 102px;
+        height: 102px;
+        color: var(--std-accent);
+        opacity: 0.045;
+        z-index: 0;
+        transform: rotate(-12deg);
         pointer-events: none;
+        transition: transform .35s ease, opacity .35s ease;
     }
+    .standard-card:hover .std-bg-icon { transform:rotate(-4deg) scale(1.08); opacity:.075; }
 
     /* CONTENEDOR PARA MANTENER EL TEXTO ARRIBA DEL ICONO */
     .std-content-wrapper {
@@ -220,38 +229,38 @@ $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 16px;
+        margin-bottom: 10px;
     }
 
     .std-icon-box {
-        width: 38px;
-        height: 38px;
-        background: rgba(255, 138, 31, 0.1);
-        color: var(--primary2);
-        border-radius: 10px;
+        width: 34px;
+        height: 34px;
+        background: var(--std-soft);
+        color: var(--std-accent);
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
     }
     
     .std-icon-box svg {
-        width: 20px;
-        height: 20px;
+        width: 17px;
+        height: 17px;
     }
 
     .std-title {
-        font-size: 0.95rem;
-        font-weight: 700;
-        color: var(--text);
-        margin: 0 0 8px 0;
+        font-size: 0.76rem;
+        font-weight: 800;
+        color: #172554;
+        margin: 0 0 5px;
         line-height: 1.3;
     }
 
     .std-desc {
         color: var(--muted);
-        font-size: 0.8rem;
-        line-height: 1.4;
-        margin: 0 0 16px 0;
+        font-size: 0.61rem;
+        line-height: 1.42;
+        margin: 0 0 11px;
         flex-grow: 1;
     }
 
@@ -265,22 +274,23 @@ $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
         justify-content: center;
         gap: 6px;
         width: 100%;
-        padding: 10px;
-        background: #f8fafc;
-        color: var(--primary2);
-        border: 1px solid #cbd5e1;
+        min-height: 34px;
+        padding: 8px 9px;
+        background: #ffffff;
+        color: var(--std-accent);
+        border: 1px solid color-mix(in srgb, var(--std-accent) 28%, #e2e8f0);
         border-radius: 8px;
-        font-size: 0.8rem;
-        font-weight: 700;
+        font-size: 0.61rem;
+        font-weight: 800;
         text-decoration: none;
         transition: all 0.2s ease;
         box-sizing: border-box;
     }
 
     .btn-std:hover {
-        background: var(--primary);
+        background: var(--std-accent);
         color: #fff;
-        border-color: var(--primary);
+        border-color: var(--std-accent);
     }
 
     .btn-std.disabled {
@@ -290,9 +300,23 @@ $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
         cursor: not-allowed;
     }
     
-    @media (max-width: 768px) {
-        .standards-grid { grid-template-columns: 1fr; }
-        .std-bg-icon { width: 100px; height: 100px; }
+    @media (max-width: 1180px) {
+        .standards-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+    }
+    @media (max-width: 900px) {
+        .standards-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    }
+    @media (max-width: 620px) {
+        .header-estandares .section-title { align-items:flex-start; }
+        .badge-worker-count { width:100%; justify-content:center; margin-top:3px; }
+        .header-estandares-desc { align-items:flex-start; line-height:1.45; }
+        .standards-grid { grid-template-columns: 1fr; gap:9px; }
+        .standard-card { min-height:145px; }
+        .std-bg-icon { width: 90px; height: 90px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .standard-card, .std-bg-icon { transition:none; }
     }
 </style>
 
@@ -304,7 +328,7 @@ $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
             </svg>
         </div>
-        Estándares Mínimos
+        Accesos directos a estándares
         <span class="badge-worker-count">10 o menos trabajadores</span>
     </h2>
     <p class="header-estandares-desc">
@@ -425,7 +449,7 @@ $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
             <h3 class="std-title">5. Evaluaciones médicas</h3>
             <p class="std-desc">Control de evaluaciones médicas de ingreso, periódicas y de retiro.</p>
             <div class="std-footer">
-                <button class="btn-std disabled" disabled>Próximamente</button>
+                <a href="estandar5" class="btn-std">Abrir evaluaciones <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></a>
             </div>
         </div>
     </div>
@@ -443,7 +467,7 @@ $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
             <h3 class="std-title">6. Matriz de Riesgos</h3>
             <p class="std-desc">Identificación de peligros y valoración de riesgos laborales.</p>
             <div class="std-footer">
-                <button class="btn-std disabled" disabled>Próximamente</button>
+                <a href="estandar6" class="btn-std">Abrir matriz IPVR <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></a>
             </div>
         </div>
     </div>
@@ -461,7 +485,7 @@ $std7_estado = 'Pendiente'; $std7_class = 'badge-std-pending';
             <h3 class="std-title">7. Medidas de prevención</h3>
             <p class="std-desc">Ejecución de medidas preventivas basadas en la matriz de riesgos.</p>
             <div class="std-footer">
-                <button class="btn-std disabled" disabled>Próximamente</button>
+                <a href="estandar7" class="btn-std">Abrir medidas <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></a>
             </div>
         </div>
     </div>

@@ -161,9 +161,11 @@ if ($empresa_id > 0 && $modulo_actual === 'recursos-sg-sst') {
 if ($empresa_id > 0 && $modulo_actual === 'epp') {
     if ($usuario_rol === 'sst') {
         $stmtTrabajadoresEpp = $conn->prepare("
-            SELECT u.id, u.nombre, u.apellido, u.cedula, COALESCE(e.tipo_personal, '') AS cargo
+            SELECT u.id, u.nombre, u.apellido, u.cedula, u.email,
+                   COALESCE(NULLIF(g.nombre, ''), NULLIF(e.tipo_personal, ''), '') AS cargo
             FROM usuarios u
             LEFT JOIN encuesta_sociodemografica e ON e.usuario_id = u.id
+            LEFT JOIN grupos_personal g ON g.id = u.grupo_id
             WHERE u.empresa_id = ? AND u.rol = 'trabajador' AND COALESCE(u.activo, 1) = 1
             ORDER BY u.nombre ASC, u.apellido ASC
         ");
@@ -1793,8 +1795,119 @@ function e7mant_tipo_text($value): string
             .maintenance-field.wide { grid-column:auto; }
         }
     </style>
+    <link rel="stylesheet" href="assets/worker-selector.css?v=20260715-1">
+    <style>
+        /* Escala visual compartida con el Estándar 6 */
+        .e7-page .content-area { padding:14px clamp(14px,2vw,28px) 38px; }
+        .e7-page .page-hero { align-items:center; margin:8px 0 14px; gap:14px; }
+        .e7-page .title-group { gap:11px; }
+        .e7-page .icon-hero { width:42px; height:42px; border-radius:10px; font-size:1rem; }
+        .e7-page h1 { font-size:clamp(1rem,1.6vw,1.24rem); line-height:1.18; }
+        .e7-page .subtitle { margin-top:4px; font-size:.67rem; line-height:1.4; }
+        .e7-page .mode-badge,
+        .e7-page .back-link { gap:6px; padding:7px 9px; border-radius:8px; font-size:.62rem; }
+        .e7-page .section-card { padding:18px; border-left:1px solid var(--border); border-radius:11px; box-shadow:0 10px 24px rgba(15,23,42,.045); }
+        .e7-page .section-card::after { width:132px; height:132px; top:-64px; right:-44px; opacity:.5; }
+        .e7-page .section-kicker { margin-bottom:5px; font-size:.59rem; letter-spacing:.04em; }
+        .e7-page .section-card h2 { font-size:.93rem; line-height:1.25; }
+        .e7-page .section-copy { margin-top:5px; max-width:900px; font-size:.64rem; line-height:1.45; }
+        .e7-page .tabs-card { margin-bottom:12px; padding:8px; border-radius:10px; }
+        .e7-page .sub-tabs { gap:6px; }
+        .e7-page .sub-tab { gap:6px; padding:7px 9px; border-radius:8px; font-size:.6rem; }
+        .e7-page .resources-toolbar { margin:14px 0 11px; padding:10px 12px; border-radius:9px; }
+        .e7-page .resources-toolbar strong { font-size:.72rem; }
+        .e7-page .resources-toolbar span { font-size:.61rem !important; }
+        .e7-page .year-nav { gap:7px; }
+        .e7-page .year-nav a { width:31px; height:31px; border-radius:8px; font-size:.66rem; }
+        .e7-page .year-nav strong { min-width:56px; font-size:.82rem; }
+        .e7-page .summary-grid { gap:9px; margin-bottom:12px; }
+        .e7-page .summary-card { position:relative; overflow:hidden; min-height:88px; padding:12px; border-radius:9px; background:#fff; }
+        .e7-page .summary-card span { position:relative; z-index:1; margin-bottom:6px; font-size:.59rem; }
+        .e7-page .summary-card strong { position:relative; z-index:1; font-size:1rem; }
+        .e7-page .section-card label { font-size:.63rem; }
+        .e7-page .section-card input,
+        .e7-page .section-card select,
+        .e7-page .section-card textarea { font-size:.72rem; }
+        .e7-page .section-card button { font-size:.68rem; }
+        .e7-page .section-card h3 { font-size:.78rem; }
+        .e7-page .section-card table { font-size:.68rem; }
+
+        .e7-overview { padding:0 !important; }
+        .e7-overview-head { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 14px; border-bottom:1px solid var(--border); background:linear-gradient(135deg,#fffaf5,#fff); }
+        .e7-overview-title { display:flex; align-items:center; gap:9px; min-width:0; }
+        .e7-overview-title > i { width:auto; color:var(--primary2); font-size:.88rem; }
+        .e7-overview-title .section-copy { margin-top:3px; }
+        .e7-count-pill { display:inline-flex; align-items:center; gap:5px; flex:0 0 auto; border:1px solid #fed7aa; border-radius:99px; padding:5px 8px; background:#fff; color:#c2410c; font-size:.59rem; font-weight:850; text-transform:uppercase; }
+        .e7-metric-grid { position:relative; z-index:1; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:13px 14px; }
+        .e7-metric { --metric-accent:#ff7a00; position:relative; overflow:hidden; min-height:104px; padding:12px; border:1px solid #e2e8f0; border-radius:9px; background:#fff; }
+        .e7-metric.blue { --metric-accent:#2563eb; }
+        .e7-metric.green { --metric-accent:#059669; }
+        .e7-metric.violet { --metric-accent:#7c3aed; }
+        .e7-metric span { position:relative; z-index:1; display:block; color:#64748b; font-size:.59rem; font-weight:800; letter-spacing:.03em; text-transform:uppercase; }
+        .e7-metric strong { position:relative; z-index:1; display:block; margin-top:7px; color:#102a67; font-size:1.38rem; line-height:1; }
+        .e7-metric small { position:relative; z-index:1; display:block; max-width:82%; margin-top:5px; color:#64748b; font-size:.61rem; line-height:1.35; }
+        .e7-metric-watermark { position:absolute; right:8px; bottom:1px; color:var(--metric-accent); opacity:.08; font-size:3rem; transform:rotate(-8deg); transition:transform .25s ease,opacity .25s ease; }
+        .e7-metric:hover .e7-metric-watermark { opacity:.12; transform:rotate(-3deg) scale(1.06); }
+        .e7-modules-head { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 14px 9px; padding-top:11px; border-top:1px solid #e2e8f0; }
+        .e7-modules-head strong { display:block; color:#102a67; font-size:.72rem; }
+        .e7-modules-head span { display:block; margin-top:3px; color:#64748b; font-size:.6rem; }
+        .e7-page .module-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:0; padding:0 14px 14px; }
+        .e7-page .module-card { --module-accent:#ff7a00; position:relative; overflow:hidden; min-height:88px; align-items:center; gap:10px; padding:10px 12px; border-radius:9px; background:#fff; }
+        .e7-page .module-card:nth-child(3n+2) { --module-accent:#2563eb; }
+        .e7-page .module-card:nth-child(3n) { --module-accent:#059669; }
+        .e7-page .module-card:hover,
+        .e7-page .module-card.active { transform:translateY(-1px); border-color:var(--module-accent); background:#fff; box-shadow:0 7px 18px rgba(30,58,138,.07); }
+        .e7-module-icon { position:relative; z-index:1; width:34px; height:34px; display:grid; place-items:center; flex:0 0 auto; border-radius:9px; background:#fff3e8; color:var(--module-accent); font-size:.8rem; }
+        .e7-page .module-card .e7-module-icon i { color:var(--module-accent); margin:0; }
+        .e7-module-copy { position:relative; z-index:1; min-width:0; flex:1; }
+        .e7-page .module-code { margin-bottom:3px; color:var(--module-accent); font-size:.55rem; text-transform:uppercase; letter-spacing:.04em; }
+        .e7-page .module-title { overflow:hidden; color:#102a67; font-size:.68rem; line-height:1.35; text-overflow:ellipsis; white-space:nowrap; }
+        .e7-module-summary { display:block; overflow:hidden; margin-top:3px; color:#64748b; font-size:.58rem; line-height:1.35; text-overflow:ellipsis; white-space:nowrap; }
+        .e7-module-arrow { position:relative; z-index:1; color:#94a3b8; font-size:.58rem; transition:transform .2s ease,color .2s ease; }
+        .e7-module-watermark { position:absolute; right:34px; bottom:-18px; color:var(--module-accent); opacity:.035; font-size:4rem; pointer-events:none; transform:rotate(-8deg); }
+        .e7-page .module-card .e7-module-watermark { color:var(--module-accent); }
+        .e7-page .module-card .e7-module-arrow { color:#94a3b8; }
+        .e7-page .module-card:hover .e7-module-arrow { color:var(--module-accent); transform:translateX(2px); }
+        .e7-page .module-card:hover .e7-module-watermark { opacity:.06; }
+
+        @media (max-width:1100px) {
+            .e7-metric-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        }
+        @media (max-width:768px) {
+            .e7-page .content-area { padding:14px 12px 34px; }
+            .e7-page .page-hero { align-items:flex-start; gap:10px; }
+            .e7-page .title-group { align-items:center; }
+            .e7-page .mode-badge,
+            .e7-page .back-link { width:auto; }
+            .e7-page .section-card { padding:14px; }
+            .e7-page .e7-overview { padding:0; }
+            .e7-page .summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .e7-page .module-grid { grid-template-columns:1fr; padding:0 11px 11px; }
+            .e7-overview-head { padding:11px; }
+            .e7-metric-grid { margin:11px; }
+            .e7-modules-head { margin:0 11px 9px; }
+        }
+        @media (max-width:520px) {
+            .e7-page .page-hero { flex-direction:column; }
+            .e7-page .mode-badge,
+            .e7-page .back-link { width:100%; justify-content:center; }
+            .e7-overview-head { align-items:flex-start; }
+            .e7-count-pill { white-space:nowrap; }
+            .e7-metric-grid,
+            .e7-page .summary-grid { grid-template-columns:1fr; }
+            .e7-metric { min-height:94px; }
+            .e7-page .module-title,
+            .e7-module-summary { white-space:normal; }
+        }
+        @media (prefers-reduced-motion:reduce) {
+            .e7-page .module-card,
+            .e7-module-watermark,
+            .e7-metric-watermark,
+            .e7-module-arrow { transition:none !important; }
+        }
+    </style>
 </head>
-<body>
+<body class="e7-page">
 <?php include 'components/sidebar.php'; ?>
 
 <main class="main-wrapper">
@@ -1825,19 +1938,64 @@ function e7mant_tipo_text($value): string
         </section>
 
         <?php if (!$modulo): ?>
-            <section class="section-card">
-                <p class="section-kicker">Estándar 7</p>
-                <h2>Subestándares de trabajo</h2>
-                <p class="section-copy">Esta vista deja preparada la navegación del estándar de medidas de prevención y control. Cada tarjeta abre una vista independiente para construir el flujo de gestión correspondiente.</p>
+            <section class="section-card e7-overview">
+                <div class="e7-overview-head">
+                    <div class="e7-overview-title">
+                        <i class="fa-solid fa-chart-simple"></i>
+                        <div>
+                            <p class="section-kicker">Estándar 7</p>
+                            <h2>Panorama de medidas de prevención y control</h2>
+                            <p class="section-copy">Accesos organizados para gestionar recursos, controles operacionales, emergencias y verificación.</p>
+                        </div>
+                    </div>
+                    <span class="e7-count-pill"><i class="fa-solid fa-layer-group"></i> <?php echo count($submodulos); ?> subestándares</span>
+                </div>
+
+                <div class="e7-metric-grid">
+                    <article class="e7-metric">
+                        <span>Frentes de gestión</span>
+                        <strong><?php echo count($submodulos); ?></strong>
+                        <small>Subestándares disponibles para administrar.</small>
+                        <i class="fa-solid fa-list-check e7-metric-watermark"></i>
+                    </article>
+                    <article class="e7-metric blue">
+                        <span>Recursos y soporte</span>
+                        <strong>3</strong>
+                        <small>Recursos, mantenimiento y elementos de protección.</small>
+                        <i class="fa-solid fa-screwdriver-wrench e7-metric-watermark"></i>
+                    </article>
+                    <article class="e7-metric green">
+                        <span>Preparación y respuesta</span>
+                        <strong>2</strong>
+                        <small>Plan de emergencias y gestión de la brigada.</small>
+                        <i class="fa-solid fa-truck-medical e7-metric-watermark"></i>
+                    </article>
+                    <article class="e7-metric violet">
+                        <span>Control y verificación</span>
+                        <strong>4</strong>
+                        <small>Mediciones, procedimientos, inspecciones y seguimiento.</small>
+                        <i class="fa-solid fa-shield-halved e7-metric-watermark"></i>
+                    </article>
+                </div>
+
+                <div class="e7-modules-head">
+                    <div>
+                        <strong>Accesos directos a los subestándares</strong>
+                        <span>Selecciona una tarjeta para consultar o continuar su gestión.</span>
+                    </div>
+                </div>
 
                 <div class="module-grid">
                     <?php foreach ($submodulos as $slug => $item): ?>
                         <a class="module-card" href="estandar7.php?modulo=<?php echo urlencode($slug); ?>">
-                            <i class="fa-solid <?php echo e7h($item['icono']); ?>"></i>
-                            <span>
+                            <span class="e7-module-icon"><i class="fa-solid <?php echo e7h($item['icono']); ?>"></i></span>
+                            <span class="e7-module-copy">
                                 <span class="module-code"><?php echo e7h($item['codigo']); ?></span>
                                 <span class="module-title"><?php echo e7h($item['titulo']); ?></span>
+                                <span class="e7-module-summary"><?php echo e7h($item['resumen']); ?></span>
                             </span>
+                            <i class="fa-solid <?php echo e7h($item['icono']); ?> e7-module-watermark"></i>
+                            <i class="fa-solid fa-chevron-right e7-module-arrow"></i>
                         </a>
                     <?php endforeach; ?>
                 </div>
@@ -2221,7 +2379,7 @@ function e7mant_tipo_text($value): string
                                     <div class="epp-form-grid">
                                         <div class="epp-field wide">
                                             <label>Trabajador</label>
-                                            <select name="trabajador_id" id="eppWorkerSelect" required>
+                                            <select name="trabajador_id" id="eppWorkerSelect" data-worker-search data-worker-search-placeholder="Buscar por nombre, c&eacute;dula, correo o cargo" required>
                                                 <option value="">Seleccione trabajador...</option>
                                                 <?php foreach ($epp_trabajadores as $trabajador): ?>
                                                     <?php
@@ -2231,6 +2389,7 @@ function e7mant_tipo_text($value): string
                                                     <option value="<?php echo (int)$trabajador['id']; ?>"
                                                         data-nombre="<?php echo e7h($nombreTrabajador); ?>"
                                                         data-cedula="<?php echo e7h($trabajador['cedula'] ?? ''); ?>"
+                                                        data-email="<?php echo e7h($trabajador['email'] ?? ''); ?>"
                                                         data-cargo="<?php echo e7h($cargoTrabajador); ?>">
                                                         <?php echo e7h($nombreTrabajador . ' - ' . ($trabajador['cedula'] ?? '')); ?>
                                                     </option>
@@ -3162,5 +3321,6 @@ if (maintenanceEnergyPicker) {
     updateEnergyLabel();
 }
 </script>
+<script src="assets/worker-selector.js?v=20260715-1"></script>
 </body>
 </html>

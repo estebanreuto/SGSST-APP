@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="pw-bg" x1="8" y1="4" x2="58" y2="62" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2457a7"/>
+      <stop offset="1" stop-color="#102b68"/>
+    </linearGradient>
+    <linearGradient id="pw-helmet" x1="18" y1="18" x2="48" y2="45" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff9a32"/>
+      <stop offset="1" stop-color="#ff7200"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#pw-bg)"/>
+  <path d="M16 38c0-9 6.1-16.4 14.2-18.2V18a2.8 2.8 0 0 1 5.6 0v1.8C43.9 21.6 50 29 50 38v2H16v-2Z" fill="url(#pw-helmet)"/>
+  <path d="M12 40.5c0-1.4 1.1-2.5 2.5-2.5h35c1.4 0 2.5 1.1 2.5 2.5S50.9 43 49.5 43h-35A2.5 2.5 0 0 1 12 40.5Z" fill="#fff"/>
+  <path d="M29.2 20h5.6v18h-5.6V20Z" fill="#ffb766" opacity=".75"/>
+  <path d="M22 47h20" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".9"/>
+</svg>

@@ -1,228 +1,207 @@
 <?php
 require_once 'config/db.php';
 require_once 'config/auth.php';
+require_once 'config/estandar2_schema.php';
 
-// 1. Exigir sesión válida
 $u = require_auth($conn);
-$usuario_id = $_SESSION['usuario_id'];
+ensure_estandar2_schema($conn);
+
+$usuario_id = (int)($_SESSION['usuario_id'] ?? 0);
 $usuario_rol = $_SESSION['usuario_rol'] ?? '';
-
-// 2. Solo el Responsable SST gestiona planillas. El Representante Legal solo consulta resumen.
 if ($usuario_rol !== 'sst') {
-    header('Location: estandar2.php?error=no_permission');
+    header('Location: estandar2?error=no_permission');
     exit;
 }
 
-$accion = $_POST['accion'] ?? $_GET['accion'] ?? '';
+$accion = trim((string)($_POST['accion'] ?? $_GET['accion'] ?? ''));
+if (!hash_equals((string)($_SESSION['estandar2_csrf'] ?? ''), (string)($_POST['csrf_token'] ?? $_GET['csrf_token'] ?? ''))) {
+    header('Location: estandar2?error=sesion');
+    exit;
+}
 
-function estandar2_planilla_summary_columns_exist(PDO $conn): bool
+$stmtEmpresa = $conn->prepare('SELECT empresa_id FROM usuarios WHERE id=?');
+$stmtEmpresa->execute([$usuario_id]);
+$empresa_id = (int)$stmtEmpresa->fetchColumn();
+if ($empresa_id <= 0) {
+    header('Location: estandar2?error=empresa');
+    exit;
+}
+
+function estandar2_delete_storage_file(PDO $conn, int $companyId, int $fileId): void
 {
-    $required = ['valor_total', 'cedulas_detectadas', 'trabajadores_esperados', 'riesgos_detectados', 'nit_coincide', 'novedades_resumen'];
-    $stmt = $conn->prepare("
-        SELECT COLUMN_NAME
-        FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME = 'estandar2_planillas'
-          AND COLUMN_NAME IN ('valor_total','cedulas_detectadas','trabajadores_esperados','riesgos_detectados','nit_coincide','novedades_resumen')
-    ");
-    $stmt->execute();
-    $found = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    return count(array_intersect($required, $found)) === count($required);
+    if ($fileId <= 0) {
+        return;
+    }
+    $stmt = $conn->prepare('SELECT * FROM almacenamiento_archivos WHERE id=? AND empresa_id=? LIMIT 1');
+    $stmt->execute([$fileId, $companyId]);
+    $file = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$file) {
+        return;
+    }
+    $root = realpath(storage_company_root($companyId));
+    $absolute = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, (string)$file['ruta_relativa']);
+    $real = is_file($absolute) ? realpath($absolute) : false;
+    if ($root && $real && storage_path_is_within($real, $root)) {
+        @unlink($real);
+    }
+    $conn->prepare('DELETE FROM control_documental_registros WHERE almacenamiento_archivo_id=? AND empresa_id=?')->execute([$fileId, $companyId]);
+    $conn->prepare('DELETE FROM almacenamiento_archivos WHERE id=? AND empresa_id=?')->execute([$fileId, $companyId]);
 }
 
-// 3. Obtener el ID de la empresa del usuario
-$stmt_emp = $conn->prepare("SELECT empresa_id FROM usuarios WHERE id = ?");
-$stmt_emp->execute([$usuario_id]);
-$empresa_id = $stmt_emp->fetchColumn();
-
-if (!$empresa_id) {
-    die("Error crítico: El usuario no está asociado a ninguna empresa.");
-}
-
-// ========================================================
-// LÓGICA PARA SUBIR PLANILLA (PILA) Y REGISTRAR ANÁLISIS
-// ========================================================
 if ($accion === 'subir_planilla') {
-    $mes = (int)$_POST['mes'];
-    $anio = (int)$_POST['anio'];
-    $has_summary_columns = estandar2_planilla_summary_columns_exist($conn);
-    $valor_total = isset($_POST['valor_total']) && $_POST['valor_total'] !== '' ? (float)$_POST['valor_total'] : null;
-    $cedulas_detectadas = isset($_POST['cedulas_detectadas']) && $_POST['cedulas_detectadas'] !== '' ? (int)$_POST['cedulas_detectadas'] : null;
-    $trabajadores_esperados = isset($_POST['trabajadores_esperados']) && $_POST['trabajadores_esperados'] !== '' ? (int)$_POST['trabajadores_esperados'] : null;
-    $riesgos_detectados = trim($_POST['riesgos_detectados'] ?? '');
-    $nit_c = $_POST['nit_coincide'] ?? 'NO';
-    
-    if (isset($_FILES['archivo']) && $_FILES['archivo']['error'] === UPLOAD_ERR_OK) {
-        $file = $_FILES['archivo'];
-        
-        // Seguridad: Validar estrictamente que sea PDF
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mime = finfo_file($finfo, $file['tmp_name']);
-        finfo_close($finfo);
-        
-        if ($mime !== 'application/pdf') {
-            die("Error de seguridad: Solo se permiten archivos en formato PDF.");
-        }
-        
-        // 4. RUTAS BLINDADAS PARA GUARDAR EL ARCHIVO
-        $ruta_relativa = "uploads/empresas/empresa_{$empresa_id}/estandar2/planillas/";
-        $ruta_absoluta = __DIR__ . "/" . $ruta_relativa;
-        
-        // Crear carpeta si no existe
-        if (!file_exists($ruta_absoluta)) {
-            if (!mkdir($ruta_absoluta, 0777, true)) {
-                die("Error de permisos: El servidor no deja crear la carpeta 'uploads/'. Revisa los permisos.");
-            }
-        }
-        
-        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-        // Nombre inteligente: PILA_2026_3_60a1b2c.pdf
-        $filename = "PILA_{$anio}_{$mes}_" . uniqid() . "." . $ext;
-        
-        $destino_fisico = $ruta_absoluta . $filename;
-        $ruta_bd = $ruta_relativa . $filename; 
-        
-        // 5. Mover el archivo a la carpeta final
-        if (move_uploaded_file($file['tmp_name'], $destino_fisico)) {
-            
-            // A. Verificar si ya existe una planilla para ese mes y año para reemplazarla
-            $stmt_check = $conn->prepare("
-                SELECT id, archivo_url 
-                FROM estandar2_planillas 
-                WHERE mes = ? AND anio = ? AND subido_por IN (SELECT id FROM usuarios WHERE empresa_id = ?)
-            ");
-            $stmt_check->execute([$mes, $anio, $empresa_id]);
-            $existe = $stmt_check->fetch(PDO::FETCH_ASSOC);
-            
-            if ($existe) {
-                // Borrar archivo viejo físico del servidor
-                $archivo_viejo = __DIR__ . "/" . $existe['archivo_url'];
-                if (file_exists($archivo_viejo) && is_file($archivo_viejo)) {
-                    unlink($archivo_viejo);
-                }
-                
-                // Actualizar registro en BD
-                if ($has_summary_columns) {
-                    $stmt_upd = $conn->prepare("
-                        UPDATE estandar2_planillas
-                        SET archivo_url = ?, valor_total = ?, cedulas_detectadas = ?, trabajadores_esperados = ?,
-                            riesgos_detectados = ?, nit_coincide = ?, subido_por = ?, fecha_subida = NOW()
-                        WHERE id = ?
-                    ");
-                    $stmt_upd->execute([$ruta_bd, $valor_total, $cedulas_detectadas, $trabajadores_esperados, $riesgos_detectados, $nit_c, $usuario_id, $existe['id']]);
-                } else {
-                    $stmt_upd = $conn->prepare("UPDATE estandar2_planillas SET archivo_url = ?, subido_por = ?, fecha_subida = NOW() WHERE id = ?");
-                    $stmt_upd->execute([$ruta_bd, $usuario_id, $existe['id']]);
-                }
-            } else {
-                // Insertar nueva planilla en BD
-                if ($has_summary_columns) {
-                    $stmt_ins = $conn->prepare("
-                        INSERT INTO estandar2_planillas (
-                            mes, anio, archivo_url, valor_total, cedulas_detectadas, trabajadores_esperados,
-                            riesgos_detectados, nit_coincide, subido_por, fecha_subida
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-                    ");
-                    $stmt_ins->execute([$mes, $anio, $ruta_bd, $valor_total, $cedulas_detectadas, $trabajadores_esperados, $riesgos_detectados, $nit_c, $usuario_id]);
-                } else {
-                    $stmt_ins = $conn->prepare("INSERT INTO estandar2_planillas (mes, anio, archivo_url, subido_por, fecha_subida) VALUES (?, ?, ?, ?, NOW())");
-                    $stmt_ins->execute([$mes, $anio, $ruta_bd, $usuario_id]);
-                }
-            }
-
-            // ========================================================
-            // B. GUARDAR LOS RESULTADOS DETALLADOS DEL ANÁLISIS
-            // ========================================================
-            $trab_f = $_POST['trab_found'] ?? '0/0';
-            $trab_faltantes = $_POST['trab_faltantes'] ?? '';
-            $inc_json = $_POST['incapacidades_json'] ?? '[]';
-            
-            // Texto de trabajadores faltantes
-            $detalle_trab = $trab_f;
-            if (!empty($trab_faltantes)) {
-                $detalle_trab .= " (Faltan en PILA: $trab_faltantes)";
-            }
-
-            // Texto de incapacidades
-            $inc_array = json_decode($inc_json, true) ?? [];
-            $resumen_inc = "Sin novedades IGE/IRL.";
-            
-            if (count($inc_array) > 0) {
-                $resumen_inc = "Novedades encontradas:";
-                foreach($inc_array as $inc) {
-                    $resumen_inc .= " [{$inc['tipo']}: {$inc['nombre']} CC. {$inc['cedula']}]";
-                }
-            }
-
-            if ($has_summary_columns) {
-                $stmt_summary = $conn->prepare("
-                    UPDATE estandar2_planillas
-                    SET novedades_resumen = ?
-                    WHERE mes = ? AND anio = ? AND subido_por IN (SELECT id FROM usuarios WHERE empresa_id = ?)
-                    ORDER BY id DESC
-                    LIMIT 1
-                ");
-                $stmt_summary->execute([$resumen_inc, $mes, $anio, $empresa_id]);
-            }
-
-            // Construir el reporte final para la base de datos
-            $descripcion_log = "Análisis PILA ($mes/$anio). NIT Coincide: $nit_c. Trabajadores detectados: $detalle_trab. $resumen_inc";
-
-            // Guardar el reporte en la tabla general de logs_actividad
-            $stmt_log = $conn->prepare("INSERT INTO logs_actividad (usuario_id, accion, descripcion, ip_address, fecha) VALUES (?, 'ANALISIS_PILA', ?, ?, NOW())");
-            $stmt_log->execute([$usuario_id, $descripcion_log, $_SERVER['REMOTE_ADDR'] ?? '']);
-            
-            // Redirigir de vuelta al panel con mensaje de éxito
-            header('Location: estandar2.php?msg=subido&anio=' . $anio);
-            exit;
-        } else {
-            die("Error del servidor: No se pudo guardar el archivo físico. Verifica los permisos de escritura en la carpeta 'uploads'.");
-        }
-    } else {
-        die("Error: No se recibió el archivo o es demasiado grande para tu servidor.");
-    }
-} 
-
-// ========================================================
-// LÓGICA PARA ELIMINAR PLANILLA
-// ========================================================
-elseif ($accion === 'eliminar_planilla') {
-    $id = (int)$_GET['id'];
-    
-    // Verificar por seguridad que la planilla pertenece a esta empresa
-    $stmt_check = $conn->prepare("
-        SELECT p.id, p.archivo_url, p.anio, p.mes 
-        FROM estandar2_planillas p 
-        JOIN usuarios u ON p.subido_por = u.id 
-        WHERE p.id = ? AND u.empresa_id = ?
-    ");
-    $stmt_check->execute([$id, $empresa_id]);
-    $planilla = $stmt_check->fetch(PDO::FETCH_ASSOC);
-    
-    if ($planilla) {
-        $archivo_fisico = __DIR__ . "/" . $planilla['archivo_url'];
-        
-        // Borrar el PDF físico del servidor
-        if (file_exists($archivo_fisico) && is_file($archivo_fisico)) {
-            unlink($archivo_fisico);
-        }
-        
-        // Borrar de la base de datos
-        $stmt_del = $conn->prepare("DELETE FROM estandar2_planillas WHERE id = ?");
-        $stmt_del->execute([$id]);
-        
-        // Registrar en el log de actividad que fue eliminada
-        $stmt_log = $conn->prepare("INSERT INTO logs_actividad (usuario_id, accion, descripcion, ip_address, fecha) VALUES (?, 'ELIMINAR_PILA', ?, ?, NOW())");
-        $stmt_log->execute([$usuario_id, "Eliminó planilla del periodo {$planilla['mes']}/{$planilla['anio']}.", $_SERVER['REMOTE_ADDR'] ?? '']);
-        
-        header('Location: estandar2.php?msg=eliminado&anio=' . $planilla['anio']);
+    $mes = (int)($_POST['mes'] ?? 0);
+    $anio = (int)($_POST['anio'] ?? 0);
+    if ($mes < 1 || $mes > 12 || $anio < 2020 || $anio > 2050) {
+        header('Location: estandar2?error=periodo');
         exit;
-    } else {
-        die("Error de permisos: No tienes autorización para eliminar esta planilla.");
     }
-} else {
-    // Si entran directamente al archivo sin POST/GET válidos, los devolvemos
-    header('Location: estandar2.php');
+    if (!isset($_FILES['archivo']) || (int)$_FILES['archivo']['error'] !== UPLOAD_ERR_OK) {
+        header('Location: estandar2?error=archivo');
+        exit;
+    }
+
+    $file = $_FILES['archivo'];
+    $tmp = (string)$file['tmp_name'];
+    $size = (int)$file['size'];
+    $mime = (new finfo(FILEINFO_MIME_TYPE))->file($tmp) ?: '';
+    $signature = (string)file_get_contents($tmp, false, null, 0, 5);
+    if ($size <= 0 || $size > 15 * 1024 * 1024 || $mime !== 'application/pdf' || $signature !== '%PDF-') {
+        header('Location: estandar2?error=formato');
+        exit;
+    }
+
+    $valor_total = ($_POST['valor_total'] ?? '') !== '' ? (float)$_POST['valor_total'] : null;
+    $cedulas_detectadas = ($_POST['cedulas_detectadas'] ?? '') !== '' ? (int)$_POST['cedulas_detectadas'] : null;
+    $trabajadores_esperados = ($_POST['trabajadores_esperados'] ?? '') !== '' ? (int)$_POST['trabajadores_esperados'] : null;
+    $riesgos_detectados = mb_substr(trim((string)($_POST['riesgos_detectados'] ?? '')), 0, 120, 'UTF-8');
+    $nit_coincide = ($_POST['nit_coincide'] ?? 'NO') === 'SI' ? 'SI' : 'NO';
+    $trab_found = trim((string)($_POST['trab_found'] ?? '0/0'));
+    $trab_faltantes = trim((string)($_POST['trab_faltantes'] ?? ''));
+    $detalle_trab = $trab_found . ($trab_faltantes !== '' ? ' (Faltan en PILA: ' . $trab_faltantes . ')' : '');
+    $incapacidades = json_decode((string)($_POST['incapacidades_json'] ?? '[]'), true) ?: [];
+    $novedades = 'Sin novedades IGE/IRL.';
+    if ($incapacidades) {
+        $novedades = 'Novedades encontradas:';
+        foreach ($incapacidades as $item) {
+            $novedades .= ' [' . ($item['tipo'] ?? 'Novedad') . ': ' . ($item['nombre'] ?? 'Trabajador') . ' CC. ' . ($item['cedula'] ?? '') . ']';
+        }
+    }
+
+    $stmtActual = $conn->prepare('SELECT * FROM estandar2_planillas WHERE empresa_id=? AND anio=? AND mes=? LIMIT 1');
+    $stmtActual->execute([$empresa_id, $anio, $mes]);
+    $actual = $stmtActual->fetch(PDO::FETCH_ASSOC) ?: null;
+    $numeroVersion = $actual ? (int)$actual['version_actual'] + 1 : 1;
+    $docConfig = document_control_config($conn, $empresa_id, 2);
+    $versionPrefix = strtoupper(trim((string)($docConfig['version_prefijo'] ?? 'V'))) ?: 'V';
+    $versionLabel = $versionPrefix . $numeroVersion . '.0';
+    $codigo = estandar2_document_code($conn, $empresa_id, $anio, $mes);
+    $meses = [1=>'Enero',2=>'Febrero',3=>'Marzo',4=>'Abril',5=>'Mayo',6=>'Junio',7=>'Julio',8=>'Agosto',9=>'Septiembre',10=>'Octubre',11=>'Noviembre',12=>'Diciembre'];
+    $nombreDocumento = 'Planilla PILA ' . $meses[$mes] . ' ' . $anio;
+    $nombreOriginal = $codigo . '_' . $versionLabel . '.pdf';
+
+    $storage = storage_company_context($conn, $empresa_id);
+    if (!$storage || ((int)$storage['usado_bytes'] + $size) > (int)$storage['cuota_bytes']) {
+        header('Location: estandar2?error=almacenamiento');
+        exit;
+    }
+    storage_prepare_company_folders($empresa_id, (int)$storage['nivel_plan']);
+    $folder = storage_folder_path($empresa_id, 2);
+    $savedName = date('Ymd-His') . '-' . bin2hex(random_bytes(7)) . '.pdf';
+    $destination = $folder . DIRECTORY_SEPARATOR . $savedName;
+    if (!move_uploaded_file($tmp, $destination)) {
+        header('Location: estandar2?error=guardado');
+        exit;
+    }
+
+    try {
+        $conn->beginTransaction();
+        if ($actual && !empty($actual['almacenamiento_archivo_id'])) {
+            $conn->prepare("UPDATE almacenamiento_archivos SET estado_documental='obsoleto' WHERE id=? AND empresa_id=?")
+                ->execute([(int)$actual['almacenamiento_archivo_id'], $empresa_id]);
+            $conn->prepare("UPDATE control_documental_registros SET estado='obsoleto' WHERE almacenamiento_archivo_id=? AND empresa_id=?")
+                ->execute([(int)$actual['almacenamiento_archivo_id'], $empresa_id]);
+        }
+
+        $relative = str_replace('\\', '/', substr($destination, strlen(dirname(__DIR__)) + 1));
+        $stmtFile = $conn->prepare(<<<'SQL'
+            INSERT INTO almacenamiento_archivos
+                (empresa_id,estandar_numero,estandar_nombre,nombre_original,nombre_guardado,ruta_relativa,
+                 tipo_mime,extension,tamano_bytes,usuario_id,codigo_documento,version_documento,
+                 fecha_documento,estado_documental,origen_modulo)
+            VALUES (?,2,?,?,?,?,?,'pdf',?,?,?,?,CURDATE(),'validado','estandar2_pila')
+        SQL);
+        $stmtFile->execute([$empresa_id,storage_standard_catalog()[2],$nombreOriginal,$savedName,$relative,'application/pdf',$size,$usuario_id,$codigo,$versionLabel]);
+        $storageId = (int)$conn->lastInsertId();
+
+        $stmtControl = $conn->prepare(<<<'SQL'
+            INSERT INTO control_documental_registros
+                (empresa_id,estandar_numero,almacenamiento_archivo_id,tipo_documento,nombre_documento,
+                 codigo_documento,version_documento,fecha_documento,estado,archivo_original,
+                 resultado_validacion,usuario_id)
+            VALUES (?,2,?,'soporte',?,?,?,CURDATE(),'validado',?,?,?)
+        SQL);
+        $stmtControl->execute([$empresa_id,$storageId,$nombreDocumento,$codigo,$versionLabel,basename((string)$file['name']),json_encode(['nit'=>$nit_coincide,'trabajadores'=>$detalle_trab], JSON_UNESCAPED_UNICODE),$usuario_id]);
+        $controlId = (int)$conn->lastInsertId();
+        $conn->prepare('UPDATE almacenamiento_archivos SET control_registro_id=? WHERE id=?')->execute([$controlId,$storageId]);
+
+        if ($actual) {
+            $planillaId = (int)$actual['id'];
+            $stmtPlanilla = $conn->prepare('UPDATE estandar2_planillas SET archivo_url=?,almacenamiento_archivo_id=?,version_actual=?,valor_total=?,cedulas_detectadas=?,trabajadores_esperados=?,riesgos_detectados=?,nit_coincide=?,novedades_resumen=?,subido_por=?,fecha_subida=NOW() WHERE id=? AND empresa_id=?');
+            $stmtPlanilla->execute([$relative,$storageId,$numeroVersion,$valor_total,$cedulas_detectadas,$trabajadores_esperados,$riesgos_detectados,$nit_coincide,$novedades,$usuario_id,$planillaId,$empresa_id]);
+        } else {
+            $stmtPlanilla = $conn->prepare('INSERT INTO estandar2_planillas (empresa_id,mes,anio,archivo_url,almacenamiento_archivo_id,version_actual,valor_total,cedulas_detectadas,trabajadores_esperados,riesgos_detectados,nit_coincide,novedades_resumen,subido_por,fecha_subida) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())');
+            $stmtPlanilla->execute([$empresa_id,$mes,$anio,$relative,$storageId,$numeroVersion,$valor_total,$cedulas_detectadas,$trabajadores_esperados,$riesgos_detectados,$nit_coincide,$novedades,$usuario_id]);
+            $planillaId = (int)$conn->lastInsertId();
+        }
+
+        $stmtVersion = $conn->prepare('INSERT INTO estandar2_planilla_versiones (planilla_id,empresa_id,almacenamiento_archivo_id,numero_version,archivo_original,valor_total,cedulas_detectadas,trabajadores_esperados,riesgos_detectados,nit_coincide,novedades_resumen,subido_por) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
+        $stmtVersion->execute([$planillaId,$empresa_id,$storageId,$numeroVersion,basename((string)$file['name']),$valor_total,$cedulas_detectadas,$trabajadores_esperados,$riesgos_detectados,$nit_coincide,$novedades,$usuario_id]);
+        $conn->commit();
+
+        $descripcion = "Análisis PILA ($mes/$anio). NIT Coincide: $nit_coincide. Trabajadores detectados: $detalle_trab. $novedades";
+        $conn->prepare("INSERT INTO logs_actividad (usuario_id,accion,descripcion,ip_address,fecha) VALUES (?,'ANALISIS_PILA',?,?,NOW())")
+            ->execute([$usuario_id,$descripcion,$_SERVER['REMOTE_ADDR'] ?? '']);
+        header('Location: estandar2?msg=subido&anio=' . $anio);
+        exit;
+    } catch (Throwable $error) {
+        if ($conn->inTransaction()) {
+            $conn->rollBack();
+        }
+        if (is_file($destination)) {
+            @unlink($destination);
+        }
+        error_log('Carga PILA: ' . $error->getMessage());
+        header('Location: estandar2?error=registro');
+        exit;
+    }
+}
+
+if ($accion === 'eliminar_planilla') {
+    $id = (int)($_GET['id'] ?? 0);
+    $stmt = $conn->prepare('SELECT * FROM estandar2_planillas WHERE id=? AND empresa_id=? LIMIT 1');
+    $stmt->execute([$id,$empresa_id]);
+    $planilla = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$planilla) {
+        header('Location: estandar2?error=no_autorizado');
+        exit;
+    }
+
+    $stmtVersions = $conn->prepare('SELECT almacenamiento_archivo_id FROM estandar2_planilla_versiones WHERE planilla_id=? AND empresa_id=?');
+    $stmtVersions->execute([$id,$empresa_id]);
+    $fileIds = array_unique(array_filter(array_map('intval', $stmtVersions->fetchAll(PDO::FETCH_COLUMN))));
+    if (!empty($planilla['almacenamiento_archivo_id'])) {
+        $fileIds[] = (int)$planilla['almacenamiento_archivo_id'];
+    }
+    foreach (array_unique($fileIds) as $fileId) {
+        estandar2_delete_storage_file($conn,$empresa_id,$fileId);
+    }
+    $conn->prepare('DELETE FROM estandar2_planilla_versiones WHERE planilla_id=? AND empresa_id=?')->execute([$id,$empresa_id]);
+    $conn->prepare('DELETE FROM estandar2_planillas WHERE id=? AND empresa_id=?')->execute([$id,$empresa_id]);
+    $conn->prepare("INSERT INTO logs_actividad (usuario_id,accion,descripcion,ip_address,fecha) VALUES (?,'ELIMINAR_PILA',?,?,NOW())")
+        ->execute([$usuario_id,"Eliminó planilla del periodo {$planilla['mes']}/{$planilla['anio']}.",$_SERVER['REMOTE_ADDR'] ?? '']);
+    header('Location: estandar2?msg=eliminado&anio=' . (int)$planilla['anio']);
     exit;
 }
-?>
+
+header('Location: estandar2');
+exit;

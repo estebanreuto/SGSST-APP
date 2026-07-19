@@ -1,3 +1,4 @@
+<?php include_once __DIR__ . '/public_page_loader.php'; ?>
 <style>
   /* TOP BAR CLARA Y MINIMALISTA */
   .top-bar {
@@ -13,7 +14,7 @@
     align-items: center;
     padding: 0 6vw;
     z-index: 1001;
-    font-size: 0.75rem;
+    font-size: 0.69rem;
     font-weight: 600;
     letter-spacing: 0.02em;
     border-bottom: 1px solid #e2e8f0;
@@ -32,7 +33,7 @@
   .top-bar-left, .top-bar-right { display: flex; align-items: center; }
   .top-bar-left { gap: 20px; }
   .top-bar-right { gap: 16px; }
-  .top-bar-right i { font-size: 0.9rem; }
+  .top-bar-right i { font-size: 0.82rem; }
 
   /* HEADER PRINCIPAL BLANCO TRANSLÚCIDO */
   .public-header {
@@ -56,13 +57,13 @@
   .public-header .logo img { height: 28px; object-fit: contain; }
   
   .public-header .header-nav { display: flex; gap: 24px; align-items: center; }
-  .public-header .header-link { text-decoration: none; color: #334155; font-weight: 600; font-size: 0.95rem; transition: color 0.2s; white-space: nowrap;}
+  .public-header .header-link { text-decoration: none; color: #334155; font-weight: 600; font-size: 0.87rem; transition: color 0.2s; white-space: nowrap;}
   .public-header .header-link:hover { color: var(--blue-main, #2b5a9e); }
   
   /* ESTILOS DEL BOTÓN INICIAR SESIÓN (Por si no están globales) */
   .public-header .header-btn { 
       padding: 10px 20px !important; 
-      font-size: 0.9rem !important; 
+      font-size: 0.82rem !important; 
       white-space: nowrap;
       text-decoration: none;
       border-radius: 8px;
@@ -95,8 +96,8 @@
 
     .public-header { padding: 12px 4vw; background: rgba(255, 255, 255, 0.95); }
     .public-header .header-nav { gap: 10px; }
-    .public-header .header-link { font-size: 0.85rem; }
-    .public-header .header-btn { padding: 8px 12px !important; font-size: 0.85rem !important; }
+    .public-header .header-link { font-size: 0.8rem; }
+    .public-header .header-btn { padding: 8px 12px !important; font-size: 0.8rem !important; }
     .public-header .logo img { height: 22px; } 
   }
 
@@ -104,8 +105,8 @@
   @media (max-width: 400px) {
     .public-header .logo img { height: 18px; } /* Logo un poco más chico para que quepan los botones */
     .public-header .header-nav { gap: 8px; }
-    .public-header .header-link { font-size: 0.8rem; }
-    .public-header .header-btn { padding: 6px 10px !important; font-size: 0.8rem !important; }
+    .public-header .header-link { font-size: 0.75rem; }
+    .public-header .header-btn { padding: 6px 10px !important; font-size: 0.75rem !important; }
   }
 </style>
 

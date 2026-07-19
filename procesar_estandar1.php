@@ -1,6 +1,7 @@
 <?php
 require_once 'config/db.php';
 require_once 'config/auth.php';
+require_once 'config/document_control_schema.php';
 
 // Cargar el Autoload de Composer para PHPMailer y mPDF
 if (file_exists(__DIR__ . '/vendor/autoload.php')) {
@@ -64,6 +65,8 @@ $u = require_auth($conn);
 $usuario_id = $_SESSION['usuario_id'];
 $usuario_rol = $_SESSION['usuario_rol'];
 $accion = $_REQUEST['accion'] ?? '';
+$empresa_id = storage_user_company_id($conn, (int)$usuario_id);
+ensure_document_control_schema($conn);
 
 // Obtener nombre del usuario actual para las notificaciones
 $stmt_current = $conn->prepare("SELECT nombre, apellido FROM usuarios WHERE id = ?");
@@ -72,6 +75,109 @@ $currentUser = $stmt_current->fetch(PDO::FETCH_ASSOC);
 $currentUserName = trim(($currentUser['nombre'] ?? '') . ' ' . ($currentUser['apellido'] ?? ''));
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // ==========================================================
+    // 0. RESPONSABLE SST CARGA Y VALIDA UN FORMATO DOCUMENTAL
+    // ==========================================================
+    if ($accion === 'cargar_formato' && $usuario_rol === 'sst') {
+        if (!hash_equals((string)($_SESSION['estandar1_csrf'] ?? ''), (string)($_POST['csrf_token'] ?? ''))) {
+            $_SESSION['estandar1_document_error'] = ['La sesión del formulario venció. Actualiza la página e inténtalo nuevamente.'];
+            header('Location: estandar1?formato=rechazado#control-documental');
+            exit;
+        }
+        $config = document_control_config($conn, $empresa_id, 1);
+        $metadata = [
+            'nombre_documento' => trim((string)($_POST['nombre_documento'] ?? '')),
+            'codigo_documento' => trim((string)($_POST['codigo_documento'] ?? '')),
+            'version_documento' => trim((string)($_POST['version_documento'] ?? '')),
+            'fecha_documento' => trim((string)($_POST['fecha_documento'] ?? '')),
+        ];
+        $validation = document_control_validate_upload($_FILES['archivo_formato'] ?? [], $metadata, $config, 1);
+        if (!$validation['valid']) {
+            $_SESSION['estandar1_document_error'] = $validation['errors'];
+            $_SESSION['estandar1_document_old'] = $metadata;
+            header('Location: estandar1?formato=rechazado#control-documental');
+            exit;
+        }
+
+        $storage = storage_company_context($conn, $empresa_id);
+        if (!$storage) {
+            $_SESSION['estandar1_document_error'] = ['No fue posible identificar el almacenamiento de la empresa.'];
+            header('Location: estandar1?formato=rechazado#control-documental');
+            exit;
+        }
+        if (((int)$storage['usado_bytes'] + (int)$validation['size']) > (int)$storage['cuota_bytes']) {
+            $_SESSION['estandar1_document_error'] = ['El archivo supera el espacio disponible del plan.'];
+            header('Location: estandar1?formato=rechazado#control-documental');
+            exit;
+        }
+
+        storage_prepare_company_folders($empresa_id, (int)$storage['nivel_plan']);
+        $folder = storage_folder_path($empresa_id, 1);
+        if (!is_dir($folder) && !mkdir($folder, 0775, true) && !is_dir($folder)) {
+            $_SESSION['estandar1_document_error'] = ['No fue posible preparar la carpeta del Estándar 1.'];
+            header('Location: estandar1?formato=rechazado#control-documental');
+            exit;
+        }
+
+        $savedName = date('Ymd-His') . '-' . bin2hex(random_bytes(7)) . '.' . $validation['extension'];
+        $destination = $folder . DIRECTORY_SEPARATOR . $savedName;
+        if (!move_uploaded_file((string)$_FILES['archivo_formato']['tmp_name'], $destination)) {
+            $_SESSION['estandar1_document_error'] = ['El archivo pasó la validación, pero no pudo guardarse. Inténtalo nuevamente.'];
+            header('Location: estandar1?formato=rechazado#control-documental');
+            exit;
+        }
+
+        try {
+            $conn->beginTransaction();
+            $relative = str_replace('\\', '/', substr($destination, strlen(dirname(__DIR__)) + 1));
+            $conn->prepare("UPDATE control_documental_registros SET estado='obsoleto' WHERE empresa_id=? AND estandar_numero=1 AND codigo_documento=? AND estado IN ('validado','aprobado')")
+                ->execute([$empresa_id, $validation['metadata']['codigo_documento']]);
+            $stmtFile = $conn->prepare(<<<'SQL'
+                INSERT INTO almacenamiento_archivos
+                    (empresa_id, estandar_numero, estandar_nombre, nombre_original, nombre_guardado,
+                     ruta_relativa, tipo_mime, extension, tamano_bytes, usuario_id, codigo_documento,
+                     version_documento, fecha_documento, estado_documental, origen_modulo)
+                VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'validado', 'estandar1_formato')
+            SQL);
+            $stmtFile->execute([
+                $empresa_id, storage_standard_catalog()[1], $validation['original'], $savedName, $relative,
+                $validation['mime'], $validation['extension'], $validation['size'], $usuario_id,
+                $validation['metadata']['codigo_documento'], $validation['metadata']['version_documento'],
+                $validation['metadata']['fecha_documento'],
+            ]);
+            $fileId = (int)$conn->lastInsertId();
+            $result = json_encode(['validaciones' => ['estructura_archivo', 'peso', 'codigo', 'version', 'fecha', 'nombre_archivo']], JSON_UNESCAPED_UNICODE);
+            $stmtControl = $conn->prepare(<<<'SQL'
+                INSERT INTO control_documental_registros
+                    (empresa_id, estandar_numero, almacenamiento_archivo_id, tipo_documento, nombre_documento,
+                     codigo_documento, version_documento, fecha_documento, estado, archivo_original,
+                     resultado_validacion, usuario_id)
+                VALUES (?, 1, ?, 'formato', ?, ?, ?, ?, 'validado', ?, ?, ?)
+            SQL);
+            $stmtControl->execute([
+                $empresa_id, $fileId, $validation['metadata']['nombre_documento'],
+                $validation['metadata']['codigo_documento'], $validation['metadata']['version_documento'],
+                $validation['metadata']['fecha_documento'], $validation['original'], $result, $usuario_id,
+            ]);
+            $controlId = (int)$conn->lastInsertId();
+            $conn->prepare('UPDATE almacenamiento_archivos SET control_registro_id = ? WHERE id = ?')->execute([$controlId, $fileId]);
+            $conn->commit();
+            unset($_SESSION['estandar1_document_error'], $_SESSION['estandar1_document_old']);
+            header('Location: estandar1?formato=validado#historial-documental');
+            exit;
+        } catch (Throwable $e) {
+            if ($conn->inTransaction()) {
+                $conn->rollBack();
+            }
+            if (is_file($destination)) {
+                @unlink($destination);
+            }
+            error_log('Control documental Estándar 1: ' . $e->getMessage());
+            $_SESSION['estandar1_document_error'] = ['No fue posible registrar el control documental.'];
+            header('Location: estandar1?formato=rechazado#control-documental');
+            exit;
+        }
+    }
     
     // ==========================================================
     // 1. SST ENVÍA A FIRMA (Guarda y Notifica)
@@ -84,8 +190,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $conn->prepare($sql);
             $stmt->execute([$usuario_id, $firma_sst, $firma_sst]);
 
-            // NOTIFICAR A TODOS LOS REPRESENTANTES LEGALES
-            $reps = $conn->query("SELECT id, email, nombre, apellido FROM usuarios WHERE rol = 'representante'")->fetchAll(PDO::FETCH_ASSOC);
+            // Notificar únicamente a los representantes de la misma empresa.
+            $stmtReps = $conn->prepare("SELECT id, email, nombre, apellido FROM usuarios WHERE rol='representante' AND empresa_id=?");
+            $stmtReps->execute([$empresa_id]);
+            $reps = $stmtReps->fetchAll(PDO::FETCH_ASSOC);
             
             foreach ($reps as $rep) {
                 $nombre_rep = trim($rep['nombre'] . ' ' . $rep['apellido']);
@@ -107,7 +215,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $doc_id = $_POST['doc_id'] ?? 0;
         
         if (!empty($firma_base64) && $doc_id > 0) {
-            $sql = "UPDATE doc_asignacion_sst SET estado = 'firmado', representante_id = ?, firma_representante = ?, fecha_firma = NOW() WHERE id = ?";
+            $stmtAllowed = $conn->prepare("SELECT d.id FROM doc_asignacion_sst d JOIN usuarios u ON u.id=d.sst_id WHERE d.id=? AND u.empresa_id=? AND d.estado='pendiente_firma' LIMIT 1");
+            $stmtAllowed->execute([$doc_id, $empresa_id]);
+            if (!$stmtAllowed->fetchColumn()) {
+                header('Location: estandar1?doc=no_autorizado');
+                exit;
+            }
+            $sql = "UPDATE doc_asignacion_sst SET estado = 'firmado', representante_id = ?, firma_representante = ?, fecha_firma = NOW() WHERE id = ? AND estado='pendiente_firma'";
             $stmt = $conn->prepare($sql);
             $stmt->execute([$usuario_id, $firma_base64, $doc_id]);
 
@@ -148,8 +262,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     FROM doc_asignacion_sst d 
                                     JOIN usuarios u_sst ON d.sst_id = u_sst.id 
                                     LEFT JOIN usuarios u_rep ON d.representante_id = u_rep.id
-                                    WHERE d.id = ?");
-            $stmt_doc->execute([$doc_id]);
+                                    WHERE d.id = ? AND u_sst.empresa_id = ? AND d.estado='firmado'");
+            $stmt_doc->execute([$doc_id, $empresa_id]);
             $doc = $stmt_doc->fetch(PDO::FETCH_ASSOC);
 
             if ($doc) {
@@ -261,6 +375,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Guardar en BD para que quede en el historial
                     $stmt_upd = $conn->prepare("UPDATE doc_asignacion_sst SET archivo_pdf = ? WHERE id = ?");
                     $stmt_upd->execute([$pdf_base64, $doc_id]);
+
+                    // El PDF final también queda organizado en Archivos > Estándar 1.
+                    try {
+                        document_control_archive_legalized_pdf($conn, $empresa_id, (int)$usuario_id, (int)$doc_id, $pdf_content);
+                    } catch (Throwable $archiveError) {
+                        error_log('Archivo documental Estándar 1: ' . $archiveError->getMessage());
+                    }
 
                     echo json_encode(['status' => 'success', 'pdf' => $pdf_base64]);
                     exit;

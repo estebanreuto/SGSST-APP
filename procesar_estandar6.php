@@ -17,7 +17,11 @@ $empresa_id = (int)$stmtEmpresa->fetchColumn();
 
 function estandar6_redirect(string $msg, string $tipo = 'ok'): never
 {
-    header('Location: estandar6.php?msg=' . urlencode($msg) . '&tipo=' . urlencode($tipo));
+    $origen = (string)($_POST['origen_formulario'] ?? '');
+    $destino = $tipo === 'error' && $origen === 'nuevo_peligro_ipvr'
+        ? 'nuevo_peligro_ipvr'
+        : 'estandar6';
+    header('Location: ' . $destino . '?msg=' . urlencode($msg) . '&tipo=' . urlencode($tipo));
     exit;
 }
 
@@ -78,6 +82,8 @@ try {
         'nivel_exposicion_residual' => (int)($_POST['nivel_exposicion_residual'] ?? 1),
         'nivel_consecuencia_residual' => (int)($_POST['nivel_consecuencia_residual'] ?? 10),
         'accidentes_anterior' => $_POST['accidentes_anterior'] ?? '',
+        'accidentes_actual' => $_POST['accidentes_actual'] ?? '',
+        'eficacia_controles' => $_POST['eficacia_controles'] ?? '',
     ];
     $calc = estandar6_calcular($data);
 

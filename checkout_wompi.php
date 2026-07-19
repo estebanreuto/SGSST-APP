@@ -469,6 +469,8 @@ if ($transaccion_id) {
 </head>
 <body>
 
+    <?php include_once __DIR__ . '/components/public_page_loader.php'; ?>
+
     <?php if (!$transaccion_id): ?>
     <div class="modal-overlay" id="cancelModal">
         <div class="modal-box">

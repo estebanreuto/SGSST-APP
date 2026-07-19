@@ -482,6 +482,8 @@ $correo_seguro = $_SESSION['correo_censurado'] ?? 'tu correo';
 
 <body>
 
+    <?php include_once __DIR__ . '/components/public_page_loader.php'; ?>
+
     <i class="fa-solid fa-helmet-safety watermark-bg"></i>
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>

@@ -1,9 +1,14 @@
 <?php
 require_once 'config/db.php';
 require_once 'config/auth.php';
+require_once 'config/estandar2_schema.php';
 
 // Exige sesión válida
 $u = require_auth($conn);
+ensure_estandar2_schema($conn);
+if (empty($_SESSION['estandar2_csrf'])) {
+    $_SESSION['estandar2_csrf'] = bin2hex(random_bytes(24));
+}
 
 $usuario_rol = $_SESSION['usuario_rol'] ?? '';
 $es_representante = $usuario_rol === 'representante';
@@ -135,7 +140,8 @@ try {
         SELECT p.*, u.nombre, u.apellido 
         FROM estandar2_planillas p
         JOIN usuarios u ON p.subido_por = u.id
-        WHERE u.empresa_id = ? AND p.anio = ?
+        WHERE p.empresa_id = ? AND p.anio = ?
+        ORDER BY p.mes
     ");
     $stmt->execute([$empresa_id, $anio_seleccionado]);
     $planillas_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -181,6 +187,25 @@ if ($ultimo_soporte) {
 }
 
 $riesgos_anuales_texto = $riesgos_anuales ? implode(', ', array_keys($riesgos_anuales)) : 'Sin dato';
+$coberturas_detectadas = [];
+foreach ($planillas_mes as $planilla_cobertura) {
+    $detected = (int)($planilla_cobertura['cedulas_detectadas'] ?? 0);
+    $expected = (int)($planilla_cobertura['trabajadores_esperados'] ?? 0);
+    if ($expected > 0) {
+        $coberturas_detectadas[] = min(100, round(($detected / $expected) * 100));
+    }
+}
+$cobertura_promedio = $coberturas_detectadas ? (int)round(array_sum($coberturas_detectadas) / count($coberturas_detectadas)) : null;
+$anio_actual = (int)date('Y');
+$mes_actual_numero = (int)date('n');
+$periodos_exigibles = $anio_seleccionado < $anio_actual ? 12 : ($anio_seleccionado > $anio_actual ? 0 : $mes_actual_numero);
+$cargadas_exigibles = 0;
+foreach (array_keys($planillas_mes) as $loadedMonth) {
+    if ((int)$loadedMonth <= $periodos_exigibles) {
+        $cargadas_exigibles++;
+    }
+}
+$pendientes_a_la_fecha = max(0, $periodos_exigibles - $cargadas_exigibles);
 
 $current_page = 'estandar2.php';
 ?>
@@ -216,8 +241,8 @@ $current_page = 'estandar2.php';
         .alert-status.danger { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-left: 4px solid #ef4444;}
 
         /* ESTRUCTURA PRINCIPAL */
-        .panel-container { display: grid; grid-template-columns: minmax(260px, .75fr) minmax(0, 2fr); gap: 24px; align-items: start;}
-        .panel-container.rep-view { grid-template-columns: minmax(0, 1fr); gap: 0; }
+        .panel-container { display: flex; flex-direction: column; gap: 14px; align-items: stretch; }
+        .panel-container.rep-view { gap: 14px; }
         .card-box { min-width: 0; background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 24px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02); }
         body.sidebar-collapsed .main-wrapper { max-width: calc(100dvw - 76px) !important; }
         
@@ -241,24 +266,41 @@ $current_page = 'estandar2.php';
         .dropzone p { margin: 0; font-size: 0.85rem; font-weight: 700; color: var(--text); }
         .dropzone span { font-size: 0.7rem; color: var(--muted); font-weight: 500; }
         
-        .preview-container { display: none; margin-top: 10px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); }
-        .preview-header { background: #f8fafc; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; }
-        .preview-header span { font-size: 0.75rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 6px; }
+        body.preview-modal-open { overflow:hidden; }
+        .preview-container { position:fixed !important; top:0; left:0; z-index:1000000; width:100vw; height:100dvh; display:none; align-items:center; justify-content:center; box-sizing:border-box; padding:14px; overflow:hidden; isolation:isolate; background:rgba(15,23,42,.58); backdrop-filter:blur(5px); }
+        .preview-modal-shell { width:min(1240px,calc(100vw - 28px)); max-height:calc(100dvh - 28px); display:flex; flex-direction:column; overflow:hidden; border:1px solid #dbe3ec; border-radius:14px; background:#fff; box-shadow:0 28px 80px rgba(15,23,42,.26); }
+        .preview-modal-head { min-height:58px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:14px; border-bottom:1px solid #e2e8f0; background:#fff; box-sizing:border-box; }
+        .preview-modal-title { display:flex; align-items:center; gap:9px; min-width:0; }
+        .preview-modal-title > i { width:34px; height:34px; flex:0 0 34px; display:grid; place-items:center; border-radius:9px; color:#ea580c; background:#fff7ed; }
+        .preview-modal-title strong { display:block; color:#1e3a8a; font-size:.8rem; line-height:1.2; }
+        .preview-modal-title small { display:block; max-width:620px; margin-top:2px; color:#64748b; font-size:.53rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .preview-modal-close { width:32px; height:32px; flex:0 0 32px; display:grid; place-items:center; border:1px solid #dbe3ec; border-radius:8px; outline:none; color:#64748b; background:#fff; cursor:pointer; transition:.18s ease; }
+        .preview-modal-close:hover { border-color:#fecaca; color:#dc2626; background:#fff7f7; }
+        .preview-modal-close:focus-visible { border-color:#93c5fd; box-shadow:0 0 0 3px rgba(37,99,235,.14); }
+        .preview-modal-body { min-height:0; padding:12px; display:grid; grid-template-columns:minmax(340px,.7fr) minmax(0,1.3fr); gap:12px; overflow:auto; background:#f7f9fc; }
+        .preview-document-panel { min-width:0; overflow:hidden; border:1px solid #dbe3ec; border-radius:10px; background:#fff; }
+        .preview-header { background:#fff; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; }
+        .preview-header span { font-size:.68rem; font-weight:800; color:#1e3a8a; display:flex; align-items:center; gap:6px; }
         .btn-change-file { background: #fee2e2; color: #dc2626; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer; transition: 0.2s; }
         .btn-change-file:hover { background: #fca5a5; }
+        .preview-modal-footer { min-height:62px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; border-top:1px solid #e2e8f0; background:#fff; box-sizing:border-box; }
+        .preview-modal-note { color:#64748b; font-size:.54rem; line-height:1.35; }
+        .preview-modal-actions { display:flex; align-items:center; gap:8px; margin-left:auto; }
+        .preview-secondary { min-height:38px; padding:0 12px; border:1px solid #dbe3ec; border-radius:8px; color:#475569; background:#fff; font:inherit; font-size:.6rem; font-weight:800; cursor:pointer; }
         
         /* PANEL DE ANÁLISIS */
-        .analysis-panel { background: #1e293b; color: #f8fafc; padding: 16px; border-bottom: 1px solid #334155; font-size: 0.8rem; display: none; flex-direction: column; gap: 12px; }
-        .analysis-title { font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 4px; }
+        .analysis-panel { min-width:0; padding:14px; border:1px solid #dbe3ec; border-radius:10px; background:#fff; color:#172554; font-size:.72rem; display:none; flex-direction:column; gap:10px; align-self:start; box-shadow:0 8px 24px rgba(15,23,42,.035); }
+        .analysis-title { font-weight:850; color:#1e3a8a; display:flex; align-items:center; gap:7px; font-size:.78rem; margin-bottom:2px; }
+        .analysis-title i { color:#ea580c; }
         .analysis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .analysis-item { background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); }
-        .analysis-label { color: #94a3b8; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; margin-bottom: 4px; display: block; }
-        .analysis-val { font-weight: 700; font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; }
-        .status-ok { color: #10b981; }
+        .analysis-item { background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0; }
+        .analysis-label { color:#64748b; font-size:.58rem; text-transform:uppercase; letter-spacing:.045em; font-weight:800; margin-bottom:4px; display:block; }
+        .analysis-val { color:#172554; font-weight:750; font-size:.74rem; display:flex; flex-direction:column; gap:4px; }
+        .status-ok { color: #059669; }
         .status-warn { color: #f59e0b; }
-        .status-err { color: #ef4444; }
+        .status-err { color: #dc2626; }
         
-        .pdf-viewer { width: 100%; height: 280px; border: none; display: block; }
+        .pdf-viewer { width:100%; height:clamp(420px,58dvh,620px); border:none; display:block; background:#f8fafc; }
         
         .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary2)); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; width: 100%; cursor: pointer; transition: transform 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; font-family: inherit; margin-top: 24px; box-shadow: 0 4px 12px rgba(255, 138, 31, 0.2); }
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(255, 138, 31, 0.3); }
@@ -338,14 +380,144 @@ $current_page = 'estandar2.php';
         .rep-risk-summary p { margin: 0; color: #64748b; font-size: 0.82rem; }
         .rep-risk-list { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; min-width: 220px; }
         
+        /* Escala y componentes compartidos con el Estándar 5 */
+        body { font-size:.82rem; }
+        .content-area { padding:30px clamp(24px,2.5vw,44px) 60px; }
+        .header-actions { margin-bottom:14px; }
+        .estandar-header-group { gap:11px; }
+        .icon-box-std { width:40px; height:40px; border-radius:9px; }
+        .icon-box-std i { font-size:.95rem !important; }
+        .estandar-title { font-size:1rem; line-height:1.22; }
+        .estandar-subtitle { margin-top:3px; font-size:.7rem; line-height:1.32; }
+        .alert-status { padding:11px 13px; margin-bottom:14px; border-radius:9px; font-size:.72rem; }
+        .panel-container { gap:14px; }
+        .card-box { padding:16px; border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.04); }
+        .card-title { margin-bottom:14px; padding-bottom:11px; font-size:.9rem; }
+        .title-icon-wrapper { width:34px; height:34px; padding:7px; border-radius:9px; }
+        .form-group { margin-bottom:12px; }
+        .form-group label { margin-bottom:6px; font-size:.62rem; }
+        .custom-select,.custom-input { min-height:38px; padding:8px 11px; font-size:.72rem; }
+        .info-pila-box { margin-bottom:14px; padding:13px; border-radius:9px; }
+        .info-pila-box p { font-size:.7rem; }
+        .dropzone { padding:20px 14px; border-width:1px; border-radius:9px; }
+        .dropzone p { font-size:.72rem; }
+        .btn-primary { padding:10px 14px; margin-top:14px; font-size:.72rem; }
+        .rep-pila-strip { margin:0 0 14px; padding:13px 14px; border-radius:10px; box-shadow:0 8px 24px rgba(15,23,42,.04); }
+        .rep-summary-grid,.months-grid { display:none; }
+        .rep-executive-panel { grid-template-columns:minmax(220px,1.4fr) repeat(3,minmax(130px,1fr)); gap:8px; margin-bottom:12px; }
+        .rep-exec-chart,.rep-exec-card,.rep-risk-summary { border-radius:9px; padding:11px; box-shadow:none; }
+        .rep-exec-card { min-height:92px; }
+        .rep-exec-chart-head span,.rep-exec-card span { font-size:.55rem; }
+        .rep-exec-chart-head strong,.rep-exec-card strong { font-size:1rem; }
+        .rep-risk-summary { margin:0 0 12px; }
+        .rep-risk-summary h4 { font-size:.82rem; }
+        .rep-risk-summary p { font-size:.68rem; }
+
+        .pila-summary-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:0; }
+        .pila-kpi { --pila-color:#ea580c; --pila-soft:#fff3e8; position:relative; overflow:hidden; min-height:104px; padding:13px; border:1px solid var(--border); border-radius:10px; background:#fff; box-shadow:0 8px 24px rgba(15,23,42,.04); }
+        .pila-kpi.blue { --pila-color:#2563eb; --pila-soft:#eff6ff; }
+        .pila-kpi.green { --pila-color:#059669; --pila-soft:#ecfdf5; }
+        .pila-kpi.violet { --pila-color:#7c3aed; --pila-soft:#f5f3ff; }
+        .pila-kpi > i { position:absolute; right:-8px; bottom:-17px; color:var(--pila-color); font-size:4.5rem; opacity:.055; transform:rotate(-10deg); pointer-events:none; }
+        .pila-kpi span { position:relative; z-index:1; display:block; color:#64748b; font-size:.6rem; font-weight:850; text-transform:uppercase; }
+        .pila-kpi strong { position:relative; z-index:1; display:block; margin-top:8px; color:var(--pila-color); font-size:1.28rem; line-height:1; }
+        .pila-kpi small { position:relative; z-index:1; display:block; max-width:84%; margin-top:6px; color:#64748b; font-size:.62rem; line-height:1.35; }
+        .pila-detail-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:14px 0 10px; }
+        .pila-detail-head h4 { margin:0; color:var(--blue-dark); font-size:.88rem; }
+        .pila-detail-head p { margin:3px 0 0; color:#64748b; font-size:.64rem; }
+        .pila-tools { display:flex; align-items:center; gap:7px; flex-wrap:wrap; justify-content:flex-end; }
+        .pila-search,.pila-filter { height:36px; box-sizing:border-box; border:1px solid var(--border); border-radius:8px; background:#fff; color:#475569; padding:0 10px; font:inherit; font-size:.68rem; outline:none; }
+        .pila-search { width:min(220px,100%); }
+        .pila-files-link { height:36px; padding:0 10px; border:1px solid #fed7aa; border-radius:8px; display:inline-flex; align-items:center; gap:6px; background:#fff7ed; color:#c2410c; text-decoration:none; font-size:.64rem; font-weight:850; }
+        .pila-period-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+        .pila-period-card { --period-color:#94a3b8; --period-soft:#f1f5f9; position:relative; overflow:hidden; min-width:0; padding:12px; border:1px solid var(--border); border-radius:10px; background:#fff; box-shadow:0 8px 24px rgba(15,23,42,.035); }
+        .pila-period-card.loaded { --period-color:#059669; --period-soft:#ecfdf5; }
+        .pila-period-card::after { content:'\f571'; font-family:'Font Awesome 6 Free'; font-weight:900; position:absolute; right:-9px; top:18px; color:var(--period-color); font-size:4.7rem; opacity:.045; transform:rotate(-10deg); pointer-events:none; }
+        .pila-period-top { position:relative; z-index:1; display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+        .pila-period-title { display:flex; align-items:center; gap:8px; min-width:0; }
+        .pila-period-icon { width:32px; height:32px; border-radius:8px; display:grid; place-items:center; color:var(--period-color); background:var(--period-soft); flex:none; }
+        .pila-period-title strong { display:block; color:var(--blue-dark); font-size:.8rem; }
+        .pila-period-title small { display:block; margin-top:2px; color:#64748b; font-size:.56rem; }
+        .pila-status { display:inline-flex; min-height:22px; align-items:center; padding:0 7px; border-radius:999px; color:var(--period-color); background:var(--period-soft); font-size:.52rem; font-weight:900; text-transform:uppercase; }
+        .pila-period-metrics { position:relative; z-index:1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:10px; }
+        .pila-period-metric { padding:7px 8px; border:1px solid #eef2f7; border-radius:7px; background:#f8fafc; min-width:0; }
+        .pila-period-metric span { display:block; color:#94a3b8; font-size:.48rem; font-weight:900; text-transform:uppercase; }
+        .pila-period-metric strong { display:block; margin-top:3px; color:#334155; font-size:.68rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .pila-period-note { position:relative; z-index:1; margin:9px 0 0; min-height:34px; color:#64748b; font-size:.59rem; line-height:1.4; }
+        .pila-period-details { position:relative; z-index:1; margin-top:8px; border-top:1px solid #eef2f7; padding-top:8px; }
+        .pila-period-details summary { color:#1d4ed8; font-size:.58rem; font-weight:850; cursor:pointer; list-style:none; }
+        .pila-period-details summary::-webkit-details-marker { display:none; }
+        .pila-period-details summary i { margin-right:4px; transition:transform .2s ease; }
+        .pila-period-details[open] summary i { transform:rotate(180deg); }
+        .pila-detail-copy { margin-top:7px; padding:8px; border-radius:7px; background:#f8fafc; color:#64748b; font-size:.56rem; line-height:1.45; overflow-wrap:anywhere; }
+        .pila-card-actions { position:relative; z-index:1; display:flex; gap:6px; margin-top:9px; }
+        .pila-action { min-height:31px; padding:0 9px; border:1px solid var(--border); border-radius:7px; display:inline-flex; align-items:center; justify-content:center; gap:5px; background:#fff; color:#334155; text-decoration:none; font:inherit; font-size:.58rem; font-weight:850; cursor:pointer; flex:1; }
+        .pila-action.primary { border-color:#bfdbfe; color:#1d4ed8; background:#eff6ff; }
+        .pila-action.danger { border-color:#fecaca; color:#b91c1c; background:#fff7f7; }
+        .pila-action.upload { border-color:#fed7aa; color:#c2410c; background:#fff7ed; }
+
+        .upload-planilla-card { display:block; padding:14px 16px 16px; overflow:hidden; }
+        .upload-planilla-card .card-title { margin:0; padding:0 0 10px; }
+        .upload-title-copy { display:flex; flex-direction:column; gap:2px; min-width:0; }
+        .upload-title-copy strong { color:var(--blue-dark); font-size:.86rem; line-height:1.2; }
+        .upload-title-copy small { color:#64748b; font-size:.58rem; font-weight:550; line-height:1.4; }
+        .pila-payment-context { display:grid; grid-template-columns:minmax(190px,.62fr) minmax(0,2fr); gap:12px; align-items:center; min-width:0; padding:9px 10px; border:1px solid #fed7aa; border-radius:10px; background:linear-gradient(135deg,#fffaf5 0%,#fff 72%); box-sizing:border-box; }
+        .pila-context-heading { display:flex; align-items:center; gap:8px; min-width:0; padding-right:12px; border-right:1px solid #ffedd5; }
+        .pila-context-icon { width:30px; height:30px; flex:0 0 30px; display:grid; place-items:center; border-radius:8px; color:#ea580c; background:#ffedd5; font-size:.68rem; }
+        .pila-context-heading > div { display:flex; flex-direction:column; gap:1px; min-width:0; }
+        .pila-context-heading strong { color:#9a3412; font-size:.65rem; line-height:1.2; }
+        .pila-context-heading small { display:block; color:#78716c; font-size:.48rem; line-height:1.3; }
+        .pila-context-grid { display:grid; grid-template-columns:minmax(0,1.55fr) repeat(2,minmax(62px,.58fr)) minmax(130px,1fr); gap:7px; }
+        .pila-context-item { min-width:0; padding:7px 8px; border:1px solid #f1f5f9; border-radius:7px; background:rgba(255,255,255,.92); }
+        .pila-context-item.company,.pila-context-item.due { grid-column:auto; }
+        .pila-context-item span { display:block; margin-bottom:2px; color:#94a3b8; font-size:.4rem; font-weight:850; letter-spacing:.04em; line-height:1.1; text-transform:uppercase; }
+        .pila-context-item strong { display:block; color:#0f2f67; font-size:.56rem; line-height:1.2; overflow-wrap:anywhere; }
+        .pila-context-item.due { border-color:#ffedd5; background:#fff7ed; }
+        .pila-context-item.due strong { color:#dc2626; }
+        .pila-upload-form { display:flex; flex-direction:column; gap:9px; margin-top:9px; min-width:0; }
+        .pila-flow-row { display:grid; grid-template-columns:minmax(165px,.42fr) minmax(0,2fr); gap:12px; align-items:center; min-width:0; padding:9px 10px; border:1px solid #e6edf5; border-radius:10px; background:#fbfdff; }
+        .pila-flow-copy { display:flex; align-items:center; gap:8px; min-width:0; }
+        .pila-flow-number { width:27px; height:27px; flex:0 0 27px; display:grid; place-items:center; border-radius:8px; color:#fff; background:#ff7a00; font-size:.62rem; font-weight:900; box-shadow:0 5px 12px rgba(255,122,0,.18); }
+        .pila-flow-copy > div { display:flex; flex-direction:column; gap:1px; min-width:0; }
+        .pila-flow-copy strong { color:#0f2f67; font-size:.64rem; line-height:1.2; }
+        .pila-flow-copy small { color:#64748b; font-size:.47rem; line-height:1.3; }
+        .pila-period-fields { display:grid; grid-template-columns:minmax(170px,1fr) minmax(130px,.55fr); gap:10px; max-width:560px; }
+        .pila-upload-form .form-group { margin:0; min-width:0; }
+        .pila-document-row { align-items:start; }
+        .pila-document-row .pila-flow-copy { align-self:start; padding-top:18px; }
+        .pila-upload-form .dropzone { min-height:82px; box-sizing:border-box; padding:12px 14px; flex-direction:row; justify-content:flex-start; gap:11px; border-width:1px; border-color:#fdba74; border-radius:9px; text-align:left; background:#fff; }
+        .pila-upload-form .dropzone:hover,.pila-upload-form .dropzone.dragover { border-color:#f97316; background:#fffaf5; box-shadow:0 0 0 3px rgba(249,115,22,.08); }
+        .pila-file-symbol { width:44px; height:44px; flex:0 0 44px; display:grid; place-items:center; border-radius:10px; color:#ea580c; background:#fff7ed; font-size:1.05rem; }
+        .pila-file-copy { display:flex; flex:1; flex-direction:column; gap:1px; min-width:0; }
+        .pila-file-copy strong { color:#0f2f67; font-size:.7rem; line-height:1.25; }
+        .pila-file-copy small { color:#64748b; font-size:.52rem; line-height:1.3; }
+        .pila-file-action { min-height:34px; margin-left:auto; padding:0 12px; display:inline-flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; color:#c2410c; background:#ffedd5; font-size:.58rem; font-weight:850; white-space:nowrap; }
+        .pila-selected-file { min-height:82px; box-sizing:border-box; padding:10px 12px; display:none; align-items:center; gap:10px; border:1px solid #bbf7d0; border-radius:9px; background:#f0fdf4; }
+        .pila-selected-file > i { width:38px; height:38px; flex:0 0 38px; display:grid; place-items:center; border-radius:9px; color:#047857; background:#dcfce7; font-size:.9rem; }
+        .pila-selected-copy { min-width:0; flex:1; }
+        .pila-selected-copy strong { display:block; overflow:hidden; color:#065f46; font-size:.65rem; text-overflow:ellipsis; white-space:nowrap; }
+        .pila-selected-copy small { display:block; margin-top:3px; color:#64748b; font-size:.49rem; }
+        .pila-review-button { min-height:34px; padding:0 11px; display:inline-flex; align-items:center; justify-content:center; gap:6px; border:1px solid #bfdbfe; border-radius:8px; color:#1d4ed8; background:#eff6ff; font:inherit; font-size:.56rem; font-weight:850; cursor:pointer; white-space:nowrap; }
+        .pila-upload-form .btn-primary { min-height:38px; margin:0; padding:8px 10px; }
+        .preview-modal-actions .btn-primary { width:auto; min-width:150px; }
+        .pila-report-link { height:36px; padding:0 11px; border:1px solid #bfdbfe; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; gap:6px; color:#1d4ed8; background:#eff6ff; text-decoration:none; font-size:.62rem; font-weight:850; }
+        .year-report-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .planillas-card { width:100%; box-sizing:border-box; }
+
         #loader-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.9); z-index: 999999; display: none; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
         #loader-overlay.active { display: flex; }
 
         @media (max-width: 900px) {
-            .panel-container { grid-template-columns: 1fr; }
-            .panel-container.rep-view { grid-template-columns: 1fr; }
             .rep-pila-strip { grid-template-columns: 1fr; }
             .rep-pila-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .pila-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .pila-period-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .pila-payment-context { grid-template-columns:1fr; }
+            .pila-context-heading { padding:0 0 8px; border-right:0; border-bottom:1px solid #ffedd5; }
+            .pila-context-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+            .pila-flow-row { grid-template-columns:minmax(145px,.42fr) minmax(0,2fr); }
+            .preview-modal-body { grid-template-columns:1fr; }
+            .pdf-viewer { height:46vh; }
         }
         @media (min-width: 769px) and (max-height: 820px) {
             .content-area { padding-top: 20px; padding-bottom: 20px; }
@@ -362,7 +534,7 @@ $current_page = 'estandar2.php';
             .header-actions { flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 20px; border-bottom: none; padding-bottom: 0; }
             .estandar-header-group { flex-direction: row; align-items: flex-start; width: 100%; }
             
-            .card-box { padding: 20px 16px; }
+            .card-box { padding: 14px; }
             .months-grid { grid-template-columns: 1fr; }
             .analysis-grid { grid-template-columns: 1fr; }
             .rep-pila-strip { margin-top: -4px; padding: 12px; gap: 12px; }
@@ -380,6 +552,33 @@ $current_page = 'estandar2.php';
             .rep-summary-table td { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 9px 0; border-bottom: 1px solid #eef2f7; text-align: right; }
             .rep-summary-table td:last-child { border-bottom: none; }
             .rep-summary-table td::before { content: attr(data-label); flex: 0 0 42%; color: #64748b; font-size: 0.62rem; font-weight: 850; text-transform: uppercase; letter-spacing: .035em; text-align: left; }
+            .pila-detail-head { align-items:flex-start; flex-direction:column; }
+            .pila-tools { justify-content:flex-start; width:100%; }
+            .pila-search { flex:1; }
+            .pila-period-grid { grid-template-columns:1fr; }
+            .pila-tools,.pila-search,.pila-filter,.pila-files-link { width:100%; }
+            .pila-files-link { justify-content:center; }
+            .pila-context-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .pila-context-item.company,.pila-context-item.due { grid-column:span 2; }
+            .pila-flow-row { grid-template-columns:1fr; }
+            .pila-period-fields { grid-template-columns:1fr; max-width:none; }
+            .pila-upload-form .dropzone { min-height:92px; }
+            .pila-file-action { padding:0 9px; }
+            .pila-document-row .pila-flow-copy { padding-top:0; }
+            .preview-container { padding:8px; }
+            .preview-modal-shell { width:calc(100vw - 16px); max-height:calc(100vh - 16px); border-radius:11px; }
+            .preview-modal-head { min-height:54px; padding:9px 10px; }
+            .preview-modal-title small { max-width:240px; }
+            .preview-modal-body { padding:8px; }
+            .analysis-grid { grid-template-columns:1fr; }
+            .analysis-item[style*="grid-column"] { grid-column:1 !important; }
+            .pdf-viewer { height:42vh; }
+            .preview-modal-footer { align-items:stretch; flex-direction:column; padding:9px 10px; }
+            .preview-modal-note { display:none; }
+            .preview-modal-actions { width:100%; margin:0; }
+            .preview-modal-actions > * { flex:1; }
+            .pila-selected-file { align-items:flex-start; flex-wrap:wrap; }
+            .pila-review-button { width:100%; }
         }
         @media (max-width: 480px) {
             .rep-summary-grid { grid-template-columns: 1fr; }
@@ -443,6 +642,23 @@ $current_page = 'estandar2.php';
                 <div class="alert-status danger" id="alertBox">
                     <i class="fa-solid fa-trash-can" style="font-size: 1.2rem;"></i>
                     La planilla ha sido eliminada del historial.
+                </div>
+            <?php elseif (isset($_GET['error'])): ?>
+                <?php
+                    $erroresPlanilla = [
+                        'sesion' => 'La sesión del formulario venció. Recarga la página e intenta nuevamente.',
+                        'periodo' => 'Selecciona un mes y un año válidos para la planilla.',
+                        'archivo' => 'No se recibió el soporte. Selecciona nuevamente el PDF.',
+                        'formato' => 'El soporte debe ser un PDF válido de máximo 15 MB.',
+                        'almacenamiento' => 'No hay espacio disponible en el plan para guardar este soporte.',
+                        'no_permission' => 'Solo el Responsable SST puede administrar las planillas.',
+                        'registro' => 'No fue posible guardar la planilla. Intenta nuevamente.',
+                    ];
+                    $errorPlanilla = $erroresPlanilla[(string)$_GET['error']] ?? 'No fue posible completar la operación.';
+                ?>
+                <div class="alert-status danger" id="alertBox">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.05rem;"></i>
+                    <?php echo htmlspecialchars($errorPlanilla); ?>
                 </div>
             <?php endif; ?>
 
@@ -510,10 +726,13 @@ $current_page = 'estandar2.php';
             <div class="panel-container <?php echo $es_representante ? 'rep-view' : ''; ?>">
                 
                 <?php if ($es_sst): ?>
-                    <div class="card-box" style="align-self: start;">
+                    <div class="card-box upload-planilla-card">
                         <h3 class="card-title">
                             <div class="title-icon-wrapper"><i class="fa-solid <?php echo $es_sst ? 'fa-cloud-arrow-up' : 'fa-circle-info'; ?>"></i></div>
-                            Subir Nueva Planilla
+                            <span class="upload-title-copy">
+                                <strong>Subir nueva planilla</strong>
+                                <small>Registra el periodo y adjunta el soporte PILA en formato PDF.</small>
+                            </span>
                         </h3>
 
                         <?php if ($bloquear_subida): ?>
@@ -533,93 +752,87 @@ $current_page = 'estandar2.php';
                             </div>
                         <?php else: ?>
 
-                            <div class="info-pila-box">
-                                <p style="margin-bottom: 12px; font-weight: 800; font-size: 0.75rem; color: var(--primary2); display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.05em;">
-                                    <i class="fa-solid fa-calculator"></i>
-                                    Cálculo Automático PILA
-                                </p>
-                                <p>Empresa: <strong style="color: var(--blue-dark);"><?php echo htmlspecialchars($nombre_empresa); ?></strong></p>
-                                <p>NIT finaliza en: <span class="highlight"><?php echo $ultimos_digitos; ?></span></p>
-                                <p>Día hábil límite: <span class="highlight"><?php echo $dia_habil; ?>°</span></p>
-
-                                <div style="margin-top: 16px; background: #ffffff; border-radius: 8px; padding: 12px; border: 1px solid rgba(255,138,31,0.2);">
-                                    <span style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--muted); margin-bottom: 4px; text-transform: uppercase;">Límite sugerido para este mes:</span>
-                                    <span class="fecha-roja"><?php echo $fecha_limite_actual; ?></span>
+                            <div class="pila-payment-context">
+                                <div class="pila-context-heading">
+                                    <span class="pila-flow-number">1</span>
+                                    <span class="pila-context-icon"><i class="fa-solid fa-calculator"></i></span>
+                                    <div><strong>Contexto de pago PILA</strong><small>Cálculo automático según el NIT registrado.</small></div>
+                                </div>
+                                <div class="pila-context-grid">
+                                    <div class="pila-context-item company"><span>Empresa</span><strong><?php echo htmlspecialchars($nombre_empresa); ?></strong></div>
+                                    <div class="pila-context-item"><span>Terminación NIT</span><strong><?php echo $ultimos_digitos; ?></strong></div>
+                                    <div class="pila-context-item"><span>Día hábil</span><strong><?php echo $dia_habil; ?>°</strong></div>
+                                    <div class="pila-context-item due"><span>Próximo límite</span><strong><?php echo $fecha_limite_actual; ?></strong></div>
                                 </div>
                             </div>
 
-                            <form action="procesar_estandar2.php" method="POST" enctype="multipart/form-data" onsubmit="mostrarLoader()">
+                            <form class="pila-upload-form" id="pilaUploadForm" action="procesar_estandar2.php" method="POST" enctype="multipart/form-data" onsubmit="mostrarLoader()">
                                 <input type="hidden" name="accion" value="subir_planilla">
+                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['estandar2_csrf']); ?>">
 
-                                <div class="form-group">
-                                    <label>Mes Correspondiente</label>
-                                    <select name="mes" id="select_mes_upload" class="custom-select" required>
-                                        <?php foreach ($meses as $num => $nombre): ?>
-                                            <option value="<?php echo $num; ?>" <?php echo date('n') == $num ? 'selected' : ''; ?>><?php echo $nombre; ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-
-                                <div class="form-group">
-                                    <label>Año</label>
-                                    <input type="number" name="anio" id="input_anio_upload" class="custom-input" value="<?php echo $anio_seleccionado; ?>" min="2020" max="2050" required>
-                                </div>
-
-                                <div class="form-group">
-                                    <label>Documento PDF (PILA)</label>
-
-                                    <div class="dropzone" id="dropzone">
-                                        <input type="file" name="archivo" id="archivoPdf" accept="application/pdf" required hidden>
-                                        <i class="fa-solid fa-file-pdf" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 8px;"></i>
-                                        <p>Haz clic o arrastra tu PDF</p>
-                                        <span>Solo se aceptan archivos .pdf</span>
+                                <div class="pila-flow-row pila-period-row">
+                                    <div class="pila-flow-copy">
+                                        <span class="pila-flow-number">2</span>
+                                        <div><strong>Periodo de la planilla</strong><small>Selecciona el mes y la vigencia que vas a registrar.</small></div>
                                     </div>
 
-                                    <div class="preview-container" id="previewContainer">
-
-                                        <div class="analysis-panel" id="analysisPanel">
-                                            <div class="analysis-title">
-                                                <i class="fa-solid fa-robot"></i> Análisis Rápido del Documento
-                                            </div>
-                                            <div class="analysis-grid">
-                                                <div class="analysis-item">
-                                                    <span class="analysis-label">Validación NIT</span>
-                                                    <span class="analysis-val" id="resNit">Cargando...</span>
-                                                </div>
-                                                <div class="analysis-item">
-                                                    <span class="analysis-label">Cruce de Trabajadores</span>
-                                                    <span class="analysis-val" id="resTrabajadores">Cargando...</span>
-                                                </div>
-                                                <div class="analysis-item" style="grid-column: 1 / -1;">
-                                                    <span class="analysis-label">Novedades Detectadas (Aprox)</span>
-                                                    <span class="analysis-val" id="resNovedades" style="font-weight: 500;">Cargando...</span>
-                                                </div>
-                                            </div>
-                                            <div style="font-size: 0.65rem; color: #64748b; font-style: italic; margin-top: 4px;">
-                                                *Nota: Este análisis automatizado exige que la cédula aparezca como un número exacto en la tabla de la PILA.
-                                            </div>
+                                    <div class="pila-period-fields">
+                                        <div class="form-group">
+                                            <label>Mes correspondiente</label>
+                                            <select name="mes" id="select_mes_upload" class="custom-select" required>
+                                                <?php foreach ($meses as $num => $nombre): ?>
+                                                    <option value="<?php echo $num; ?>" <?php echo date('n') == $num ? 'selected' : ''; ?>><?php echo $nombre; ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
                                         </div>
 
-                                        <div class="preview-header">
-                                            <span>
-                                                <i class="fa-solid fa-eye" style="color: #ef4444;"></i>
-                                                Vista previa
-                                            </span>
-                                            <button type="button" class="btn-change-file" id="btnRemovePdf">Cambiar</button>
+                                        <div class="form-group">
+                                            <label>Año</label>
+                                            <input type="number" name="anio" id="input_anio_upload" class="custom-input" value="<?php echo $anio_seleccionado; ?>" min="2020" max="2050" required>
                                         </div>
-                                        <iframe id="pdfViewer" class="pdf-viewer"></iframe>
                                     </div>
                                 </div>
 
-                                <button type="submit" class="btn-primary" id="btnSubmitForm" style="display: none;">
-                                    <i class="fa-solid fa-floppy-disk"></i> Guardar Planilla
-                                </button>
+                                <div class="pila-flow-row pila-document-row">
+                                    <div class="pila-flow-copy">
+                                        <span class="pila-flow-number">3</span>
+                                        <div><strong>Soporte documental</strong><small>Adjunta la planilla PILA para validarla y guardarla.</small></div>
+                                    </div>
+
+                                    <div class="form-group file-group">
+                                        <label>Documento PDF (PILA)</label>
+
+                                        <div class="dropzone" id="dropzone">
+                                            <input type="file" name="archivo" id="archivoPdf" accept="application/pdf" required hidden>
+                                            <span class="pila-file-symbol"><i class="fa-solid fa-file-pdf"></i></span>
+                                            <span class="pila-file-copy"><strong>Haz clic o arrastra el soporte PILA</strong><small>Solo PDF · Máximo 15 MB · El sistema revisará NIT, trabajadores y novedades</small></span>
+                                            <span class="pila-file-action"><i class="fa-solid fa-folder-open"></i> Elegir archivo</span>
+                                        </div>
+
+                                        <div class="pila-selected-file" id="selectedFileCard">
+                                            <i class="fa-solid fa-file-circle-check"></i>
+                                            <div class="pila-selected-copy">
+                                                <strong id="selectedFileName">Soporte PILA seleccionado</strong>
+                                                <small>Archivo listo para revisar y guardar.</small>
+                                            </div>
+                                            <button type="button" class="pila-review-button" id="btnOpenPreview"><i class="fa-solid fa-magnifying-glass"></i> Revisar documento</button>
+                                        </div>
+
+                                    </div>
+                                </div>
                             </form>
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
 
-                <div class="card-box" <?php echo ($usuario_rol === 'trabajador') ? 'style="grid-column: span 2;"' : ''; ?>>
+                <div class="pila-summary-grid">
+                    <article class="pila-kpi green"><i class="fa-solid fa-file-circle-check"></i><span>Planillas cargadas</span><strong><?php echo $planillas_cargadas; ?>/12</strong><small>Soportes registrados para la vigencia <?php echo $anio_seleccionado; ?>.</small></article>
+                    <article class="pila-kpi"><i class="fa-solid fa-calendar-xmark"></i><span>Pendientes a la fecha</span><strong><?php echo $pendientes_a_la_fecha; ?></strong><small>Periodos exigibles que todavía no tienen soporte PILA.</small></article>
+                    <article class="pila-kpi blue"><i class="fa-solid fa-users-shield"></i><span>Cobertura detectada</span><strong><?php echo $cobertura_promedio !== null ? $cobertura_promedio . '%' : '—'; ?></strong><small>Promedio de trabajadores encontrados frente a los esperados.</small></article>
+                    <article class="pila-kpi violet"><i class="fa-solid fa-sack-dollar"></i><span>Valor anual reportado</span><strong><?php echo $valor_total_anual > 0 ? '$' . number_format($valor_total_anual, 0, ',', '.') : '—'; ?></strong><small>Suma de los valores detectados en las planillas analizadas.</small></article>
+                </div>
+
+                <div class="card-box planillas-card">
 
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; border-bottom: 1px dashed var(--border); padding-bottom: 12px;">
                         <h3 class="card-title" style="border: none; padding: 0; margin: 0;">
@@ -627,14 +840,19 @@ $current_page = 'estandar2.php';
                             Planillas del Año
                         </h3>
 
-                        <div class="year-selector">
-                            <a href="?anio=<?php echo $anio_seleccionado - 1; ?>" class="year-btn" title="Año Anterior">
-                                <i class="fa-solid fa-chevron-left"></i>
+                        <div class="year-report-actions">
+                            <a class="pila-report-link" href="estandar2_reporte_pdf?anio=<?php echo $anio_seleccionado; ?>" target="_blank">
+                                <i class="fa-solid fa-file-pdf"></i> Reporte completo PDF
                             </a>
-                            <span class="year-display"><?php echo $anio_seleccionado; ?></span>
-                            <a href="?anio=<?php echo $anio_seleccionado + 1; ?>" class="year-btn" title="Año Siguiente">
-                                <i class="fa-solid fa-chevron-right"></i>
-                            </a>
+                            <div class="year-selector">
+                                <a href="?anio=<?php echo $anio_seleccionado - 1; ?>" class="year-btn" title="Año Anterior">
+                                    <i class="fa-solid fa-chevron-left"></i>
+                                </a>
+                                <span class="year-display"><?php echo $anio_seleccionado; ?></span>
+                                <a href="?anio=<?php echo $anio_seleccionado + 1; ?>" class="year-btn" title="Año Siguiente">
+                                    <i class="fa-solid fa-chevron-right"></i>
+                                </a>
+                            </div>
                         </div>
                     </div>
 
@@ -771,6 +989,61 @@ $current_page = 'estandar2.php';
                         <?php endfor; ?>
                     </div>
                     <?php endif; ?>
+
+                    <div class="pila-detail-head">
+                        <div>
+                            <h4>Detalle mensual de planillas</h4>
+                            <p>Consulta cobertura, valor, validación, novedades y versiones de cada periodo.</p>
+                        </div>
+                        <div class="pila-tools">
+                            <input class="pila-search" id="pilaSearch" type="search" placeholder="Buscar mes o estado...">
+                            <select class="pila-filter" id="pilaStatusFilter"><option value="all">Todos</option><option value="loaded">Cargadas</option><option value="pending">Pendientes</option></select>
+                            <a class="pila-files-link" href="almacenamiento?estandar=2"><i class="fa-solid fa-folder-open"></i> Archivos</a>
+                        </div>
+                    </div>
+
+                    <div class="pila-period-grid" id="pilaPeriodGrid">
+                        <?php for ($periodMonth = 1; $periodMonth <= 12; $periodMonth++): ?>
+                            <?php
+                                $periodLoaded = isset($planillas_mes[$periodMonth]);
+                                $periodData = $periodLoaded ? $planillas_mes[$periodMonth] : null;
+                                $periodName = $meses[$periodMonth];
+                                $detected = $periodLoaded ? (int)($periodData['cedulas_detectadas'] ?? 0) : 0;
+                                $expected = $periodLoaded ? (int)($periodData['trabajadores_esperados'] ?? 0) : 0;
+                                $coverage = $expected > 0 ? min(100, round(($detected / $expected) * 100)) : null;
+                                $downloadUrl = $periodLoaded && !empty($periodData['almacenamiento_archivo_id']) ? 'descargar_archivo?id=' . (int)$periodData['almacenamiento_archivo_id'] : ($periodData['archivo_url'] ?? '#');
+                                $searchText = strtolower($periodName . ' ' . ($periodLoaded ? 'cargada validada' : 'pendiente'));
+                            ?>
+                            <article class="pila-period-card <?php echo $periodLoaded ? 'loaded' : 'pending'; ?>" data-state="<?php echo $periodLoaded ? 'loaded' : 'pending'; ?>" data-search="<?php echo htmlspecialchars($searchText); ?>">
+                                <div class="pila-period-top">
+                                    <div class="pila-period-title">
+                                        <span class="pila-period-icon"><i class="fa-solid <?php echo $periodLoaded ? 'fa-file-circle-check' : 'fa-calendar-day'; ?>"></i></span>
+                                        <div><strong><?php echo $periodName; ?></strong><small><?php echo $anio_seleccionado; ?> · Límite <?php echo htmlspecialchars($fechas_limites_meses[$periodMonth] ?? 'por definir'); ?></small></div>
+                                    </div>
+                                    <span class="pila-status"><?php echo $periodLoaded ? 'Cargada' : 'Pendiente'; ?></span>
+                                </div>
+
+                                <?php if ($periodLoaded): ?>
+                                    <div class="pila-period-metrics">
+                                        <div class="pila-period-metric"><span>Cobertura</span><strong><?php echo $coverage !== null ? $coverage . '%' : 'Sin dato'; ?></strong></div>
+                                        <div class="pila-period-metric"><span>Valor pagado</span><strong><?php echo !empty($periodData['valor_total']) ? '$' . number_format((float)$periodData['valor_total'], 0, ',', '.') : 'Sin dato'; ?></strong></div>
+                                        <div class="pila-period-metric"><span>Validación NIT</span><strong><?php echo ($periodData['nit_coincide'] ?? 'NO') === 'SI' ? 'Coincide' : 'Por revisar'; ?></strong></div>
+                                        <div class="pila-period-metric"><span>Versión</span><strong>V<?php echo (int)($periodData['version_actual'] ?? 1); ?>.0</strong></div>
+                                    </div>
+                                    <p class="pila-period-note"><i class="fa-solid fa-user-check"></i> <?php echo htmlspecialchars(trim(($periodData['nombre'] ?? '') . ' ' . ($periodData['apellido'] ?? ''))); ?> · <?php echo htmlspecialchars(date('d/m/Y H:i', strtotime($periodData['fecha_subida']))); ?></p>
+                                    <details class="pila-period-details"><summary><i class="fa-solid fa-chevron-down"></i> Ver análisis consolidado</summary><div class="pila-detail-copy"><strong>Trabajadores:</strong> <?php echo $detected ?: 'Sin dato'; ?> de <?php echo $expected ?: 'Sin dato'; ?><br><strong>Riesgos:</strong> <?php echo htmlspecialchars($periodData['riesgos_detectados'] ?: 'No detectados'); ?><br><strong>Novedades:</strong> <?php echo htmlspecialchars($periodData['novedades_resumen'] ?: 'Sin novedades reportadas.'); ?></div></details>
+                                    <div class="pila-card-actions">
+                                        <a class="pila-action primary" href="<?php echo htmlspecialchars($downloadUrl); ?>" target="_blank"><i class="fa-solid fa-download"></i> Soporte</a>
+                                        <?php if ($es_sst): ?><button class="pila-action upload" type="button" onclick="prepararSubida(<?php echo $periodMonth; ?>,<?php echo $anio_seleccionado; ?>)"><i class="fa-solid fa-rotate"></i> Reemplazar</button><a class="pila-action danger" href="#" onclick="showConfirmModal('Eliminar planilla','¿Deseas eliminar todas las versiones de <?php echo $periodName; ?>?','procesar_estandar2?accion=eliminar_planilla&id=<?php echo (int)$periodData['id']; ?>&csrf_token=<?php echo urlencode($_SESSION['estandar2_csrf']); ?>','danger','Sí, eliminar');return false;"><i class="fa-regular fa-trash-can"></i></a><?php endif; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="pila-period-metrics"><div class="pila-period-metric"><span>Estado</span><strong>Sin soporte</strong></div><div class="pila-period-metric"><span>Fecha límite</span><strong><?php echo htmlspecialchars($fechas_limites_meses[$periodMonth] ?? 'Por definir'); ?></strong></div></div>
+                                    <p class="pila-period-note">Todavía no se ha registrado la planilla PILA correspondiente a este periodo.</p>
+                                    <?php if ($es_sst && !$bloquear_subida): ?><div class="pila-card-actions"><button class="pila-action upload" type="button" onclick="prepararSubida(<?php echo $periodMonth; ?>,<?php echo $anio_seleccionado; ?>)"><i class="fa-solid fa-cloud-arrow-up"></i> Cargar planilla</button></div><?php endif; ?>
+                                <?php endif; ?>
+                            </article>
+                        <?php endfor; ?>
+                    </div>
                 </div>
             </div>
 
@@ -778,6 +1051,63 @@ $current_page = 'estandar2.php';
     </main>
 
     <?php include_once 'components/modal_confirmacion.php'; ?>
+
+    <?php if ($es_sst && !$bloquear_subida): ?>
+        <div class="preview-container" id="previewContainer" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="previewModalTitle">
+            <div class="preview-modal-shell">
+                <div class="preview-modal-head">
+                    <div class="preview-modal-title">
+                        <i class="fa-solid fa-file-shield"></i>
+                        <div><strong id="previewModalTitle">Revisión del soporte PILA</strong><small id="previewFileName">Documento seleccionado</small></div>
+                    </div>
+                    <button type="button" class="preview-modal-close" id="btnClosePreview" aria-label="Cerrar revisión"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <div class="preview-modal-body">
+                    <div class="analysis-panel" id="analysisPanel">
+                        <div class="analysis-title">
+                            <i class="fa-solid fa-robot"></i> Análisis rápido del documento
+                        </div>
+                        <div class="analysis-grid">
+                            <div class="analysis-item">
+                                <span class="analysis-label">Validación NIT</span>
+                                <span class="analysis-val" id="resNit">Cargando...</span>
+                            </div>
+                            <div class="analysis-item">
+                                <span class="analysis-label">Cruce de trabajadores</span>
+                                <span class="analysis-val" id="resTrabajadores">Cargando...</span>
+                            </div>
+                            <div class="analysis-item" style="grid-column:1 / -1;">
+                                <span class="analysis-label">Novedades detectadas (aprox.)</span>
+                                <span class="analysis-val" id="resNovedades" style="font-weight:500;">Cargando...</span>
+                            </div>
+                        </div>
+                        <div style="font-size:.56rem;color:#64748b;line-height:1.45;margin-top:2px;">
+                            <i class="fa-solid fa-circle-info" style="color:#2563eb;"></i> La cédula debe aparecer como un número exacto en la tabla de la PILA para completar el cruce automático.
+                        </div>
+                    </div>
+
+                    <div class="preview-document-panel">
+                        <div class="preview-header">
+                            <span><i class="fa-solid fa-eye" style="color:#2563eb;"></i> Vista previa del PDF</span>
+                            <button type="button" class="btn-change-file" id="btnRemovePdf">Cambiar archivo</button>
+                        </div>
+                        <iframe id="pdfViewer" class="pdf-viewer" title="Vista previa del soporte PILA"></iframe>
+                    </div>
+                </div>
+
+                <div class="preview-modal-footer">
+                    <div class="preview-modal-note"><i class="fa-solid fa-lock"></i> Confirma que el periodo y el documento sean correctos antes de guardar.</div>
+                    <div class="preview-modal-actions">
+                        <button type="button" class="preview-secondary" id="btnClosePreviewBottom">Volver al formulario</button>
+                        <button type="submit" class="btn-primary" id="btnSubmitForm" form="pilaUploadForm" style="display:none;">
+                            <i class="fa-solid fa-floppy-disk"></i> Guardar planilla
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <script>
         // ==========================================
@@ -988,10 +1318,10 @@ $current_page = 'estandar2.php';
                     if (empFaltantesGlobal.length > 0) {
                         htmlTrab += `<span style="color:#ef4444; display:block; margin-bottom:2px;"><b>Faltan en PILA:</b></span>`;
                         empFaltantesGlobal.forEach(f => {
-                            htmlTrab += `<span style="display:block; color:#fca5a5;">- ${f.nombre} ${f.apellido} (C.C. ${f.cedula})</span>`;
+                            htmlTrab += `<span style="display:block; color:#dc2626;">- ${f.nombre} ${f.apellido} (C.C. ${f.cedula})</span>`;
                         });
                     } else {
-                        htmlTrab += `<span style="color:#10b981;"><b>¡Todos los trabajadores están al día!</b></span>`;
+                        htmlTrab += `<span style="color:#059669;"><b>¡Todos los trabajadores están al día!</b></span>`;
                     }
                     htmlTrab += `</div>`;
                     
@@ -1040,6 +1370,30 @@ $current_page = 'estandar2.php';
             const btnRemovePdf = document.getElementById('btnRemovePdf');
             const btnSubmitForm = document.getElementById('btnSubmitForm');
             const analysisPanel = document.getElementById('analysisPanel');
+            const uploadForm = document.querySelector('.pila-upload-form');
+            const selectedFileCard = document.getElementById('selectedFileCard');
+            const selectedFileName = document.getElementById('selectedFileName');
+            const previewFileName = document.getElementById('previewFileName');
+            const btnOpenPreview = document.getElementById('btnOpenPreview');
+            const btnClosePreview = document.getElementById('btnClosePreview');
+            const btnClosePreviewBottom = document.getElementById('btnClosePreviewBottom');
+            const pilaSearch = document.getElementById('pilaSearch');
+            const pilaStatusFilter = document.getElementById('pilaStatusFilter');
+            const periodCards = Array.from(document.querySelectorAll('.pila-period-card'));
+            let currentPdfUrl = '';
+
+            const filtrarPeriodos = () => {
+                const term = (pilaSearch?.value || '').trim().toLocaleLowerCase('es');
+                const state = pilaStatusFilter?.value || 'all';
+                periodCards.forEach(card => {
+                    const matchesText = !term || (card.dataset.search || '').toLocaleLowerCase('es').includes(term);
+                    const matchesState = state === 'all' || card.dataset.state === state;
+                    card.hidden = !(matchesText && matchesState);
+                });
+            };
+
+            pilaSearch?.addEventListener('input', filtrarPeriodos);
+            pilaStatusFilter?.addEventListener('change', filtrarPeriodos);
 
             if (dropzone && fileInput) {
                 dropzone.addEventListener('click', () => fileInput.click());
@@ -1061,16 +1415,35 @@ $current_page = 'estandar2.php';
 
                 fileInput.addEventListener('change', manejarArchivo);
 
+                function abrirRevision() {
+                    previewContainer.style.display = 'flex';
+                    previewContainer.setAttribute('aria-hidden', 'false');
+                    document.body.classList.add('preview-modal-open');
+                    btnClosePreview?.focus();
+                }
+
+                function cerrarRevision() {
+                    previewContainer.style.display = 'none';
+                    previewContainer.setAttribute('aria-hidden', 'true');
+                    document.body.classList.remove('preview-modal-open');
+                    btnOpenPreview?.focus();
+                }
+
                 function manejarArchivo() {
                     const file = fileInput.files[0];
                     if (file && file.type === 'application/pdf') {
 
-                        // 1. Mostrar Preview Visual
-                        const fileURL = URL.createObjectURL(file);
-                        pdfViewer.src = fileURL;
+                        // 1. Preparar la revisión visual en ventana modal
+                        if (currentPdfUrl) URL.revokeObjectURL(currentPdfUrl);
+                        currentPdfUrl = URL.createObjectURL(file);
+                        pdfViewer.src = currentPdfUrl;
                         dropzone.style.display = 'none';
-                        previewContainer.style.display = 'block';
+                        selectedFileCard.style.display = 'flex';
+                        selectedFileName.textContent = file.name;
+                        previewFileName.textContent = file.name;
                         btnSubmitForm.style.display = 'flex';
+                        uploadForm?.classList.add('has-file');
+                        abrirRevision();
 
                         // 2. Disparar Motor de Análisis IA
                         analizarPDF(file);
@@ -1088,11 +1461,29 @@ $current_page = 'estandar2.php';
                     restaurarFormulario();
                 });
 
+                btnOpenPreview?.addEventListener('click', abrirRevision);
+                btnClosePreview?.addEventListener('click', cerrarRevision);
+                btnClosePreviewBottom?.addEventListener('click', cerrarRevision);
+                previewContainer.addEventListener('click', (event) => {
+                    if (event.target === previewContainer) cerrarRevision();
+                });
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape' && previewContainer.getAttribute('aria-hidden') === 'false') cerrarRevision();
+                });
+
                 function restaurarFormulario() {
-                    previewContainer.style.display = 'none';
+                    cerrarRevision();
                     btnSubmitForm.style.display = 'none';
                     analysisPanel.style.display = 'none';
                     dropzone.style.display = 'flex';
+                    selectedFileCard.style.display = 'none';
+                    selectedFileName.textContent = 'Soporte PILA seleccionado';
+                    previewFileName.textContent = 'Documento seleccionado';
+                    if (currentPdfUrl) {
+                        URL.revokeObjectURL(currentPdfUrl);
+                        currentPdfUrl = '';
+                    }
+                    uploadForm?.classList.remove('has-file');
                 }
             }
 

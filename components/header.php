@@ -1,4 +1,5 @@
 <?php
+include_once __DIR__ . '/brand_favicon.php';
 // Asegurarnos de tener la página actual para el título
 $current_page = basename($_SERVER['PHP_SELF']);
 
@@ -15,13 +16,21 @@ if ($current_page == 'configuracion.php') $titulo_header = "Configuración de Cu
 if ($current_page == 'planes.php') $titulo_header = "Gestión de Planes";
 if ($current_page == 'accesos.php') $titulo_header = "Control de Accesos";
 if ($current_page == 'solicitudes.php') $titulo_header = "Solicitudes de Registro";
-if ($current_page == 'estandar6.php') $titulo_header = "IdentificaciÃ³n de Peligros y ValoraciÃ³n de Riesgos";
+if ($current_page == 'prospectos_demo.php') $titulo_header = "Prospectos de la Demo PEM";
+if ($current_page == 'estandar6.php') $titulo_header = "Identificación de Peligros y Valoración de Riesgos";
+if ($current_page == 'nuevo_peligro_ipvr.php') $titulo_header = "Nuevo Peligro IPVR";
 if ($current_page == 'estandar7.php') $titulo_header = "Medidas de Prevencion y Control";
+if ($current_page == 'nuevo_centro_medico.php') $titulo_header = "Nuevo Centro Médico";
+if ($current_page == 'nuevo_proceso_perfil.php') $titulo_header = "Nuevo Proceso de Cargo";
+if ($current_page == 'nuevo_perfil_cargo.php') $titulo_header = "Nuevo Perfil de Cargo";
+if ($current_page == 'gestion_restricciones_medicas.php') $titulo_header = "Gestión de Restricciones Médicas";
+if ($current_page == 'almacenamiento.php') $titulo_header = "Almacenamiento Documental";
 
 // Consultas para la barra superior
 $unread_count = 0;
 $nombre_plan_header = null;
 $clase_plan_header = 'plan-badge-gray'; 
+$storage_header = null;
 
 $usuario_rol_header = $_SESSION['usuario_rol'] ?? $_SESSION['rol'] ?? '';
 
@@ -31,6 +40,11 @@ if (isset($_SESSION['cpanel_admin_id'])) {
     // LÓGICA INTELIGENTE: Super Admin revisa solicitudes pendientes
     $stmt_notif = $conn->query("SELECT COUNT(*) FROM solicitudes_empresas WHERE estado = 'pendiente'");
     $unread_count = $stmt_notif->fetchColumn();
+    try {
+        $unread_count += (int)$conn->query("SELECT COUNT(*) FROM demo_prospectos WHERE estado = 'nuevo'")->fetchColumn();
+    } catch (Throwable $e) {
+        // Compatibilidad mientras se aplica la migración de la demo comercial.
+    }
 
 } else {
     if ($usuario_rol_header === 'representante') {
@@ -49,6 +63,19 @@ if (isset($_SESSION['cpanel_admin_id'])) {
         $stmt_notif->execute([$_SESSION['usuario_id']]);
         $unread_count = $stmt_notif->fetchColumn();
 
+        if ($usuario_rol_header === 'representante' || $usuario_rol_header === 'sst') {
+            try {
+                require_once __DIR__ . '/../config/storage_schema.php';
+                ensure_storage_schema($conn);
+                $storage_empresa_id = storage_user_company_id($conn, (int)$_SESSION['usuario_id']);
+                if ($storage_empresa_id > 0) {
+                    $storage_header = storage_company_context($conn, $storage_empresa_id);
+                }
+            } catch (Throwable $storage_error) {
+                $storage_header = null;
+            }
+        }
+
         if ($usuario_rol_header === 'representante') {
             $stmt_plan_hdr = $conn->prepare("
                 SELECT p.nombre 
@@ -63,9 +90,9 @@ if (isset($_SESSION['cpanel_admin_id'])) {
             if ($plan_data_hdr && !empty($plan_data_hdr['nombre'])) {
                 $nombre_plan_header = $plan_data_hdr['nombre'];
                 
-                if (stripos(strtolower($nombre_plan_header), 'pro') !== false) {
+                if (stripos(strtolower($nombre_plan_header), 'mem') !== false || stripos(strtolower($nombre_plan_header), 'pro') !== false) {
                     $clase_plan_header = 'plan-badge-pro';
-                } elseif (stripos(strtolower($nombre_plan_header), 'enterprise') !== false) {
+                } elseif (stripos(strtolower($nombre_plan_header), 'gem') !== false || stripos(strtolower($nombre_plan_header), 'enterprise') !== false) {
                     $clase_plan_header = 'plan-badge-enterprise';
                 } else {
                     $clase_plan_header = 'plan-badge-basic';
@@ -108,6 +135,14 @@ if (isset($_SESSION['cpanel_admin_id'])) {
 
     /* Ajusté el botón para que combine mejor con el fondo sólido */
     .icon-btn { background: #f8fafc; border: 1px solid #e2e8f0; width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted); cursor: pointer; transition: all 0.3s ease; text-decoration: none; position: relative; }
+    .cloud-storage-btn { width: auto; min-width: 148px; height: 36px; padding: 0 9px; gap: 8px; border-color: #cfe0f8; background: #f7faff; }
+    .cloud-storage-symbol { width: 25px; height: 25px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 7px; color: #2563eb; background: #e8f1ff; }
+    .cloud-storage-progress { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 88px; }
+    .cloud-storage-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; line-height: 1; }
+    .cloud-storage-line strong { color: #1d4ed8; font-size: .58rem; }
+    .cloud-storage-line small { overflow: hidden; color: #718198; font-size: .48rem; text-overflow: ellipsis; white-space: nowrap; }
+    .cloud-storage-track { width: 100%; height: 4px; border-radius: 99px; background: #dbe5f1; overflow: hidden; }
+    .cloud-storage-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#2563eb,#22c55e); }
     .icon-btn:hover { background: #ffffff; color: var(--primary); border-color: #cbd5e1; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); }
     .btn-scroll-top { display: none; }
 
@@ -123,12 +158,47 @@ if (isset($_SESSION['cpanel_admin_id'])) {
         animation: pulse-dot 2s infinite;
     }
 
+    body.pw-page-enter .main-wrapper {
+        opacity: 0;
+        transform: translateY(8px) scale(.998);
+    }
+    body.pw-page-ready .main-wrapper {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        transition: opacity .26s ease, transform .26s cubic-bezier(.22,.61,.36,1);
+    }
+    body.pw-page-leaving .main-wrapper {
+        opacity: 0;
+        transform: translateY(5px) scale(.998);
+        pointer-events: none;
+        transition-duration: .18s;
+    }
+
     @media (max-width: 768px) {
         .top-header { margin: 12px 16px; top: 12px; padding: 0 16px; }
         .btn-mobile-menu { display: flex; }
         .btn-scroll-top { display: flex; }
         .role-badge, .plan-badge { display: none; }
         .header-title { font-size: 1rem; }
+    }
+
+    @media (max-width: 520px) {
+        .top-header { margin-left: 10px; margin-right: 10px; padding: 0 11px; }
+        .top-header-actions { gap: 6px; }
+        .cloud-storage-btn { width: 34px; min-width: 34px; padding: 0; }
+        .cloud-storage-progress { display: none; }
+        .cloud-storage-symbol { width: auto; height: auto; background: transparent; }
+        .header-title { max-width: 92px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        body.pw-page-enter .main-wrapper,
+        body.pw-page-ready .main-wrapper,
+        body.pw-page-leaving .main-wrapper {
+            opacity: 1;
+            transform: none;
+            transition: none;
+        }
     }
 </style>
 
@@ -158,10 +228,21 @@ if (isset($_SESSION['cpanel_admin_id'])) {
         // LÓGICA DEL BOTÓN DE NUBE (Solo visible para sst y representante)
         if ($usuario_rol_header === 'representante' || $usuario_rol_header === 'sst'): 
         ?>
-        <a href="#" class="icon-btn" title="Almacenamiento en la Nube">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
-            </svg>
+        <a href="almacenamiento" class="icon-btn cloud-storage-btn" title="Abrir almacenamiento documental">
+            <span class="cloud-storage-symbol">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="17" height="17">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
+                </svg>
+            </span>
+            <?php if ($storage_header): ?>
+                <span class="cloud-storage-progress">
+                    <span class="cloud-storage-line">
+                        <strong><?php echo number_format((float)$storage_header['porcentaje'], 1, ',', '.'); ?>%</strong>
+                        <small><?php echo storage_format_bytes((int)$storage_header['usado_bytes']); ?> / <?php echo number_format((float)$storage_header['cuota_gb'], 0, ',', '.'); ?> GB</small>
+                    </span>
+                    <span class="cloud-storage-track"><span style="width:<?php echo min(100, (float)$storage_header['porcentaje']); ?>%"></span></span>
+                </span>
+            <?php endif; ?>
         </a>
         <?php endif; ?>
 
@@ -177,3 +258,54 @@ if (isset($_SESSION['cpanel_admin_id'])) {
         </a>
     </div>
 </header>
+<script>
+(function () {
+    if (window.__pwPageTransitions) return;
+    window.__pwPageTransitions = true;
+
+    var body = document.body;
+    var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function enterPage() {
+        body.classList.remove('pw-page-leaving');
+        if (reducedMotion) {
+            body.classList.add('pw-page-ready');
+            return;
+        }
+        body.classList.add('pw-page-enter');
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+                body.classList.add('pw-page-ready');
+                body.classList.remove('pw-page-enter');
+            });
+        });
+    }
+
+    enterPage();
+    window.addEventListener('pageshow', enterPage);
+
+    document.addEventListener('click', function (event) {
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        var link = event.target.closest('a[href]');
+        if (!link || link.dataset.pageTransition === 'off' || link.hasAttribute('download')) return;
+        if (link.target && link.target.toLowerCase() !== '_self') return;
+
+        var rawHref = (link.getAttribute('href') || '').trim();
+        if (!rawHref || rawHref === '#' || rawHref.charAt(0) === '#') return;
+        if (/^(mailto:|tel:|javascript:)/i.test(rawHref)) return;
+
+        var destination;
+        try { destination = new URL(link.href, window.location.href); } catch (error) { return; }
+        if (destination.origin !== window.location.origin) return;
+        if (destination.pathname === window.location.pathname && destination.search === window.location.search && destination.hash) return;
+
+        event.preventDefault();
+        if (reducedMotion) {
+            window.location.assign(destination.href);
+            return;
+        }
+        body.classList.add('pw-page-ready', 'pw-page-leaving');
+        window.setTimeout(function () { window.location.assign(destination.href); }, 180);
+    });
+})();
+</script>

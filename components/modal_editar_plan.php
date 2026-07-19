@@ -171,6 +171,12 @@
                         <span class="hint" style="color: var(--muted); margin-top: 4px;">Escribe <b>999</b> si el plan incluye trabajadores ilimitados. Este número define el límite del sistema.</span>
                     </div>
 
+                    <div class="form-group" style="background:#eff6ff;padding:12px;border-radius:8px;border:1px solid #bfdbfe;">
+                        <label style="color:#1d4ed8;">Limite de almacenamiento (GB)</label>
+                        <input type="number" id="edit_almacenamiento_gb" name="almacenamiento_gb" required min="1" max="10000" step="1">
+                        <span class="hint" style="color:#64748b;margin-top:4px;">Esta cuota se aplica a todas las empresas que tengan este plan.</span>
+                    </div>
+
                     <div class="form-group">
                         <label>Precio Normal Mensual (COP)</label>
                         <input type="number" id="edit_precio_normal" name="precio_normal" required>
@@ -217,10 +223,11 @@
     }
 
     // AHORA RECIBIMOS LA CANTIDAD DE TRABAJADORES COMO PARÁMETRO (3ER LUGAR)
-    function abrirModalPlan(id, nombre, trabajadores, precio_normal, precio_descuento, featuresJson) {
+    function abrirModalPlan(id, nombre, trabajadores, almacenamiento_gb, precio_normal, precio_descuento, featuresJson) {
         document.getElementById('plan_id').value = id;
         document.getElementById('edit_nombre').value = nombre;
         document.getElementById('edit_trabajadores').value = trabajadores;
+        document.getElementById('edit_almacenamiento_gb').value = almacenamiento_gb;
         document.getElementById('edit_precio_normal').value = precio_normal;
         
         document.getElementById('edit_precio_descuento').value = (precio_descuento > 0 && precio_descuento < precio_normal) ? precio_descuento : '';

@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/db.php';
+require_once '../config/storage_schema.php';
 
 // Le decimos al navegador que vamos a responder con JSON
 header('Content-Type: application/json');
@@ -20,6 +21,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $stmt = $conn->prepare("UPDATE solicitudes_empresas SET plan_id = ?, trabajadores_extra = ? WHERE id = ?");
             $stmt->execute([$plan_id, $trabajadores_extra, $empresa_id]);
+            ensure_storage_schema($conn);
+            $storageContext = storage_company_context($conn, (int)$empresa_id);
+            if ($storageContext) {
+                storage_prepare_company_folders((int)$empresa_id, (int)$storageContext['nivel_plan']);
+            }
             
             // Respondemos éxito sin recargar la página
             echo json_encode(['success' => true, 'message' => '¡Suscripción actualizada con éxito!']);
